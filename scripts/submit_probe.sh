@@ -7,12 +7,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 [ -f "$SCRIPT_DIR/cluster_env.sh" ] && . "$SCRIPT_DIR/cluster_env.sh"
 
-QUEUE="${QUEUE:-normal}"
-BGROUP="${BGROUP:-team361}"
-MEM_GB="${MEM_GB:-32}"
-NCORES="${NCORES:-4}"
+QUEUE="${QUEUE:-oversubscribed}"
+BGROUP="${BGROUP:-s10396}"
+MEM_GB="${MEM_GB:-4}"
+NCORES="${NCORES:-2}"
 CONFIG="${CONFIG:-$ROOT/configs/probe.yaml}"
-LOG_DIR="$ROOT/outputs/linear_probe/logs"
+LOG_DIR="$ROOT/outputs/linear_probe_pca/logs"
 mkdir -p "$LOG_DIR"
 
 bsub <<EOF
