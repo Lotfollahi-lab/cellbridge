@@ -1,0 +1,23 @@
+# Linear-probe experiment on TENX99 (breast / IDC Xenium sample).
+sample_id: TENX99
+
+# --- inputs (absolute paths; the data lives outside the repo) ---
+terra_embeddings: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_terra.npz
+uni_embeddings: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_uni2.npz
+# TERRA file holds cell_emb + neighborhood_emb; probe the per-cell embedding.
+terra_key: cell_emb
+
+# Per-cell target expression, built by experiments.prepare_targets from the raw
+# transcripts (the HEST st/*.h5ad files are pseudo-spot, not per-cell).
+adata_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_cell_expression.h5ad
+transcripts_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/hest_samples/transcripts/TENX99_transcripts.parquet
+qv_threshold: 20
+
+# --- probe settings ---
+n_genes: 50
+test_frac: 0.2
+split_axis: y
+alphas: [0.01, 0.1, 1, 10, 100, 1000]
+
+# Output root, relative to the project root (where jobs and by-hand runs execute).
+output_dir: outputs/linear_probe
