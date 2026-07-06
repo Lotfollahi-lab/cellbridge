@@ -47,6 +47,8 @@ def align_by_cell_id(pairs):
     return aligned, shared_ids
 
 
+# TODO: this selects HVGs over all cells, including the held-out test region, so
+# the choice of target genes leaks test information into the evaluation (mild)
 def select_hvgs(adata_path, n_top):
     """Top-``n_top`` highly variable genes via ``seurat_v3`` on raw counts."""
     adata = ad.read_h5ad(adata_path)
