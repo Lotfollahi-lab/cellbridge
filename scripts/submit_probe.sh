@@ -12,7 +12,15 @@ BGROUP="${BGROUP:-s10396}"
 MEM_GB="${MEM_GB:-4}"
 NCORES="${NCORES:-2}"
 CONFIG="${CONFIG:-$ROOT/configs/probe.yaml}"
-LOG_DIR="$ROOT/outputs/linear_probe_pca/logs"
+
+# Derive the output dir from the config
+OUTPUT_DIR="$(sed -nE 's/^[[:space:]]*output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
+
+case "$OUTPUT_DIR" in
+  /*) : ;;                          # already absolute
+  *) OUTPUT_DIR="$ROOT/$OUTPUT_DIR" ;;  # relative to project root (matches run cwd)
+esac
+LOG_DIR="$OUTPUT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
 bsub <<EOF
