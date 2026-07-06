@@ -1,7 +1,7 @@
 """Aggregate the three cell-type classifiers: metrics table, per-class F1,
 confusion matrices.
 
-    PYTHONPATH=src python -m terra_multi.experiments.compare_celltype \\
+    PYTHONPATH=src python -m terra_multi.exploration.compare_celltype \\
         --results_dir outputs/celltype
 """
 

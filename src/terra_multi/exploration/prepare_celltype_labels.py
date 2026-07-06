@@ -8,8 +8,8 @@ Writes ``cell_id -> cell_type``.
 
 Run once, on the login/dev node (not inside the probe jobs):
 
-    PYTHONPATH=src python -m terra_multi.experiments.prepare_celltype_labels \\
-        --config configs/celltype.yaml
+    PYTHONPATH=src python -m terra_multi.exploration.prepare_celltype_labels \\
+        --config configs/exploration/celltype.yaml
 """
 
 import argparse

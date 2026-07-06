@@ -11,7 +11,7 @@ QUEUE="${QUEUE:-oversubscribed}"
 BGROUP="${BGROUP:-s10396}"
 MEM_GB="${MEM_GB:-8}"
 NCORES="${NCORES:-1}"
-CONFIG="${CONFIG:-$ROOT/configs/celltype.yaml}"
+CONFIG="${CONFIG:-$ROOT/configs/exploration/celltype.yaml}"
 
 # Derive the output dir from the config
 OUTPUT_DIR="$(sed -nE 's/^[[:space:]]*output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
@@ -43,5 +43,5 @@ cd ${ROOT}
 # Cap BLAS/OpenMP threads to the slot count: the classifier's matrices are small,
 # and unbounded threading oversubscribes badly (~59 CPU-min vs ~20 s at 1 thread).
 export OMP_NUM_THREADS=${NCORES} OPENBLAS_NUM_THREADS=${NCORES} MKL_NUM_THREADS=${NCORES} NUMEXPR_NUM_THREADS=${NCORES}
-PYTHONPATH=src python3 -m terra_multi.experiments.run_celltype_probe --config ${CONFIG} --model ${MODEL}
+PYTHONPATH=src python3 -m terra_multi.exploration.run_celltype_probe --config ${CONFIG} --model ${MODEL}
 EOF

@@ -1,7 +1,7 @@
 """Cell-type classification probe: one modality per job.
 
-    PYTHONPATH=src python -m terra_multi.experiments.run_celltype_probe \\
-        --config configs/celltype.yaml --model {terra|uni|concat}
+    PYTHONPATH=src python -m terra_multi.exploration.run_celltype_probe \\
+        --config configs/exploration/celltype.yaml --model {terra|uni|concat}
 
 Mirrors run_linear_probe (same cells, same spatial split, same UNI PCA), but the
 target is the CellViT class and the estimator is a logistic-regression classifier.
@@ -20,7 +20,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from terra_multi.experiments.run_linear_probe import apply_uni_pca
+from terra_multi.exploration.run_linear_probe import apply_uni_pca
 from terra_multi.helpers.io import align_by_cell_id, load_coords, load_embeddings
 from terra_multi.helpers.probe import fit_classifier
 from terra_multi.helpers.splits import spatial_split

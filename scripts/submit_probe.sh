@@ -11,7 +11,7 @@ QUEUE="${QUEUE:-oversubscribed}"
 BGROUP="${BGROUP:-s10396}"
 MEM_GB="${MEM_GB:-4}"
 NCORES="${NCORES:-2}"
-CONFIG="${CONFIG:-$ROOT/configs/probe.yaml}"
+CONFIG="${CONFIG:-$ROOT/configs/exploration/probe.yaml}"
 
 # Derive the output dir from the config
 OUTPUT_DIR="$(sed -nE 's/^[[:space:]]*output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
@@ -40,5 +40,5 @@ which python3
 python3 --version
 
 cd ${ROOT}
-PYTHONPATH=src python3 -m terra_multi.experiments.run_linear_probe --config ${CONFIG} --model ${MODEL}
+PYTHONPATH=src python3 -m terra_multi.exploration.run_linear_probe --config ${CONFIG} --model ${MODEL}
 EOF

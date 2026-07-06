@@ -8,7 +8,7 @@ uni_embeddings: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX9
 terra_key: cell_emb
 uni_key: uni_emb
 
-# Per-cell target expression, built by experiments.prepare_targets from the raw
+# Per-cell target expression, built by exploration.prepare_targets from the raw
 # transcripts (the HEST st/*.h5ad files are pseudo-spot, not per-cell).
 adata_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_cell_expression.h5ad
 transcripts_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/hest_samples/transcripts/TENX99_transcripts.parquet
