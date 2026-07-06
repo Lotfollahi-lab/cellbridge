@@ -1,0 +1,35 @@
+# Cell-type classification on TENX99 (CellViT PanNuke morphological classes).
+sample_id: TENX99
+
+# --- embeddings (same as the expression probe) ---
+terra_embeddings: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_terra.npz
+uni_embeddings: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_uni2.npz
+terra_key: cell_emb
+uni_key: uni_emb
+
+# Native-micron centroids (obsm['spatial']) for the spatial split live here.
+adata_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_cell_expression.h5ad
+
+# --- labels: CellViT class transferred onto Xenium cells (built by prepare_celltype_labels) ---
+labels_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/embeddings/TENX99_celltype_labels.parquet
+xenium_cell_seg: /lustre/scratch126/cellgen/lotfollahi/so25/data/hest_samples/xenium_seg/TENX99_xenium_cell_seg.parquet
+cellvit_seg: /lustre/scratch126/cellgen/lotfollahi/so25/data/hest_samples/cellvit_seg/TENX99_cellvit_seg.parquet
+# Cells whose nearest CellViT nucleus is farther than this (fallback only) are left Unassigned.
+fallback_max_um: 20
+# Classes to keep for the probe; drops Epithelial (3 cells) and Unassigned.
+keep_classes: [Connective, Neoplastic, Inflammatory]
+
+# --- split (same as the expression probe) ---
+test_frac: 0.2
+split_axis: y
+
+# --- features ---
+pca: true
+uni_pca_components: 256
+
+# --- classifier ---
+Cs: [0.1, 1, 10]
+class_weight: balanced
+
+# Output root, relative to the project root (where jobs and by-hand runs execute).
+output_dir: outputs/celltype
