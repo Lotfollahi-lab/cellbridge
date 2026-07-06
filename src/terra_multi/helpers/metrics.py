@@ -25,14 +25,18 @@ def per_gene_pcc(Y_true, Y_pred):
 
 def summarize(Y_true, Y_pred):
     pcc = per_gene_pcc(Y_true, Y_pred)
+    valid = pcc[~np.isnan(pcc)]  # drop zero-variance genes for all pcc summaries
     Yt = np.asarray(Y_true, dtype=np.float64)
     Yp = np.asarray(Y_pred, dtype=np.float64)
     rmse = float(np.sqrt(np.mean((Yt - Yp) ** 2)))
     return {
-        "mean_pcc": float(np.nanmean(pcc)),
-        "median_pcc": float(np.nanmedian(pcc)),
-        "pct_genes_pcc_gt_0.3": float(100.0 * np.mean(pcc > 0.3)),
+        "mean_pcc": float(np.mean(valid)) if valid.size else float("nan"),
+        "median_pcc": float(np.median(valid)) if valid.size else float("nan"),
+        # Percentage over valid genes only, consistent with mean/median above.
+        "pct_genes_pcc_gt_0.3": (
+            float(100.0 * np.mean(valid > 0.3)) if valid.size else float("nan")
+        ),
         "rmse": rmse,
         "n_genes": int(pcc.shape[0]),
-        "n_valid_genes": int(np.count_nonzero(~np.isnan(pcc))),
+        "n_valid_genes": int(valid.size),
     }
