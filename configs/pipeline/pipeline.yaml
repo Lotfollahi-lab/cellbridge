@@ -9,17 +9,17 @@ metadata_csv: HEST_v1_3_0.csv   # relative to hest_root
 species: Homo sapiens
 technologies: [Xenium, Xenium 5k]
 
-# Step 2 (QC): Xenium Q-Score cutoff for keeping a transcript call.
+# Step 2 (QC): Xenium Q-Value cutoff for keeping a transcript call.
 qv_threshold: 20
 
-# Step 3 (TERRA): keep the tokenized dataset after embedding (a resumable
+# Step 3 (cell labels): a cell whose polygon holds no CellViT nucleus is
+# labelled by its nearest nucleus, unless that nucleus is farther than this.
+fallback_max_um: 20
+
+# Step 4 (TERRA): keep the tokenized dataset after embedding (a resumable
 # scratch artifact, deleted on success by default). Set true only to re-embed
 # the same tokens repeatedly.
 keep_tokenized: false
-
-# Step 5 (cell-type labels): a cell whose polygon holds no CellViT nucleus is
-# labelled by its nearest nucleus, unless that nucleus is farther than this.
-fallback_max_um: 20
 
 # Per-sample pipeline outputs (manifest + embeddings + labels) live under here.
 output_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline

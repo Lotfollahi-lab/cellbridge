@@ -4,8 +4,8 @@ set -euo pipefail
 MODEL="$1"   # terra | uni | concat
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-[ -f "$SCRIPT_DIR/cluster_env.sh" ] && . "$SCRIPT_DIR/cluster_env.sh"
+ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+[ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
 QUEUE="${QUEUE:-oversubscribed}"
 BGROUP="${BGROUP:-s10396}"

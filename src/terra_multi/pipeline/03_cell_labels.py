@@ -1,8 +1,4 @@
-"""Transfer CellViT classes onto one sample's cells.
-
-    PYTHONPATH=src python -m terra_multi.pipeline.celltype \\
-        --config configs/pipeline/pipeline.yaml --sample-id TENX133
-"""
+"""Transfer CellViT labels onto QC cells."""
 
 import argparse
 from pathlib import Path

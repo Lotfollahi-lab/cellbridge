@@ -1,24 +1,25 @@
 #!/bin/bash
-# Step 5: submit one sample's cell-type label transfer (CPU).
 set -euo pipefail
 
-SAMPLE_ID="$1"   # e.g. TENX133
+SAMPLE_ID="$1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-[ -f "$SCRIPT_DIR/cluster_env.sh" ] && . "$SCRIPT_DIR/cluster_env.sh"
+ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+[ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-QUEUE="${QUEUE:-oversubscribed}"
+QUEUE="${LABEL_QUEUE:-${QUEUE:-oversubscribed}}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${MEM_GB:-8}"   # bump for big sections: MEM_GB=32 scripts/submit_labels.sh <id>
-NCORES="${NCORES:-1}"
+MEM_GB="${LABEL_MEM_GB:-64}"
+NCORES="${LABEL_NCORES:-4}"
+ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
 CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
+DEP_DIRECTIVE=""
+[ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
 
-# Per-sample outputs (and logs) live under output_root/<sample>.
 OUTPUT_ROOT="$(sed -nE 's/^[[:space:]]*output_root:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 case "$OUTPUT_ROOT" in
-  /*) : ;;                              # already absolute
-  *) OUTPUT_ROOT="$ROOT/$OUTPUT_ROOT" ;;  # relative to project root (matches run cwd)
+  /*) ;;
+  *) OUTPUT_ROOT="$ROOT/$OUTPUT_ROOT" ;;
 esac
 LOG_DIR="$OUTPUT_ROOT/$SAMPLE_ID/logs"
 mkdir -p "$LOG_DIR"
@@ -31,14 +32,12 @@ bsub <<EOF
 #BSUB -q ${QUEUE}
 #BSUB -G ${BGROUP}
 #BSUB -M ${MEM_GB}G
-#BSUB -R "select[mem>${MEM_GB}G] rusage[mem=${MEM_GB}G]"
+#BSUB -R "select[mem>${MEM_GB}G] rusage[mem=${MEM_GB}G] span[hosts=1]"
+${DEP_DIRECTIVE}
 
 set -euo pipefail
-module load cellgen/uv
-source ${ENV_PATH}/bin/activate
-which python3
-python3 --version
-
-cd ${ROOT}
-PYTHONPATH=src python3 -m terra_multi.pipeline.celltype --config ${CONFIG} --sample-id ${SAMPLE_ID}
+if command -v module >/dev/null 2>&1; then module load cellgen/uv; fi
+source "${ENV_PATH}/bin/activate"
+cd "${ROOT}"
+PYTHONPATH=src python3 src/terra_multi/pipeline/03_cell_labels.py --config "${CONFIG}" --sample-id "${SAMPLE_ID}"
 EOF

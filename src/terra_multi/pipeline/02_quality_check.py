@@ -1,14 +1,4 @@
-"""Reconstruct per-cell counts from Xenium transcripts.
-
-    PYTHONPATH=src python -m terra_multi.pipeline.qc \\
-        --config configs/pipeline/pipeline.yaml --sample-id TENX99
-
-Keeps assigned (``cell_id != -1``), confident (``qv >= threshold``), non-control
-transcripts, sums them into a raw (cells x genes) count matrix, and attaches
-native-micron (``obsm['spatial']``) and H&E-pixel (``obs['he_x'/'he_y']``)
-centroids plus scanpy QC metrics. Writes ``{output_dir}/{id}_qc.h5ad`` -- the
-input to the TERRA and UNI embedding steps.
-"""
+"""Build per-cell QC counts from Xenium transcripts."""
 
 import argparse
 from pathlib import Path
@@ -24,8 +14,6 @@ import yaml
 
 _CONTROL_PREFIXES = ("NegControlProbe_", "NegControlCodeword_", "BLANK_")
 _COLUMNS = ["cell_id", "feature_name", "x_location", "y_location", "he_x", "he_y", "qv"]
-# Xenium's "not in any cell" marker: -1 for integer cell_id columns, the string
-# "UNASSIGNED" for the string/binary ones. cell_id dtype varies across HEST-1k.
 _UNASSIGNED = {"-1", "UNASSIGNED"}
 
 
@@ -36,13 +24,7 @@ def _to_str(series):
 
 
 def reconstruct_cells(transcripts, qv_threshold):
-    """Per-cell (cells x genes) AnnData from a Xenium transcripts table.
-
-    ``transcripts`` needs the columns in ``_COLUMNS``. ``X`` is raw integer
-    counts; ``obs_names`` are string cell_ids, ``obsm['spatial']`` holds
-    native-micron centroids, and ``obs['he_x'/'he_y']`` the H&E level-0 pixel
-    centroids. Duplicate (cell, gene) transcripts are summed.
-    """
+    """Return raw counts plus native and H&E centroids."""
     df = transcripts[transcripts["qv"] >= qv_threshold]
     cell_id = _to_str(df["cell_id"])
     gene = _to_str(df["feature_name"])

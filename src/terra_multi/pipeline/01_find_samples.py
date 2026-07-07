@@ -4,8 +4,6 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-# Per-sample inputs, as {manifest column: (subdir, filename suffix)} under hest_root.
-# The filename is always "{id}{suffix}" (HEST-1k's convention across every subdir).
 INPUTS = {
     "transcripts": ("transcripts", "_transcripts.parquet"),
     "wsi": ("wsis", ".tif"),
@@ -15,13 +13,7 @@ INPUTS = {
 
 
 def discover_samples(cfg):
-    """Return the pipeline manifest as a DataFrame (one row per selected sample).
-
-    Columns: ``id``, ``st_technology``, ``pixel_size_um`` (per-sample WSI scale,
-    needed for image-patch cropping), ``output_dir``, and one resolved path per
-    entry in ``INPUTS``. Rows are sorted by ``id``. Raises if a selected sample
-    is missing any required input file.
-    """
+    """Return one manifest row per selected sample."""
     hest_root = Path(cfg["hest_root"])
     meta = pd.read_csv(hest_root / cfg["metadata_csv"], low_memory=False)
 

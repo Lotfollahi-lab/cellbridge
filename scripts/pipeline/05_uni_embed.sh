@@ -1,27 +1,25 @@
 #!/bin/bash
-# Step 4: submit one sample's UNI2-h image embedding job (GPU). Needs {id}_terra.npz.
 set -euo pipefail
 
-SAMPLE_ID="$1"   # e.g. TENX133
+SAMPLE_ID="$1"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-[ -f "$SCRIPT_DIR/cluster_env.sh" ] && . "$SCRIPT_DIR/cluster_env.sh"
+ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+[ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-# GPU job -- queue/GPU/cores/mem come from dedicated GPU_* vars so the CPU-tuned
-# QUEUE/MEM_GB/NCORES in cluster_env.sh don't get applied here. Override via env.
-QUEUE="${GPU_QUEUE:-gpu-normal}"
-GPU_SPEC="${GPU_SPEC:-num=1:gmem=20000}"
+QUEUE="${UNI_QUEUE:-${GPU_QUEUE:-gpu-normal}}"
+GPU_SPEC="${UNI_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=30000}}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${GPU_MEM_GB:-32}"
-NCORES="${GPU_NCORES:-4}"
+MEM_GB="${UNI_MEM_GB:-48}"
+NCORES="${UNI_NCORES:-4}"
 CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
+DEP_DIRECTIVE=""
+[ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
 
-# Per-sample outputs (and logs) live under output_root/<sample>.
 OUTPUT_ROOT="$(sed -nE 's/^[[:space:]]*output_root:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 case "$OUTPUT_ROOT" in
-  /*) : ;;                              # already absolute
-  *) OUTPUT_ROOT="$ROOT/$OUTPUT_ROOT" ;;  # relative to project root (matches run cwd)
+  /*) ;;
+  *) OUTPUT_ROOT="$ROOT/$OUTPUT_ROOT" ;;
 esac
 LOG_DIR="$OUTPUT_ROOT/$SAMPLE_ID/logs"
 mkdir -p "$LOG_DIR"
@@ -36,13 +34,11 @@ bsub <<EOF
 #BSUB -G ${BGROUP}
 #BSUB -M ${MEM_GB}G
 #BSUB -R "select[mem>${MEM_GB}G] rusage[mem=${MEM_GB}G] span[hosts=1]"
+${DEP_DIRECTIVE}
 
 set -euo pipefail
-module load cellgen/uv
-source ${ENV_PATH}/bin/activate
-which python3
-python3 --version
-
-cd ${ROOT}
-PYTHONPATH=src python3 -m terra_multi.pipeline.uni_embed --config ${CONFIG} --sample-id ${SAMPLE_ID}
+module load ISG/conda
+conda activate hest
+cd "${ROOT}"
+PYTHONPATH=src python3 src/terra_multi/pipeline/05_uni_embed.py --config "${CONFIG}" --sample-id "${SAMPLE_ID}"
 EOF

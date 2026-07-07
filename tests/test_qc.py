@@ -1,12 +1,13 @@
-"""QC reconstruction drops unassigned / low-qv / control-probe transcripts, sums
-duplicate (cell, gene) calls into counts, and averages both centroid systems.
-feature_name is passed as bytes to exercise the arrow `binary` decode path.
-"""
+"""QC reconstruction filters transcripts and aggregates per-cell counts."""
+
+import importlib
 
 import numpy as np
 import pandas as pd
 
-from terra_multi.pipeline.qc import reconstruct_cells
+reconstruct_cells = importlib.import_module(
+    "terra_multi.pipeline.02_quality_check"
+).reconstruct_cells
 
 # (cell_id, feature_name, x, y, he_x, he_y, qv). Cell 1 keeps GENEA x2 + GENEB;
 # cell 2 keeps GENEA only. The last three rows are each dropped for a reason.
