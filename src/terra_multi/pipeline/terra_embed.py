@@ -1,12 +1,11 @@
-"""Step 3 -- TERRA embeddings for one sample (harmonize -> tokenize -> embed).
+"""TERRA embeddings for one sample (harmonize -> tokenize -> embed).
 
     PYTHONPATH=src python -m terra_multi.pipeline.terra_embed \\
         --config configs/pipeline/pipeline.yaml --sample-id TENX99
 
 Reads the step-2 QC h5ad, maps genes onto TERRA's vocabulary with
 ``harmonize_adata`` (which also drops cells with <10 genes and genes in <10
-cells -- the only cell/gene QC gate; there is deliberately no total_counts
-floor), tokenizes every surviving cell's k=10 neighborhood, and runs
+cells), tokenizes every surviving cell's k=10 neighborhood, and runs
 ``embed_dataset`` over ALL of them. Writes ``{output_dir}/{id}_terra.npz`` with
 cell_emb, neighborhood_emb, cell_ids and he_x/he_y in embedding row order.
 
@@ -32,13 +31,6 @@ EMBED_BATCH_SIZE = 32
 
 
 def aligned_he(dataset_cell_ids, harmonized_obs):
-    """H&E centroids from ``harmonized_obs``, reordered to the embedding order.
-
-    ``embed_dataset`` returns rows in ``dataset`` order; the H&E pixel centroids
-    live in ``harmonized.obs`` keyed by cell_id. Reindexing here keeps every
-    array in the npz row-aligned by cell (the UNI step joins on this order).
-    Returns ``(he_x, he_y)`` arrays.
-    """
     ids = [str(c) for c in dataset_cell_ids]
     he = harmonized_obs.loc[ids, ["he_x", "he_y"]]
     assert list(he.index) == ids, "he centroid row order mismatch"
@@ -76,8 +68,7 @@ def main():
         min_genes_per_cell=MIN_GENES_PER_CELL,
     )
 
-    # Tokenize all cells, reusing an existing tokenized dataset if a previous run
-    # got that far -- tokenization is the slow CPU step; embedding may need a retry.
+    # Tokenize all cells, reusing an existing tokenized dataset if a previous run got that far
     tokenized_path = out_dir / f"{args.sample_id}_tokenized"
     cache_dir = out_dir / ".tokenize_cache"
     if tokenized_path.exists():
