@@ -1,32 +1,31 @@
-"""CellViT and Xenium segment the same tissue independently (no shared cell_id), so
-the transfer is spatial: the majority CellViT ``class`` among the nucleus
-centroids that fall inside each Xenium cell polygon, with a nearest-centroid
-fallback for cells whose polygon contains none.
-"""
+"""Spatial CellViT-to-Xenium label transfer."""
 
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 
-PX_UM = 0.2125  # default WSI level-0 micron/pixel; pass px_um per sample in a pipeline
+PX_UM = 0.2125
 
 
 def load_cell_polygons(xenium_cell_seg_path, cell_ids):
-    """Xenium cell polygons for ``cell_ids``, as a GeoDataFrame with a cell_id column.
-
-    The Xenium cell_id is stored as the parquet index (``__index_level_0__``), so
-    pull it back out to a column before filtering to the cells we care about.
-    """
+    """Load Xenium polygons for the requested cells."""
     keep = set(np.asarray(cell_ids).astype(str))
-    xen = gpd.read_parquet(xenium_cell_seg_path).reset_index(names="cell_id")
+
+    xen = gpd.read_parquet(xenium_cell_seg_path)
+    if "cell_id" not in xen.columns:
+        index_name = xen.index.name or "index"
+        xen = xen.reset_index().rename(columns={index_name: "cell_id"})
+    else:
+        xen = xen.copy()
+
     xen["cell_id"] = xen["cell_id"].astype(str)
     xen = xen[xen["cell_id"].isin(keep)][["cell_id", "geometry"]]
     return xen.set_crs(None, allow_override=True)
 
 
 def load_cellvit_points(cellvit_seg_path):
-    """CellViT nucleus centroids + class, as a GeoDataFrame of points."""
+    """Load CellViT nucleus centroids and classes."""
     cv = gpd.read_parquet(cellvit_seg_path)
     return gpd.GeoDataFrame(
         {"cellvit_class": cv["class"].to_numpy()},
@@ -37,16 +36,7 @@ def load_cellvit_points(cellvit_seg_path):
 def transfer_labels(
     cell_ids, he_xy, cell_polygons, cellvit_points, fallback_max_um=20.0, px_um=PX_UM
 ):
-    """Transfer a CellViT class onto each Xenium cell.
-
-    For each Xenium cell, take the majority ``class`` among the CellViT nucleus
-    centroids that fall inside its polygon; cells whose polygon contains no
-    nucleus fall back to the nearest CellViT centroid, and those farther than
-    ``fallback_max_um`` are marked ``"Unassigned"``. ``he_xy`` is the ``(N, 2)``
-    array of H&E-pixel cell centroids used for the fallback; ``px_um`` is the WSI
-    level-0 micron/pixel for that sample (the px<->um scale). Returns a DataFrame
-    (cell_id, cell_type, n_nuclei, method, fallback_dist_um) in ``cell_ids`` order.
-    """
+    """Return one transferred label per input cell."""
     cell_ids = np.asarray(cell_ids).astype(str)
     he_xy = np.asarray(he_xy, dtype=float)
     fallback_max_px = float(fallback_max_um) / px_um

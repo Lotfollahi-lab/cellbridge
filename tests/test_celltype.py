@@ -6,7 +6,7 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Point, box
 
-from terra_multi.helpers.labels import transfer_labels
+from terra_multi.helpers.labels import load_cell_polygons, transfer_labels
 
 # Three Xenium cells: A holds nuclei, B is empty but near A, C is empty and far.
 CELLS = gpd.GeoDataFrame(
@@ -38,3 +38,15 @@ def test_transfer_labels():
     # C: nearest centroid is far beyond the cutoff -> Unassigned.
     assert labels.loc["C", "method"] == "fallback"
     assert labels.loc["C", "cell_type"] == "Unassigned"
+
+
+def test_load_cell_polygons_accepts_cell_id_column(tmp_path):
+    path = tmp_path / "xenium.parquet"
+    gdf = gpd.GeoDataFrame(
+        {"cell_id": ["A", "B"], "geometry": [box(0, 0, 1, 1), box(1, 1, 2, 2)]}
+    )
+    gdf.to_parquet(path)
+
+    out = load_cell_polygons(path, ["B"])
+
+    assert out["cell_id"].tolist() == ["B"]
