@@ -76,7 +76,7 @@ def main():
 
     out_dir = Path(row["output_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"{args.sample_id}_qc.h5ad"
+    out_path = out_dir / f"{args.sample_id}.h5ad"
     adata.write_h5ad(out_path)
     print(
         f"{args.sample_id}: {adata.n_obs:,} cells x {adata.n_vars} genes -> {out_path}"

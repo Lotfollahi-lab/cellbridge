@@ -28,7 +28,7 @@ def main():
     row = manifest.loc[args.sample_id]
     out_dir = Path(row["output_dir"])
 
-    adata = ad.read_h5ad(out_dir / f"{args.sample_id}_qc.h5ad")
+    adata = ad.read_h5ad(out_dir / f"{args.sample_id}.h5ad")
     cell_ids = adata.obs_names.to_numpy()
     he = adata.obs[["he_x", "he_y"]].to_numpy(dtype=float)
 
@@ -38,7 +38,7 @@ def main():
         cell_ids, he, xen, cv_pts, fallback_max_um, px_um=float(row["pixel_size_um"])
     )
 
-    out_path = out_dir / f"{args.sample_id}_celltype_labels.parquet"
+    out_path = out_dir / f"{args.sample_id}_cell_labels.parquet"
     labels.to_parquet(out_path, index=False)
     print(
         f"{args.sample_id}: labelled {len(labels):,} cells "

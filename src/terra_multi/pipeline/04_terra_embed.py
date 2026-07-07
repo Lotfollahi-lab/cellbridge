@@ -13,7 +13,7 @@ import yaml
 MODEL_NAME = "Lotfollahi-lab/TERRA-112M"
 MIN_GENES_PER_CELL = 10
 MIN_CELLS_PER_GENE = 10
-EMBED_BATCH_SIZE = 32
+EMBED_BATCH_SIZE = 128
 
 
 def aligned_he(dataset_cell_ids, harmonized_obs):
@@ -27,15 +27,19 @@ def main():
     parser = argparse.ArgumentParser(description="TERRA-embed one sample's cells.")
     parser.add_argument("--config", required=True)
     parser.add_argument("--sample-id", required=True)
+    parser.add_argument("--batch-size", type=int, default=EMBED_BATCH_SIZE)
     args = parser.parse_args()
+    if args.batch_size < 1:
+        raise ValueError("--batch-size must be positive")
 
     with open(args.config) as fh:
         cfg = yaml.safe_load(fh)
     keep_tokenized = bool(cfg.get("keep_tokenized", False))
+    n_workers = len(os.sched_getaffinity(0))
 
     manifest = pd.read_csv(Path(cfg["output_root"]) / "manifest.csv").set_index("id")
     out_dir = Path(manifest.loc[args.sample_id, "output_dir"])
-    adata = ad.read_h5ad(out_dir / f"{args.sample_id}_qc.h5ad")
+    adata = ad.read_h5ad(out_dir / f"{args.sample_id}.h5ad")
 
     from datasets import load_from_disk
     from terra import (
@@ -63,12 +67,15 @@ def main():
             adata=harmonized,
             model_folder_path=str(model_dir),
             cache_directory_path=str(cache_dir),
-            nproc=len(os.sched_getaffinity(0)),
+            nproc=n_workers,
         )
         dataset.save_to_disk(str(tokenized_path))
 
     embeddings = embed_dataset(
-        dataset=dataset, model_folder_path=str(model_dir), batch_size=EMBED_BATCH_SIZE
+        dataset=dataset,
+        model_folder_path=str(model_dir),
+        batch_size=args.batch_size,
+        num_workers=n_workers,
     )
 
     cell_ids = np.array(dataset["cell_id"])
