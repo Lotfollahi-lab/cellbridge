@@ -9,7 +9,7 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 QUEUE="${QC_QUEUE:-${QUEUE:-oversubscribed}}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${QC_MEM_GB:-32}"
+MEM_GB="${QC_MEM_GB:-8}"
 NCORES="${QC_NCORES:-4}"
 ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
 CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"

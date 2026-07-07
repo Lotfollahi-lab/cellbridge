@@ -7,11 +7,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-QUEUE="${UNI_QUEUE:-${GPU_QUEUE:-gpu-normal}}"
+QUEUE="${UNI_QUEUE:-${GPU_QUEUE:-training-normal}}"
 GPU_SPEC="${UNI_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=30000}}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${UNI_MEM_GB:-48}"
-NCORES="${UNI_NCORES:-4}"
+MEM_GB="${UNI_MEM_GB:-16}"
+NCORES="${UNI_NCORES:-12}"
+BATCH_SIZE="${UNI_BATCH_SIZE:-128}"
 CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
@@ -40,5 +41,8 @@ set -euo pipefail
 module load ISG/conda
 conda activate hest
 cd "${ROOT}"
-PYTHONPATH=src python3 src/terra_multi/pipeline/05_uni_embed.py --config "${CONFIG}" --sample-id "${SAMPLE_ID}"
+PYTHONPATH=src python3 src/terra_multi/pipeline/05_uni_embed.py \
+  --config "${CONFIG}" \
+  --sample-id "${SAMPLE_ID}" \
+  --batch-size "${BATCH_SIZE}"
 EOF

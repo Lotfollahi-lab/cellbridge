@@ -7,11 +7,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-QUEUE="${TERRA_QUEUE:-${GPU_QUEUE:-gpu-normal}}"
+QUEUE="${TERRA_QUEUE:-${GPU_QUEUE:-training-normal}}"
 GPU_SPEC="${TERRA_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=20000}}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${TERRA_MEM_GB:-48}"
-NCORES="${TERRA_NCORES:-4}"
+MEM_GB="${TERRA_MEM_GB:-16}"
+NCORES="${TERRA_NCORES:-12}"
+BATCH_SIZE="${TERRA_BATCH_SIZE:-128}"
 ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
 CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
 DEP_DIRECTIVE=""
@@ -41,5 +42,8 @@ set -euo pipefail
 if command -v module >/dev/null 2>&1; then module load cellgen/uv; fi
 source "${ENV_PATH}/bin/activate"
 cd "${ROOT}"
-PYTHONPATH=src python3 src/terra_multi/pipeline/04_terra_embed.py --config "${CONFIG}" --sample-id "${SAMPLE_ID}"
+PYTHONPATH=src python3 src/terra_multi/pipeline/04_terra_embed.py \
+  --config "${CONFIG}" \
+  --sample-id "${SAMPLE_ID}" \
+  --batch-size "${BATCH_SIZE}"
 EOF

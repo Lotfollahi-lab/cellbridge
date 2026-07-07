@@ -39,7 +39,10 @@ def main():
     parser = argparse.ArgumentParser(description="UNI2-h embed one sample's cells.")
     parser.add_argument("--config", required=True)
     parser.add_argument("--sample-id", required=True)
+    parser.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     args = parser.parse_args()
+    if args.batch_size < 1:
+        raise ValueError("--batch-size must be positive")
 
     with open(args.config) as fh:
         cfg = yaml.safe_load(fh)
@@ -67,10 +70,10 @@ def main():
 
     embs = []
     with torch.inference_mode():
-        for i in range(0, len(centers), BATCH_SIZE):
+        for i in range(0, len(centers), args.batch_size):
             batch = [
                 eval_transform(Image.fromarray(crop_patch(wsi, cx, cy, patch_size_src)))
-                for cx, cy in centers[i : i + BATCH_SIZE]
+                for cx, cy in centers[i : i + args.batch_size]
             ]
             x = torch.stack(batch).to(device)
             with torch.autocast(
