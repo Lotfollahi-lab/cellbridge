@@ -12,5 +12,10 @@ technologies: [Xenium, Xenium 5k]
 # Step 2 (QC): Xenium Q-Score cutoff for keeping a transcript call.
 qv_threshold: 20
 
+# Step 3 (TERRA): keep the tokenized dataset after embedding (a resumable
+# scratch artifact, deleted on success by default). Set true only to re-embed
+# the same tokens repeatedly.
+keep_tokenized: false
+
 # Per-sample pipeline outputs (manifest + embeddings + labels) live under here.
 output_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline
