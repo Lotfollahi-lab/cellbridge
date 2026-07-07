@@ -17,5 +17,9 @@ qv_threshold: 20
 # the same tokens repeatedly.
 keep_tokenized: false
 
+# Step 5 (cell-type labels): a cell whose polygon holds no CellViT nucleus is
+# labelled by its nearest nucleus, unless that nucleus is farther than this.
+fallback_max_um: 20
+
 # Per-sample pipeline outputs (manifest + embeddings + labels) live under here.
 output_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline
