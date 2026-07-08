@@ -15,6 +15,14 @@ ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}
 CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
+GPU_SPEC="${LABEL_GPU_SPEC:-${CPU_GPU_SPEC:-}}"
+if [ -z "$GPU_SPEC" ]; then
+  case ",${QUEUE}," in
+    *,training-normal,*|*,training-parallel,*|*,gpu-interactive,*|*,inference,*) GPU_SPEC="-" ;;
+  esac
+fi
+GPU_DIRECTIVE=""
+[ -n "$GPU_SPEC" ] && GPU_DIRECTIVE="#BSUB -gpu \"${GPU_SPEC}\""
 
 OUTPUT_ROOT="$(sed -nE 's/^[[:space:]]*output_root:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 case "$OUTPUT_ROOT" in
@@ -30,6 +38,7 @@ bsub <<EOF
 #BSUB -e ${LOG_DIR}/labels_${SAMPLE_ID}_%J.err
 #BSUB -n ${NCORES}
 #BSUB -q ${QUEUE}
+${GPU_DIRECTIVE}
 #BSUB -G ${BGROUP}
 #BSUB -M ${MEM_GB}G
 #BSUB -R "select[mem>${MEM_GB}G] rusage[mem=${MEM_GB}G] span[hosts=1]"
