@@ -35,6 +35,14 @@ def crop_patch(wsi, cx, cy, patch_size_src):
     return np.asarray(img)
 
 
+def open_wsi(path, tifffile, zarr):
+    try:
+        return zarr.open(tifffile.imread(path, aszarr=True, level=0), mode="r")
+    except Exception as exc:
+        print(f"level=0 TIFF open failed for {path}: {exc}; trying key=0")
+        return zarr.open(tifffile.imread(path, aszarr=True, key=0), mode="r")
+
+
 def main():
     parser = argparse.ArgumentParser(description="UNI2-h embed one sample's cells.")
     parser.add_argument("--config", required=True)
@@ -62,7 +70,7 @@ def main():
     import zarr
     from trident.patch_encoder_models import encoder_factory
 
-    wsi = zarr.open(tifffile.imread(row["wsi"], aszarr=True, level=0), mode="r")
+    wsi = open_wsi(row["wsi"], tifffile, zarr)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     encoder = encoder_factory(ENCODER_NAME).to(device).eval()
     eval_transform = encoder.eval_transforms
