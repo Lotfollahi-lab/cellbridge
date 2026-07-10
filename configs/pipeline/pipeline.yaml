@@ -22,4 +22,4 @@ fallback_max_um: 20
 keep_tokenized: false
 
 # Per-sample pipeline outputs (manifest + embeddings + labels) live under here.
-output_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline
+output_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest
