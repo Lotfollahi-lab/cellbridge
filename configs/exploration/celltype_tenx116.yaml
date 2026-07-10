@@ -1,0 +1,31 @@
+# Fine-grained cell-type classification on TENX116.
+sample_id: TENX116
+
+# Pipeline artifacts. TERRA and UNI contain the same 190,285 cells in the same order.
+terra_embeddings: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline/TENX116/TENX116_terra.npz
+uni_embeddings: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline/TENX116/TENX116_uni2.npz
+terra_key: cell_emb
+terra_neighbor_key: neighborhood_emb
+uni_key: uni_emb
+
+# Native-micron coordinates for the spatial split.
+adata_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline/TENX116/TENX116.h5ad
+
+# Fine-grained labels. All 16 classes are retained.
+labels_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/pipeline/TENX116/TENX116_granular_cell_labels.csv
+label_id_column: cell_id
+label_column: group
+
+# Deterministic spatial holdout.
+test_frac: 0.2
+split_axis: y
+
+# UNI reduction, fit on training cells only.
+pca: true
+uni_pca_components: 256
+
+# Multinomial linear probe.
+Cs: [0.1, 1, 10]
+class_weight: balanced
+
+output_dir: outputs/granular_celltype/TENX116
