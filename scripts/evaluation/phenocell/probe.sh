@@ -9,7 +9,7 @@ ARM="${2:-}"
 case "$ARM" in ""|uni|distilled) ;; *) echo "arm must be uni or distilled" >&2; exit 1 ;; esac
 case "$CONFIG" in /*) ;; *) CONFIG="$ROOT/$CONFIG" ;; esac
 
-OUTPUT_DIR="$(sed -nE 's/^[[:space:]]*output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
+OUTPUT_DIR="$(sed -nE 's/^output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 case "$OUTPUT_DIR" in /*) ;; *) OUTPUT_DIR="$ROOT/$OUTPUT_DIR" ;; esac
 mkdir -p "$OUTPUT_DIR/logs"
 

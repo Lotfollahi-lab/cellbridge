@@ -55,7 +55,10 @@ scripts/distill/submit_probe.sh configs/distill/distill_v0.yaml distilled
 
 PhenoCell is evaluated separately from HEST. The workflow reconstructs each
 field from its LMDB tiles, extracts centred cell-context crops, and compares
-frozen raw UNI with distilled embeddings on the official patient split.
+frozen raw UNI with distilled embeddings on the official patient split. Stable
+UNI features are kept under `data/eval/phenocell/embeddings/`; each experiment
+output keeps checkpoint-specific projections under `embeddings/distilled/` and
+probe results under `probes/`.
 
 ```bash
 scripts/evaluation/phenocell/submit_all.sh configs/evaluation/phenocell.yaml
@@ -69,5 +72,13 @@ DEPENDENCY=<distillation-job-id> \
 ```
 
 The probe reports both the full 14-class benchmark and an immune-only task.
-Change `crop_size`, `projector_checkpoint`, or `output_dir` in a copied config
+Change `crop_size`, `projection.checkpoint`, or `output_dir` in a copied config
 to keep evaluation variants isolated.
+
+After the UNI cache exists, new distillation variants only need projection and
+probing. Keep `embedding.output_dir` unchanged, then change
+`projection.checkpoint` and the top-level `output_dir` in a copied config:
+
+```bash
+scripts/evaluation/phenocell/submit_variant.sh configs/evaluation/my_variant.yaml
+```

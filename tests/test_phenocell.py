@@ -1,6 +1,11 @@
 import numpy as np
 import pandas as pd
 
+from terra_multi.evaluation.embed_phenocell import (
+    complete_manifest,
+    embedding_signature,
+    validate_existing_signature,
+)
 from terra_multi.evaluation.phenocell_data import (
     centered_crop,
     instance_centroids,
@@ -8,6 +13,7 @@ from terra_multi.evaluation.phenocell_data import (
     reconstruct_image,
     tile_geometries,
 )
+from terra_multi.evaluation.probe_phenocell import load_distilled
 
 
 def split_like_phenocell(image, tile_size):
@@ -57,3 +63,47 @@ def test_centered_crop_pads_field_edge_in_white():
     assert np.all(crop[:2] == 255)
     assert np.all(crop[:, :2] == 255)
     assert np.all(crop[2:, 2:] == 0)
+
+
+def test_distilled_rows_must_align_with_uni_rows(tmp_path):
+    path = tmp_path / "sample.npz"
+    np.savez(
+        path,
+        row_id=np.array([2, 1]),
+        distilled_emb=np.ones((2, 3), dtype=np.float16),
+    )
+    manifest = pd.DataFrame({"path": [str(path)]})
+    features = load_distilled(manifest, np.array([2, 1]))
+    assert features.shape == (2, 3)
+
+    with np.testing.assert_raises_regex(ValueError, "not aligned"):
+        load_distilled(manifest, np.array([1, 2]))
+
+
+def test_complete_uni_manifest_requires_every_expected_cell(tmp_path):
+    sample = tmp_path / "sample.npz"
+    np.savez(sample, uni_emb=np.ones((2, 3)))
+    pd.DataFrame(
+        {"sample_id": ["A"], "n_cells": [2], "path": [str(sample)]}
+    ).to_csv(tmp_path / "manifest.csv", index=False)
+    metadata = pd.DataFrame({"sample_id": ["A", "A"]})
+    assert complete_manifest(tmp_path, metadata) is not None
+
+    metadata.loc[2] = "A"
+    assert complete_manifest(tmp_path, metadata) is None
+
+
+def test_uni_cache_rejects_a_different_crop_size(tmp_path):
+    cfg = {
+        "data": {"metadata": "cells.csv"},
+        "embedding": {"encoder": "uni_v2", "crop_size": 96, "output_dir": str(tmp_path)},
+    }
+    with open(tmp_path / "embedding_config.yaml", "w") as handle:
+        import yaml
+
+        yaml.safe_dump(embedding_signature(cfg), handle)
+    validate_existing_signature(tmp_path, cfg)
+
+    cfg["embedding"]["crop_size"] = 128
+    with np.testing.assert_raises_regex(ValueError, "different encoder, crop, or dataset"):
+        validate_existing_signature(tmp_path, cfg)

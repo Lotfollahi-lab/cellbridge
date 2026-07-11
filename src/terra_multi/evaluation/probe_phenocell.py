@@ -21,14 +21,14 @@ IMMUNE_CLASSES = (
     "NK cells",
     "Plasma cells",
 )
-ARMS = {"uni": "uni_emb", "distilled": "distilled_emb"}
+ARMS = ("uni", "distilled")
 
 
-def load_arm(manifest, key):
+def load_uni(manifest):
     features, records = [], []
     for path in manifest["path"]:
         with np.load(path, allow_pickle=False) as data:
-            features.append(data[key].astype(np.float32))
+            features.append(data["uni_emb"].astype(np.float32))
             records.append(
                 pd.DataFrame(
                     {
@@ -45,6 +45,18 @@ def load_arm(manifest, key):
     table = pd.concat(records, ignore_index=True)
     split = table["split"].replace({"valid": "val"}).to_numpy()
     return np.concatenate(features), table, split
+
+
+def load_distilled(manifest, expected_row_ids):
+    features, row_ids = [], []
+    for path in manifest["path"]:
+        with np.load(path, allow_pickle=False) as data:
+            features.append(data["distilled_emb"].astype(np.float32))
+            row_ids.append(data["row_id"])
+    row_ids = np.concatenate(row_ids)
+    if not np.array_equal(row_ids, expected_row_ids):
+        raise ValueError("distilled embeddings are not aligned with cached UNI rows")
+    return np.concatenate(features)
 
 
 def validate_official_split(table, split_path):
@@ -151,18 +163,26 @@ def evaluate(features, table, split, task, arm, settings):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
-    parser.add_argument("--arm", choices=tuple(ARMS))
+    parser.add_argument("--arm", choices=ARMS)
     args = parser.parse_args()
     with open(args.config) as handle:
         cfg = yaml.safe_load(handle)
 
     output_dir = Path(cfg["output_dir"])
-    manifest = pd.read_csv(output_dir / "manifest.csv")
+    uni_dir = Path(cfg["embedding"]["output_dir"])
+    uni_manifest = pd.read_csv(uni_dir / "manifest.csv")
+    uni, table, split = load_uni(uni_manifest)
+    validate_official_split(table, cfg["data"]["split"])
     arms = [args.arm] if args.arm else list(ARMS)
     all_metrics, all_classes = [], []
     for arm in arms:
-        features, table, split = load_arm(manifest, ARMS[arm])
-        validate_official_split(table, cfg["data"]["split"])
+        if arm == "uni":
+            features = uni
+        else:
+            projection_manifest = pd.read_csv(
+                output_dir / "embeddings" / "distilled" / "manifest.csv"
+            )
+            features = load_distilled(projection_manifest, table["row_id"].to_numpy())
         for task in cfg["probe"].get("tasks", ["all", "immune"]):
             metrics, class_rows, predictions = evaluate(
                 features, table, split, task, arm, cfg["probe"]

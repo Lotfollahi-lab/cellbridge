@@ -7,7 +7,11 @@ ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 CONFIG="${1:-$ROOT/configs/evaluation/phenocell.yaml}"
 case "$CONFIG" in /*) ;; *) CONFIG="$ROOT/$CONFIG" ;; esac
 
-OUTPUT_DIR="$(sed -nE 's/^[[:space:]]*output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
+OUTPUT_DIR="$(awk '
+  /^embedding:/ { section=1; next }
+  section && /^[^[:space:]]/ { section=0 }
+  section && $1 == "output_dir:" { print $2; exit }
+' "$CONFIG")"
 case "$OUTPUT_DIR" in /*) ;; *) OUTPUT_DIR="$ROOT/$OUTPUT_DIR" ;; esac
 mkdir -p "$OUTPUT_DIR/logs"
 

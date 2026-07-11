@@ -9,9 +9,13 @@ data:
 
 embedding:
   encoder: uni_v2
-  projector_checkpoint: checkpoints/distill_v0/best.pt
   crop_size: 96
   batch_size: 128
+  output_dir: /lustre/scratch126/cellgen/lotfollahi/so25/data/eval/phenocell/embeddings/uni_v2/crop_96px
+
+projection:
+  checkpoint: checkpoints/distill_v0/best.pt
+  batch_size: 8192
 
 probe:
   tasks: [all, immune]
