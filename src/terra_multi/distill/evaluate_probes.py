@@ -1,0 +1,208 @@
+"""Evaluate UNI, TERRA, and distilled embeddings with linear probes."""
+
+import argparse
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import yaml
+from sklearn.metrics import f1_score
+
+from terra_multi.distill.data import LABEL_SUFFIX
+
+ARMS = {
+    "uni_baseline": ("uni", False),
+    "terra_teacher": ("terra", False),
+    "distilled": ("terra", True),
+    "concat_oracle": ("concat", False),
+}
+
+
+def _sample_path(data_root, sample_id, suffix):
+    return str(Path(data_root) / sample_id / f"{sample_id}{suffix}")
+
+
+def _paths(cfg):
+    output = Path(cfg["output_dir"])
+    return output, output / "label_test_distilled", output / "label_test_probes"
+
+
+def _label_test_samples(cfg, limit=None):
+    splits = pd.read_csv(cfg["splits_path"])
+    samples = splits.loc[splits["split"] == "label_test", "sample_id"].astype(str)
+    return samples.iloc[:limit].tolist() if limit is not None else samples.tolist()
+
+
+def _keep_classes(labels_path, label_column, min_count):
+    counts = pd.read_csv(labels_path)[label_column].value_counts()
+    return counts.index[counts >= min_count].astype(str).tolist()
+
+
+def _arm_config(cfg, sample_id, arm, distilled_dir, output_dir):
+    settings = cfg["eval"]
+    model, use_distilled = ARMS[arm]
+    data_root = cfg["data_root"]
+    labels_path = _sample_path(data_root, sample_id, LABEL_SUFFIX)
+    terra_path = (
+        str(distilled_dir / f"{sample_id}_terra.npz")
+        if use_distilled
+        else _sample_path(data_root, sample_id, "_terra.npz")
+    )
+    return {
+        "sample_id": sample_id,
+        "terra_embeddings": terra_path,
+        "uni_embeddings": _sample_path(data_root, sample_id, "_uni2.npz"),
+        "terra_key": cfg["terra_key"],
+        "terra_neighbor_key": "neighborhood_emb",
+        "uni_key": cfg["uni_key"],
+        "adata_path": _sample_path(data_root, sample_id, ".h5ad"),
+        "labels_path": labels_path,
+        "label_id_column": settings["label_id_column"],
+        "label_column": settings["label_column"],
+        "keep_classes": _keep_classes(
+            labels_path, settings["label_column"], settings["min_class_count"]
+        ),
+        "test_frac": settings["test_frac"],
+        "split_axis": settings["split_axis"],
+        "pca": settings["pca"],
+        "uni_pca_components": settings["uni_pca_components"],
+        "Cs": settings["Cs"],
+        "class_weight": settings["class_weight"],
+        "output_dir": str(output_dir),
+        "model": model,
+    }
+
+
+def _run_probe(config_path, model, root):
+    env = dict(os.environ)
+    src = str(root / "src")
+    env["PYTHONPATH"] = (
+        src + os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else src
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "terra_multi.exploration.run_celltype_probe",
+            "--config",
+            str(config_path),
+            "--model",
+            model,
+        ],
+        cwd=root,
+        env=env,
+        check=True,
+    )
+
+
+def run_arm(cfg, arm, samples, root):
+    _, distilled_dir, probe_root = _paths(cfg)
+    model = ARMS[arm][0]
+    for sample_id in samples:
+        output_dir = probe_root / sample_id / arm
+        output_dir.mkdir(parents=True, exist_ok=True)
+        config_path = output_dir / "config.yaml"
+        with open(config_path, "w") as fh:
+            yaml.safe_dump(
+                _arm_config(cfg, sample_id, arm, distilled_dir, output_dir), fh
+            )
+        _run_probe(config_path, model, root)
+        print(f"[{arm}] {sample_id} done")
+
+
+def _read_result(model_dir):
+    metrics = pd.read_csv(model_dir / "metrics.csv").iloc[0].to_dict()
+    with np.load(model_dir / "predictions.npz", allow_pickle=True) as data:
+        classes = data["classes"].astype(str)
+        scores = f1_score(
+            data["y_true"],
+            data["y_pred"],
+            labels=classes,
+            average=None,
+            zero_division=0,
+        )
+    return metrics, dict(zip(classes, scores.astype(float)))
+
+
+def aggregate(cfg, samples):
+    output_dir, _, probe_root = _paths(cfg)
+    headline_rows, class_rows, missing = [], [], []
+    for sample_id in samples:
+        for arm, (model, _) in ARMS.items():
+            model_dir = probe_root / sample_id / arm / model
+            required = (model_dir / "metrics.csv", model_dir / "predictions.npz")
+            if not all(path.exists() for path in required):
+                missing.append(f"{sample_id}/{arm}")
+                continue
+            metrics, per_class = _read_result(model_dir)
+            headline_rows.append(
+                {
+                    "sample_id": sample_id,
+                    "arm": arm,
+                    **{
+                        name: metrics[name]
+                        for name in (
+                            "accuracy",
+                            "balanced_accuracy",
+                            "macro_f1",
+                            "macro_auroc",
+                            "n_classes",
+                        )
+                    },
+                }
+            )
+            class_rows.extend(
+                {
+                    "sample_id": sample_id,
+                    "arm": arm,
+                    "class": label,
+                    "f1": score,
+                }
+                for label, score in per_class.items()
+            )
+
+    if missing:
+        print(f"WARNING: {len(missing)} incomplete runs, e.g. {missing[:5]}")
+    if not headline_rows:
+        raise SystemExit("no complete probe runs found")
+
+    headline = pd.DataFrame(headline_rows)
+    headline.to_csv(output_dir / "label_test_probe_metrics.csv", index=False)
+    pd.DataFrame(class_rows).to_csv(
+        output_dir / "label_test_per_class_f1.csv", index=False
+    )
+    metrics = ["accuracy", "balanced_accuracy", "macro_f1", "macro_auroc"]
+    summary = headline.groupby("arm")[metrics].agg(["mean", "std"])
+    summary.columns = [f"{name}_{stat}" for name, stat in summary.columns]
+    summary = summary.reindex([arm for arm in ARMS if arm in summary.index])
+    summary.to_csv(output_dir / "label_test_summary.csv")
+    print(summary.to_string())
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--arm", choices=list(ARMS))
+    parser.add_argument("--aggregate-only", action="store_true")
+    parser.add_argument("--limit-samples", type=int)
+    args = parser.parse_args()
+    with open(args.config) as fh:
+        cfg = yaml.safe_load(fh)
+
+    samples = _label_test_samples(cfg, args.limit_samples)
+    root = Path.cwd()
+    if args.aggregate_only:
+        aggregate(cfg, samples)
+    elif args.arm:
+        run_arm(cfg, args.arm, samples, root)
+    else:
+        for arm in ARMS:
+            run_arm(cfg, arm, samples, root)
+        aggregate(cfg, samples)
+
+
+if __name__ == "__main__":
+    main()

@@ -22,6 +22,12 @@ scripts/cluster_env.sh
 # Outputs
 outputs/
 
+# Model checkpoints
+checkpoints/
+
+# wandb
+wandb/
+
 # Test / coverage
 .pytest_cache/
 .coverage
