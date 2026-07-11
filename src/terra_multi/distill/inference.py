@@ -24,6 +24,29 @@ def _unit_norm(values):
     return values / (np.linalg.norm(values, axis=1, keepdims=True) + 1e-8)
 
 
+def embedding_variance(values, batch_size=65_536):
+    """Total variance after row-wise L2 normalization."""
+    if values.ndim != 2 or len(values) == 0:
+        raise ValueError(f"expected a non-empty matrix, got {values.shape}")
+
+    value_sum = np.zeros(values.shape[1], dtype=np.float64)
+    squared_sum = 0.0
+    for start in range(0, len(values), batch_size):
+        batch = _unit_norm(
+            np.asarray(values[start : start + batch_size], dtype=np.float32)
+        )
+        value_sum += batch.sum(axis=0, dtype=np.float64)
+        squared_sum += float(np.sum(batch**2, dtype=np.float64))
+    mean = value_sum / len(values)
+    return max(float(squared_sum / len(values) - mean @ mean), 0.0)
+
+
+def nmse_from_cosine_loss(loss, teacher_variance):
+    if teacher_variance <= 0:
+        raise ValueError("teacher variance must be positive")
+    return 2.0 * float(loss) / teacher_variance
+
+
 def cosine_and_nmse(student, teacher):
     if student.shape != teacher.shape or len(student) == 0:
         raise ValueError(

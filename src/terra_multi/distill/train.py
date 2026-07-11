@@ -11,7 +11,12 @@ import yaml
 from torch.utils.data import DataLoader
 
 from terra_multi.distill.data import CellEmbeddingDataset, build_split_cache
-from terra_multi.distill.inference import evaluate_label_test, evaluate_validation
+from terra_multi.distill.inference import (
+    embedding_variance,
+    evaluate_label_test,
+    evaluate_validation,
+    nmse_from_cosine_loss,
+)
 from terra_multi.distill.model import TerraProjector, cosine_distill_loss
 
 
@@ -82,7 +87,17 @@ def run_epoch(model, loader, device, optimizer=None):
     return mean_loss, 1.0 - mean_loss
 
 
-def fit(model, train_loader, val_loader, optimizer, device, cfg, checkpoint, run):
+def fit(
+    model,
+    train_loader,
+    val_loader,
+    optimizer,
+    device,
+    teacher_variance,
+    cfg,
+    checkpoint,
+    run,
+):
     best_loss = float("inf")
     best_epoch = patience = 0
     train_rows, val_rows = [], []
@@ -90,17 +105,21 @@ def fit(model, train_loader, val_loader, optimizer, device, cfg, checkpoint, run
     for epoch in range(1, cfg["max_epochs"] + 1):
         train_loss, train_cosine = run_epoch(model, train_loader, device, optimizer)
         val_loss, val_cosine = run_epoch(model, val_loader, device)
+        train_nmse = nmse_from_cosine_loss(train_loss, teacher_variance["train"])
+        val_nmse = nmse_from_cosine_loss(val_loss, teacher_variance["val"])
         lr = optimizer.param_groups[0]["lr"]
         print(
             f"epoch {epoch:3d} | train loss {train_loss:.4f} "
-            f"cos {train_cosine:.4f} | val loss {val_loss:.4f} "
-            f"cos {val_cosine:.4f}"
+            f"cos {train_cosine:.4f} nmse {train_nmse:.4f} | "
+            f"val loss {val_loss:.4f} cos {val_cosine:.4f} "
+            f"nmse {val_nmse:.4f}"
         )
         train_rows.append(
             {
                 "epoch": epoch,
                 "loss": train_loss,
                 "cosine_similarity": train_cosine,
+                "normalized_mse": train_nmse,
                 "lr": lr,
             }
         )
@@ -109,6 +128,7 @@ def fit(model, train_loader, val_loader, optimizer, device, cfg, checkpoint, run
                 "epoch": epoch,
                 "loss": val_loss,
                 "cosine_similarity": val_cosine,
+                "normalized_mse": val_nmse,
             }
         )
         if run is not None:
@@ -118,8 +138,10 @@ def fit(model, train_loader, val_loader, optimizer, device, cfg, checkpoint, run
                     "lr": lr,
                     "train/loss": train_loss,
                     "train/cosine_similarity": train_cosine,
+                    "train/normalized_mse": train_nmse,
                     "val/loss": val_loss,
                     "val/cosine_similarity": val_cosine,
+                    "val/normalized_mse": val_nmse,
                 }
             )
 
@@ -200,6 +222,16 @@ def main():
         cache_path=cache_dir / f"distill_val_{tag}.npz",
     )
     print(f"cells: train={len(train_cache):,} val={len(val_cache):,}")
+    teacher_variance = {
+        "train": embedding_variance(train_cache.terra),
+        "val": embedding_variance(val_cache.terra),
+    }
+    print(
+        "teacher variance: "
+        + " ".join(
+            f"{name}={variance:.4f}" for name, variance in teacher_variance.items()
+        )
+    )
 
     for name, cache in (("train", train_cache), ("val", val_cache)):
         pd.DataFrame({"sample_id": cache.sample_ids, "cell_id": cache.cell_ids}).to_csv(
@@ -240,6 +272,7 @@ def main():
         val_loader,
         optimizer,
         device,
+        teacher_variance,
         cfg,
         checkpoint,
         run,

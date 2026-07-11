@@ -7,10 +7,14 @@ from terra_multi.distill.data import (
     build_split_cache,
     select_indices,
 )
-from terra_multi.distill.inference import cosine_and_nmse
+from terra_multi.distill.inference import (
+    cosine_and_nmse,
+    embedding_variance,
+    nmse_from_cosine_loss,
+)
 from terra_multi.distill.make_splits import partition_samples
 from terra_multi.distill.model import TerraProjector, cosine_distill_loss
-from terra_multi.distill.train import run_epoch
+from terra_multi.distill.train import fit, run_epoch
 
 
 def test_projector_output_is_unit_norm():
@@ -85,6 +89,40 @@ def test_run_epoch_with_embedding_dataset():
     assert np.isclose(cosine, 1 - loss)
 
 
+def test_fit_logs_train_and_val_nmse(tmp_path):
+    class Run:
+        def __init__(self):
+            self.rows = []
+
+        def log(self, row):
+            self.rows.append(row)
+
+    terra = np.random.rand(6, 2).astype(np.float32)
+    loader = DataLoader(
+        CellEmbeddingDataset(np.random.rand(6, 4).astype(np.float32), terra),
+        batch_size=3,
+    )
+    model = TerraProjector(in_dim=4, out_dim=2, hidden_dim=4, dropout=0)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
+    run = Run()
+    variance = embedding_variance(terra)
+
+    fit(
+        model,
+        loader,
+        loader,
+        optimizer,
+        "cpu",
+        {"train": variance, "val": variance},
+        {"max_epochs": 1, "patience": 1},
+        tmp_path / "best.pt",
+        run,
+    )
+
+    assert "train/normalized_mse" in run.rows[0]
+    assert "val/normalized_mse" in run.rows[0]
+
+
 def test_partition_holds_out_all_annotated():
     samples = [f"S{i:02d}" for i in range(80)]
     annotated = set(samples[:15])
@@ -98,3 +136,16 @@ def test_partition_holds_out_all_annotated():
     assert counts["distill_train"] + counts["distill_val"] == 65
     # Deterministic across calls.
     assert split == partition_samples(samples, annotated, 0.1, 0)
+
+
+def test_nmse_from_loss_matches_direct_metric():
+    rng = np.random.default_rng(1)
+    teacher = rng.normal(size=(101, 12)).astype(np.float32)
+    student = rng.normal(size=(101, 12)).astype(np.float32)
+    student_unit = torch.nn.functional.normalize(torch.from_numpy(student), dim=-1)
+    loss = cosine_distill_loss(student_unit, torch.from_numpy(teacher)).item()
+
+    variance = embedding_variance(teacher, batch_size=17)
+    derived = nmse_from_cosine_loss(loss, variance)
+    direct = cosine_and_nmse(student, teacher)["normalized_mse"]
+    assert np.isclose(derived, direct, rtol=1e-6)
