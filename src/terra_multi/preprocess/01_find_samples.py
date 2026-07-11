@@ -50,7 +50,7 @@ def discover_samples(cfg):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Discover HEST-1k pipeline samples.")
+    parser = argparse.ArgumentParser(description="Discover HEST-1k samples.")
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
 

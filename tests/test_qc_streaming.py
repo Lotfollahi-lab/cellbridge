@@ -1,18 +1,12 @@
-"""The streaming QC reconstruction must match the standard one transcript-for-transcript.
-
-Feeds identical synthetic transcripts to both code paths -- the streaming one split
-across two batches, with a cell (1) whose transcripts straddle the batch boundary --
-and asserts the resulting AnnData objects are equivalent. Also exercises the same
-control-probe / unassigned / below-cutoff rows the standard test drops.
-"""
+"""The streaming QC reconstruction must match the standard one transcript-for-transcript."""
 
 import importlib
 
 import numpy as np
 import pandas as pd
 
-_qc = importlib.import_module("terra_multi.pipeline.02_quality_check")
-_stream = importlib.import_module("terra_multi.pipeline.02_quality_check_streaming")
+_qc = importlib.import_module("terra_multi.preprocess.02_quality_check")
+_stream = importlib.import_module("terra_multi.preprocess.02_quality_check_streaming")
 
 _COLS = ["cell_id", "feature_name", "x_location", "y_location", "he_x", "he_y", "qv"]
 

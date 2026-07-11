@@ -7,15 +7,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-QUEUE="${LABEL_QUEUE:-${QUEUE:-oversubscribed}}"
+QUEUE="${QC_QUEUE:-${QUEUE:-oversubscribed}}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${LABEL_MEM_GB:-8}"
-NCORES="${LABEL_NCORES:-4}"
+MEM_GB="${QC_MEM_GB:-8}"
+NCORES="${QC_NCORES:-4}"
 ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
-CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
+CONFIG="${CONFIG:-$ROOT/configs/preprocess/preprocess.yaml}"
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
-GPU_SPEC="${LABEL_GPU_SPEC:-${CPU_GPU_SPEC:-}}"
+GPU_SPEC="${QC_GPU_SPEC:-${CPU_GPU_SPEC:-}}"
 if [ -z "$GPU_SPEC" ]; then
   case ",${QUEUE}," in
     *,training-normal,*|*,training-parallel,*|*,gpu-interactive,*|*,inference,*) GPU_SPEC="-" ;;
@@ -33,9 +33,9 @@ LOG_DIR="$OUTPUT_ROOT/$SAMPLE_ID/logs"
 mkdir -p "$LOG_DIR"
 
 bsub <<EOF
-#BSUB -J labels_${SAMPLE_ID}
-#BSUB -o ${LOG_DIR}/labels_${SAMPLE_ID}_%J.out
-#BSUB -e ${LOG_DIR}/labels_${SAMPLE_ID}_%J.err
+#BSUB -J qc_${SAMPLE_ID}
+#BSUB -o ${LOG_DIR}/qc_${SAMPLE_ID}_%J.out
+#BSUB -e ${LOG_DIR}/qc_${SAMPLE_ID}_%J.err
 #BSUB -n ${NCORES}
 #BSUB -q ${QUEUE}
 ${GPU_DIRECTIVE}
@@ -48,5 +48,5 @@ set -euo pipefail
 if command -v module >/dev/null 2>&1; then module load cellgen/uv; fi
 source "${ENV_PATH}/bin/activate"
 cd "${ROOT}"
-PYTHONPATH=src python3 src/terra_multi/pipeline/03_cell_labels.py --config "${CONFIG}" --sample-id "${SAMPLE_ID}"
+PYTHONPATH=src python3 src/terra_multi/preprocess/02_quality_check.py --config "${CONFIG}" --sample-id "${SAMPLE_ID}"
 EOF

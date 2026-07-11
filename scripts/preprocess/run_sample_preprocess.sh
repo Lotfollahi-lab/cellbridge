@@ -1,4 +1,5 @@
 #!/bin/bash
+# Submit every preprocessing stage for one sample.
 set -euo pipefail
 
 SAMPLE_ID="$1"

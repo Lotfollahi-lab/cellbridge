@@ -1,4 +1,4 @@
-"""Create UNI2-h image embeddings aligned to TERRA rows."""
+"""Create UNI2-h image embeddings aligned with TERRA rows."""
 
 import argparse
 from pathlib import Path

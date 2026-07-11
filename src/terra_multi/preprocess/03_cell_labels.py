@@ -1,4 +1,4 @@
-"""Transfer CellViT labels onto QC cells."""
+"""Transfer CellViT labels to reconstructed cells."""
 
 import argparse
 from pathlib import Path

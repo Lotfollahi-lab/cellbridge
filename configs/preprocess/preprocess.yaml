@@ -1,11 +1,11 @@
-# HEST-1k preprocessing pipeline.
+# HEST-1k preprocessing.
 # Step 1 (discovery) reads this to enumerate the samples to process.
 
 # HEST-1k release root (read-only public dataset).
 hest_root: /lustre/scratch127/cellgen/cellgeni/public_datasets/huggingface/HEST-1k/20260701
 metadata_csv: HEST_v1_3_0.csv   # relative to hest_root
 
-# Sample filter: which sections the pipeline processes.
+# Sample filter: which sections to preprocess.
 species: Homo sapiens
 technologies: [Xenium, Xenium 5k]
 
@@ -21,5 +21,5 @@ fallback_max_um: 20
 # the same tokens repeatedly.
 keep_tokenized: false
 
-# Per-sample pipeline outputs (manifest + embeddings + labels) live under here.
+# Per-sample outputs (manifest + embeddings + labels) live under here.
 output_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest

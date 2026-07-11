@@ -1,7 +1,7 @@
 """Memory-safe streaming variant of 02_quality_check.
 
-    PYTHONPATH=src python3 src/terra_multi/pipeline/02_quality_check_streaming.py \\
-        --config configs/pipeline/pipeline.yaml --sample-id TENX160
+    PYTHONPATH=src python3 src/terra_multi/preprocess/02_quality_check_streaming.py \\
+        --config configs/preprocess/preprocess.yaml --sample-id TENX160
 """
 
 import argparse
@@ -18,7 +18,7 @@ import scipy.sparse as sp
 import yaml
 
 # Reuse the exact filter constants + helpers from the standard step
-_qc = importlib.import_module("terra_multi.pipeline.02_quality_check")
+_qc = importlib.import_module("terra_multi.preprocess.02_quality_check")
 _to_str = _qc._to_str
 _CONTROL_PREFIXES = _qc._CONTROL_PREFIXES
 _UNASSIGNED = _qc._UNASSIGNED

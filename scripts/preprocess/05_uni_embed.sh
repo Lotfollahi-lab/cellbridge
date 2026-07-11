@@ -7,14 +7,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-QUEUE="${TERRA_QUEUE:-${GPU_QUEUE:-training-normal}}"
-GPU_SPEC="${TERRA_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=20000}}"
+QUEUE="${UNI_QUEUE:-${GPU_QUEUE:-training-normal}}"
+GPU_SPEC="${UNI_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=30000}}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${TERRA_MEM_GB:-16}"
-NCORES="${TERRA_NCORES:-12}"
-BATCH_SIZE="${TERRA_BATCH_SIZE:-128}"
-ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
-CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
+MEM_GB="${UNI_MEM_GB:-16}"
+NCORES="${UNI_NCORES:-12}"
+BATCH_SIZE="${UNI_BATCH_SIZE:-128}"
+CONFIG="${CONFIG:-$ROOT/configs/preprocess/preprocess.yaml}"
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
 
@@ -27,9 +26,9 @@ LOG_DIR="$OUTPUT_ROOT/$SAMPLE_ID/logs"
 mkdir -p "$LOG_DIR"
 
 bsub <<EOF
-#BSUB -J terra_${SAMPLE_ID}
-#BSUB -o ${LOG_DIR}/terra_${SAMPLE_ID}_%J.out
-#BSUB -e ${LOG_DIR}/terra_${SAMPLE_ID}_%J.err
+#BSUB -J uni_${SAMPLE_ID}
+#BSUB -o ${LOG_DIR}/uni_${SAMPLE_ID}_%J.out
+#BSUB -e ${LOG_DIR}/uni_${SAMPLE_ID}_%J.err
 #BSUB -n ${NCORES}
 #BSUB -q ${QUEUE}
 #BSUB -gpu "${GPU_SPEC}"
@@ -39,10 +38,10 @@ bsub <<EOF
 ${DEP_DIRECTIVE}
 
 set -euo pipefail
-if command -v module >/dev/null 2>&1; then module load cellgen/uv; fi
-source "${ENV_PATH}/bin/activate"
+module load ISG/conda
+conda activate hest
 cd "${ROOT}"
-PYTHONPATH=src python3 src/terra_multi/pipeline/04_terra_embed.py \
+PYTHONPATH=src python3 src/terra_multi/preprocess/05_uni_embed.py \
   --config "${CONFIG}" \
   --sample-id "${SAMPLE_ID}" \
   --batch-size "${BATCH_SIZE}"

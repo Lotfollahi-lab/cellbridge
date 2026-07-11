@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
+CONFIG="${CONFIG:-$ROOT/configs/preprocess/preprocess.yaml}"
 
 CONFIG="$CONFIG" "$SCRIPT_DIR/01_find_samples.sh"
 
@@ -16,5 +16,5 @@ MANIFEST="$OUTPUT_ROOT/manifest.csv"
 
 tail -n +2 "$MANIFEST" | cut -d, -f1 | while read -r sample_id; do
   [ -n "$sample_id" ] || continue
-  CONFIG="$CONFIG" "$SCRIPT_DIR/run_sample_pipeline.sh" "$sample_id"
+  CONFIG="$CONFIG" "$SCRIPT_DIR/run_sample_preprocess.sh" "$sample_id"
 done

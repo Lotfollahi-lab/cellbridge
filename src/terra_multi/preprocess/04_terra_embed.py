@@ -1,4 +1,4 @@
-"""Create TERRA embeddings from the QC h5ad."""
+"""Create TERRA embeddings from reconstructed counts."""
 
 import argparse
 import os

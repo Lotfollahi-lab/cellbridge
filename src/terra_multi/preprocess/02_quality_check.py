@@ -1,4 +1,4 @@
-"""Build per-cell QC counts from Xenium transcripts."""
+"""Reconstruct per-cell counts from Xenium transcripts."""
 
 import argparse
 from pathlib import Path

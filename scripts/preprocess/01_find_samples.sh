@@ -6,7 +6,7 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
 ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
-CONFIG="${CONFIG:-$ROOT/configs/pipeline/pipeline.yaml}"
+CONFIG="${CONFIG:-$ROOT/configs/preprocess/preprocess.yaml}"
 
 if command -v module >/dev/null 2>&1; then
   module load cellgen/uv
@@ -14,4 +14,4 @@ fi
 source "$ENV_PATH/bin/activate"
 
 cd "$ROOT"
-PYTHONPATH=src python3 src/terra_multi/pipeline/01_find_samples.py --config "$CONFIG"
+PYTHONPATH=src python3 src/terra_multi/preprocess/01_find_samples.py --config "$CONFIG"
