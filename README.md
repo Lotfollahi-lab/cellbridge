@@ -7,6 +7,7 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 - `src/terra_multi/preprocess/`: numbered HEST preprocessing steps.
 - `src/terra_multi/exploration/`: expression and cell-type probes.
 - `src/terra_multi/distill/`: UNI-to-TERRA distillation.
+- `src/terra_multi/evaluation/`: evaluation on non-ST datasets.
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
 
@@ -49,3 +50,24 @@ Submit one evaluation arm directly:
 ```bash
 scripts/distill/submit_probe.sh configs/distill/distill_v0.yaml distilled
 ```
+
+## OOD evaluation
+
+PhenoCell is evaluated separately from HEST. The workflow reconstructs each
+field from its LMDB tiles, extracts centred cell-context crops, and compares
+frozen raw UNI with distilled embeddings on the official patient split.
+
+```bash
+scripts/evaluation/phenocell/submit_all.sh configs/evaluation/phenocell.yaml
+```
+
+If the projector is still training, make embedding wait for that LSF job:
+
+```bash
+DEPENDENCY=<distillation-job-id> \
+  scripts/evaluation/phenocell/submit_all.sh configs/evaluation/phenocell.yaml
+```
+
+The probe reports both the full 14-class benchmark and an immune-only task.
+Change `crop_size`, `projector_checkpoint`, or `output_dir` in a copied config
+to keep evaluation variants isolated.
