@@ -13,9 +13,9 @@ OUTPUT_DIR="$(sed -nE 's/^output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONF
 case "$OUTPUT_DIR" in /*) ;; *) OUTPUT_DIR="$ROOT/$OUTPUT_DIR" ;; esac
 mkdir -p "$OUTPUT_DIR/logs"
 
-QUEUE="${PHENOCELL_PROBE_QUEUE:-${QUEUE:-oversubscribed}}"
+QUEUE="${PHENOCELL_PROBE_QUEUE:-training-normal}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${PHENOCELL_PROBE_MEM_GB:-48}"
+MEM_GB="${PHENOCELL_PROBE_MEM_GB:-64}"
 NCORES="${PHENOCELL_PROBE_NCORES:-8}"
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
@@ -28,6 +28,7 @@ bsub <<EOF
 #BSUB -e ${OUTPUT_DIR}/logs/probe${ARM:+_$ARM}_%J.err
 #BSUB -n ${NCORES}
 #BSUB -q ${QUEUE}
+#BSUB -gpu "-"
 #BSUB -G ${BGROUP}
 #BSUB -M ${MEM_GB}G
 #BSUB -R "select[mem>${MEM_GB}G] rusage[mem=${MEM_GB}G] span[hosts=1]"

@@ -11,10 +11,10 @@ OUTPUT_DIR="$(sed -nE 's/^output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONF
 case "$OUTPUT_DIR" in /*) ;; *) OUTPUT_DIR="$ROOT/$OUTPUT_DIR" ;; esac
 mkdir -p "$OUTPUT_DIR/logs"
 
-QUEUE="${PHENOCELL_PROJECT_QUEUE:-${GPU_QUEUE:-training-normal}}"
+QUEUE="${PHENOCELL_PROJECT_QUEUE:-training-normal}"
 GPU_SPEC="${PHENOCELL_PROJECT_GPU_SPEC:-num=1:gmem=10000}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${PHENOCELL_PROJECT_MEM_GB:-16}"
+MEM_GB="${PHENOCELL_PROJECT_MEM_GB:-32}"
 NCORES="${PHENOCELL_PROJECT_NCORES:-4}"
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""

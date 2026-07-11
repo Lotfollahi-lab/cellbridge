@@ -15,10 +15,10 @@ OUTPUT_DIR="$(awk '
 case "$OUTPUT_DIR" in /*) ;; *) OUTPUT_DIR="$ROOT/$OUTPUT_DIR" ;; esac
 mkdir -p "$OUTPUT_DIR/logs"
 
-QUEUE="${PHENOCELL_QUEUE:-${GPU_QUEUE:-training-normal}}"
+QUEUE="${PHENOCELL_QUEUE:-training-normal}"
 GPU_SPEC="${PHENOCELL_GPU_SPEC:-num=1:gmem=30000}"
 BGROUP="${BGROUP:-s10396}"
-MEM_GB="${PHENOCELL_EMBED_MEM_GB:-32}"
+MEM_GB="${PHENOCELL_EMBED_MEM_GB:-64}"
 NCORES="${PHENOCELL_EMBED_NCORES:-8}"
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
@@ -40,6 +40,9 @@ module load ISG/conda
 module load cellgen/uv
 conda activate hest
 cd "${ROOT}"
-PYTHONPATH=src uv run --active --no-project --with lmdb python \
+DEPS_DIR="\${TMPDIR:-/tmp}/phenocell-python-deps"
+mkdir -p "\${DEPS_DIR}"
+uv pip install --quiet --target "\${DEPS_DIR}" lmdb
+PYTHONPATH="\${DEPS_DIR}:src" python \
   -m terra_multi.evaluation.embed_phenocell --config "${CONFIG}"
 EOF
