@@ -14,6 +14,12 @@ case "$CONFIG" in
 esac
 [ -f "$CONFIG" ] || { echo "config not found: $CONFIG" >&2; exit 1; }
 
+DISTILL_VERSION="$(sed -nE 's/^[[:space:]]*distill_version:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
+case "${DISTILL_VERSION:-v0}" in
+  v0) TRAIN_MODULE="terra_multi.distill.train" ;;
+  v1) TRAIN_MODULE="terra_multi.distill.train_prototypes" ;;
+  *) echo "unknown distill_version: $DISTILL_VERSION" >&2; exit 1 ;;
+esac
 RUN_NAME="$(sed -nE 's/^[[:space:]]*run_name:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 OUTPUT_DIR="$(sed -nE 's/^[[:space:]]*output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 [ -n "$RUN_NAME" ] && [ -n "$OUTPUT_DIR" ] || {
@@ -51,5 +57,5 @@ module load cellgen/uv
 source "${ENV_PATH}/bin/activate"
 cd "${ROOT}"
 export OMP_NUM_THREADS=${NCORES} OPENBLAS_NUM_THREADS=${NCORES} MKL_NUM_THREADS=${NCORES} NUMEXPR_NUM_THREADS=${NCORES}
-PYTHONPATH=src python3 -m terra_multi.distill.train --config "${CONFIG}"
+PYTHONPATH=src python3 -m ${TRAIN_MODULE} --config "${CONFIG}"
 EOF

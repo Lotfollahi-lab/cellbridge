@@ -64,6 +64,19 @@ Submit one evaluation arm directly:
 scripts/distill/submit_probe.sh configs/distill/distill_v0_vicreg_mild.yaml distilled
 ```
 
+Prototype distillation v1 fits 256 normalized TERRA prototypes on
+`distill_train`, trains the UNI2 prototype classifier, exports its penultimate
+and probability features, then evaluates both with the same cell-type probe:
+
+```bash
+scripts/distill/submit_experiment.sh configs/distill/distill_v1_prototype.yaml
+```
+
+The v1 config defaults to the five-sample fast label test. Its KMeans model,
+assignments, exported features, metrics, and resolved prototype settings are
+written under `outputs/distill_v1/`; the best student checkpoint is written to
+`checkpoints/distill_v1/best.pt`.
+
 ## OOD evaluation
 
 PhenoCell is evaluated separately from HEST. The workflow reconstructs each

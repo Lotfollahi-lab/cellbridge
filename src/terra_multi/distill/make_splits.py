@@ -12,7 +12,11 @@ from terra_multi.distill.data import all_samples, annotated_samples
 
 def label_test_split_name(cfg):
     mode = cfg.get("eval", {}).get("label_test_mode", "full")
-    return "label_test_fast" if mode == "fast" else "label_test"
+    if mode == "fast":
+        return "label_test_fast"
+    if mode != "full":
+        raise ValueError(f"eval.label_test_mode must be 'fast' or 'full', got {mode!r}")
+    return "label_test_full" if cfg.get("distill_version") == "v1" else "label_test"
 
 
 def select_label_test_samples(cfg, samples):

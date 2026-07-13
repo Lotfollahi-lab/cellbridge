@@ -11,7 +11,12 @@ case "$CONFIG" in
   *) CONFIG="$ROOT/$CONFIG" ;;
 esac
 
-ARMS=(uni_baseline terra_teacher distilled concat_oracle)
+DISTILL_VERSION="$(sed -nE 's/^[[:space:]]*distill_version:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
+if [ "${DISTILL_VERSION:-v0}" = "v1" ]; then
+  ARMS=(prototype_penultimate_512 prototype_probs_256)
+else
+  ARMS=(uni_baseline terra_teacher distilled concat_oracle)
+fi
 job_ids=()
 for arm in "${ARMS[@]}"; do
   if ! output="$("$SCRIPT_DIR/submit_probe.sh" "$CONFIG" "$arm" 2>&1)"; then

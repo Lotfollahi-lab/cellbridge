@@ -23,6 +23,21 @@ ARMS = {
     "distilled": ("terra", True),
     "concat_oracle": ("concat", False),
 }
+PROTOTYPE_ARMS = {
+    "prototype_penultimate_512": "features_penultimate",
+    "prototype_probs_256": "prototype_probs",
+}
+ALL_ARMS = tuple(ARMS) + tuple(PROTOTYPE_ARMS)
+
+
+def arms_for_config(cfg):
+    if cfg.get("distill_version") == "v1":
+        return ("prototype_penultimate_512", "prototype_probs_256")
+    return tuple(ARMS)
+
+
+def _model_for_arm(arm):
+    return "terra" if arm in PROTOTYPE_ARMS else ARMS[arm][0]
 
 
 def _sample_path(data_root, sample_id, suffix):
@@ -53,19 +68,30 @@ def _keep_classes(labels_path, label_column, min_count):
 
 def _arm_config(cfg, sample_id, arm, distilled_dir, output_dir):
     settings = cfg["eval"]
-    model, use_distilled = ARMS[arm]
+    model = _model_for_arm(arm)
     data_root = cfg["data_root"]
     labels_path = _sample_path(data_root, sample_id, LABEL_SUFFIX)
-    terra_path = (
-        str(distilled_dir / f"{sample_id}_terra.npz")
-        if use_distilled
-        else _sample_path(data_root, sample_id, "_terra.npz")
-    )
+    if arm in PROTOTYPE_ARMS:
+        split_name = label_test_split_name(cfg)
+        terra_path = str(
+            Path(cfg["output_dir"])
+            / f"{split_name}_features"
+            / f"{sample_id}_prototype.npz"
+        )
+        terra_key = PROTOTYPE_ARMS[arm]
+    else:
+        use_distilled = ARMS[arm][1]
+        terra_path = (
+            str(distilled_dir / f"{sample_id}_terra.npz")
+            if use_distilled
+            else _sample_path(data_root, sample_id, "_terra.npz")
+        )
+        terra_key = cfg["terra_key"]
     return {
         "sample_id": sample_id,
         "terra_embeddings": terra_path,
         "uni_embeddings": _sample_path(data_root, sample_id, "_uni2.npz"),
-        "terra_key": cfg["terra_key"],
+        "terra_key": terra_key,
         "terra_neighbor_key": "neighborhood_emb",
         "uni_key": cfg["uni_key"],
         "adata_path": _sample_path(data_root, sample_id, ".h5ad"),
@@ -110,7 +136,7 @@ def _run_probe(config_path, model, root):
 
 def run_arm(cfg, arm, samples, root):
     _, distilled_dir, probe_root = _paths(cfg)
-    model = ARMS[arm][0]
+    model = _model_for_arm(arm)
     for sample_id in samples:
         output_dir = probe_root / sample_id / arm
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -140,9 +166,11 @@ def _read_result(model_dir):
 def aggregate(cfg, samples):
     output_dir, _, probe_root = _paths(cfg)
     split_name = label_test_split_name(cfg)
+    arms = arms_for_config(cfg)
     headline_rows, class_rows, missing = [], [], []
     for sample_id in samples:
-        for arm, (model, _) in ARMS.items():
+        for arm in arms:
+            model = _model_for_arm(arm)
             model_dir = probe_root / sample_id / arm / model
             required = (model_dir / "metrics.csv", model_dir / "predictions.npz")
             if not all(path.exists() for path in required):
@@ -188,7 +216,7 @@ def aggregate(cfg, samples):
     metrics = ["accuracy", "balanced_accuracy", "macro_f1", "macro_auroc"]
     summary = headline.groupby("arm")[metrics].agg(["mean", "std"])
     summary.columns = [f"{name}_{stat}" for name, stat in summary.columns]
-    summary = summary.reindex([arm for arm in ARMS if arm in summary.index])
+    summary = summary.reindex([arm for arm in arms if arm in summary.index])
     summary.to_csv(output_dir / f"{split_name}_summary.csv")
     print(summary.to_string())
 
@@ -196,7 +224,7 @@ def aggregate(cfg, samples):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
-    parser.add_argument("--arm", choices=list(ARMS))
+    parser.add_argument("--arm", choices=ALL_ARMS)
     parser.add_argument("--aggregate-only", action="store_true")
     parser.add_argument("--limit-samples", type=int)
     args = parser.parse_args()
@@ -204,13 +232,16 @@ def main():
         cfg = yaml.safe_load(fh)
 
     samples = _label_test_samples(cfg, args.limit_samples)
+    arms = arms_for_config(cfg)
+    if args.arm and args.arm not in arms:
+        parser.error(f"arm {args.arm!r} is not configured for this experiment")
     root = Path.cwd()
     if args.aggregate_only:
         aggregate(cfg, samples)
     elif args.arm:
         run_arm(cfg, args.arm, samples, root)
     else:
-        for arm in ARMS:
+        for arm in arms:
             run_arm(cfg, arm, samples, root)
         aggregate(cfg, samples)
 

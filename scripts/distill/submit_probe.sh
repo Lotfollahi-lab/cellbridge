@@ -6,7 +6,7 @@ set -euo pipefail
 CONFIG="${1:?usage: submit_probe.sh <config> <arm|aggregate>}"
 TARGET="${2:?usage: submit_probe.sh <config> <arm|aggregate>}"
 case "$TARGET" in
-  uni_baseline|terra_teacher|distilled|concat_oracle|aggregate) ;;
+  uni_baseline|terra_teacher|distilled|concat_oracle|prototype_penultimate_512|prototype_probs_256|aggregate) ;;
   *) echo "unknown target: $TARGET" >&2; exit 1 ;;
 esac
 

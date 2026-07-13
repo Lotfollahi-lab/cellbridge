@@ -93,6 +93,11 @@ def load_sample_embeddings(
     )
 
 
+def load_uni_embeddings(data_root, sample_id, uni_key="uni_emb"):
+    uni, cell_ids = _load_npz(_sample_path(data_root, sample_id, UNI_SUFFIX), uni_key)
+    return uni.astype(np.float32, copy=False), cell_ids
+
+
 def _sample_rng(seed, sample_id):
     sample_hash = int.from_bytes(hashlib.sha1(sample_id.encode()).digest()[:8], "big")
     return np.random.default_rng([int(seed), sample_hash])
