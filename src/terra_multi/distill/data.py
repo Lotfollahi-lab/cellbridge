@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 import torch
@@ -185,16 +186,19 @@ def build_split_cache(
 def save_cache(path, cache, signature):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f".{path.name}.tmp.npz")
-    np.savez(
-        tmp_path,
-        uni=cache.uni,
-        terra=cache.terra,
-        sample_ids=cache.sample_ids,
-        cell_ids=cache.cell_ids,
-        signature=np.asarray(signature),
-    )
-    tmp_path.replace(path)
+    tmp_path = path.with_name(f".{path.name}.{uuid4().hex}.tmp.npz")
+    try:
+        np.savez(
+            tmp_path,
+            uni=cache.uni,
+            terra=cache.terra,
+            sample_ids=cache.sample_ids,
+            cell_ids=cache.cell_ids,
+            signature=np.asarray(signature),
+        )
+        tmp_path.replace(path)
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 def load_cache(path, expected_signature):
