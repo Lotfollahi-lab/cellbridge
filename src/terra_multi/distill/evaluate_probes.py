@@ -23,21 +23,36 @@ ARMS = {
     "distilled": ("terra", True),
     "concat_oracle": ("concat", False),
 }
-PROTOTYPE_ARMS = {
-    "prototype_penultimate_512": "features_penultimate",
-    "prototype_probs_256": "prototype_probs",
+
+PROTOTYPE_REPRESENTATIONS = {
+    "prototype_penultimate": "features_penultimate",
+    "prototype_probs": "prototype_probs",
 }
-ALL_ARMS = tuple(ARMS) + tuple(PROTOTYPE_ARMS)
+
+
+def prototype_arm_names(cfg):
+    return (
+        f"prototype_penultimate_{cfg.get('feat_dim', 512)}",
+        f"prototype_probs_{cfg.get('num_prototypes', 256)}",
+    )
+
+
+def _prototype_key(arm):
+    """Representation key for a prototype arm, or None for a v0 arm."""
+    for prefix, key in PROTOTYPE_REPRESENTATIONS.items():
+        if arm.startswith(f"{prefix}_"):
+            return key
+    return None
 
 
 def arms_for_config(cfg):
     if cfg.get("distill_version") == "v1":
-        return ("prototype_penultimate_512", "prototype_probs_256")
+        return prototype_arm_names(cfg)
     return tuple(ARMS)
 
 
 def _model_for_arm(arm):
-    return "terra" if arm in PROTOTYPE_ARMS else ARMS[arm][0]
+    return "terra" if _prototype_key(arm) else ARMS[arm][0]
 
 
 def _sample_path(data_root, sample_id, suffix):
@@ -71,14 +86,15 @@ def _arm_config(cfg, sample_id, arm, distilled_dir, output_dir):
     model = _model_for_arm(arm)
     data_root = cfg["data_root"]
     labels_path = _sample_path(data_root, sample_id, LABEL_SUFFIX)
-    if arm in PROTOTYPE_ARMS:
+    prototype_key = _prototype_key(arm)
+    if prototype_key:
         split_name = label_test_split_name(cfg)
         terra_path = str(
             Path(cfg["output_dir"])
             / f"{split_name}_features"
             / f"{sample_id}_prototype.npz"
         )
-        terra_key = PROTOTYPE_ARMS[arm]
+        terra_key = prototype_key
     else:
         use_distilled = ARMS[arm][1]
         terra_path = (
@@ -224,7 +240,9 @@ def aggregate(cfg, samples):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
-    parser.add_argument("--arm", choices=ALL_ARMS)
+    # Valid arms depend on the config (v1 names embed feat_dim / num_prototypes),
+    # so the value is checked against arms_for_config once the config is loaded.
+    parser.add_argument("--arm")
     parser.add_argument("--aggregate-only", action="store_true")
     parser.add_argument("--limit-samples", type=int)
     args = parser.parse_args()

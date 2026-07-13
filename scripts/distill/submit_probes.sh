@@ -13,7 +13,9 @@ esac
 
 DISTILL_VERSION="$(sed -nE 's/^[[:space:]]*distill_version:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 if [ "${DISTILL_VERSION:-v0}" = "v1" ]; then
-  ARMS=(prototype_penultimate_512 prototype_probs_256)
+  FEAT_DIM="$(sed -nE 's/^[[:space:]]*feat_dim:[[:space:]]*([0-9]+).*/\1/p' "$CONFIG" | head -n1)"
+  NUM_PROTOTYPES="$(sed -nE 's/^[[:space:]]*num_prototypes:[[:space:]]*([0-9]+).*/\1/p' "$CONFIG" | head -n1)"
+  ARMS=("prototype_penultimate_${FEAT_DIM:-512}" "prototype_probs_${NUM_PROTOTYPES:-256}")
 else
   ARMS=(uni_baseline terra_teacher distilled concat_oracle)
 fi

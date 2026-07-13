@@ -11,19 +11,49 @@ import yaml
 
 from terra_multi.distill.inference import predict_embeddings
 from terra_multi.distill.model import TerraProjector
+from terra_multi.distill.prototype import PrototypeStudent, predict_student_features
+
+# v1 prototype students expose two usable representations (cf. the label_test arms).
+REPRESENTATIONS = {
+    "penultimate": "features_penultimate",
+    "probs": "prototype_probs",
+}
 
 
 def load_projector(path, device):
+    """Load a v0 regression projector or a v1 prototype student."""
     checkpoint = torch.load(path, map_location=device)
     cfg = checkpoint["config"]
-    model = TerraProjector(
-        cfg.get("uni_dim", 1536),
-        cfg.get("terra_dim", 384),
-        cfg.get("hidden_dim", 1024),
-        cfg.get("dropout", 0.1),
-    ).to(device)
+    if cfg.get("distill_version") == "v1" or "num_prototypes" in cfg:
+        model = PrototypeStudent(
+            cfg.get("uni_dim", 1536),
+            cfg.get("hidden_dim", 1024),
+            cfg.get("feat_dim", 512),
+            cfg.get("num_prototypes", 256),
+            cfg.get("dropout", 0.1),
+        ).to(device)
+    else:
+        model = TerraProjector(
+            cfg.get("uni_dim", 1536),
+            cfg.get("terra_dim", 384),
+            cfg.get("hidden_dim", 1024),
+            cfg.get("dropout", 0.1),
+        ).to(device)
     model.load_state_dict(checkpoint["model_state"])
     return model.eval(), cfg
+
+
+def project(model, uni, device, batch_size, representation):
+    """Features the downstream probe consumes, for either student type."""
+    if isinstance(model, PrototypeStudent):
+        if representation not in REPRESENTATIONS:
+            raise ValueError(
+                f"projection.representation must be one of {sorted(REPRESENTATIONS)}, "
+                f"got {representation!r}"
+            )
+        outputs = predict_student_features(model, uni, device, batch_size)
+        return outputs[REPRESENTATIONS[representation]]
+    return predict_embeddings(model, uni, device, batch_size)
 
 
 def output_path(projection_dir, source_path):
@@ -58,6 +88,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     projector, projector_cfg = load_projector(cfg["projection"]["checkpoint"], device)
     batch_size = int(cfg["projection"].get("batch_size", 8192))
+    representation = cfg["projection"].get("representation", "penultimate")
 
     rows = []
     for source_path in source_manifest["path"]:
@@ -76,10 +107,12 @@ def main():
                         f"{source_path}: UNI dimension {uni.shape[1]} does not match "
                         f"projector dimension {projector_cfg.get('uni_dim', 1536)}"
                     )
-                projected = predict_embeddings(projector, uni, device, batch_size)
+                projected = project(projector, uni, device, batch_size, representation)
             write_projection(destination, row_id, sample_id, projected)
             count = len(row_id)
-            print(f"[{Path(source_path).stem}] projected {count:,} cells -> {destination}")
+            print(
+                f"[{Path(source_path).stem}] projected {count:,} cells -> {destination}"
+            )
         rows.append(
             {
                 "sample_id": source_manifest.loc[
