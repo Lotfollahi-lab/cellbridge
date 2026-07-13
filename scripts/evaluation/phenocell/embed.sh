@@ -37,12 +37,8 @@ ${DEP_DIRECTIVE}
 
 set -euo pipefail
 module load ISG/conda
-module load cellgen/uv
 conda activate hest
 cd "${ROOT}"
-DEPS_DIR="\${TMPDIR:-/tmp}/phenocell-python-deps"
-mkdir -p "\${DEPS_DIR}"
-uv pip install --quiet --target "\${DEPS_DIR}" lmdb
-PYTHONPATH="\${DEPS_DIR}:src" python \
+PYTHONPATH=src python \
   -m terra_multi.evaluation.embed_phenocell --config "${CONFIG}"
 EOF
