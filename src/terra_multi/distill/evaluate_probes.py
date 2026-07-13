@@ -12,6 +12,10 @@ import yaml
 from sklearn.metrics import f1_score
 
 from terra_multi.distill.data import LABEL_SUFFIX
+from terra_multi.distill.make_splits import (
+    label_test_split_name,
+    select_label_test_samples,
+)
 
 ARMS = {
     "uni_baseline": ("uni", False),
@@ -27,13 +31,19 @@ def _sample_path(data_root, sample_id, suffix):
 
 def _paths(cfg):
     output = Path(cfg["output_dir"])
-    return output, output / "label_test_distilled", output / "label_test_probes"
+    split_name = label_test_split_name(cfg)
+    return (
+        output,
+        output / f"{split_name}_distilled",
+        output / f"{split_name}_probes",
+    )
 
 
 def _label_test_samples(cfg, limit=None):
     splits = pd.read_csv(cfg["splits_path"])
     samples = splits.loc[splits["split"] == "label_test", "sample_id"].astype(str)
-    return samples.iloc[:limit].tolist() if limit is not None else samples.tolist()
+    selected = select_label_test_samples(cfg, samples.tolist())
+    return selected[:limit] if limit is not None else selected
 
 
 def _keep_classes(labels_path, label_column, min_count):
@@ -129,6 +139,7 @@ def _read_result(model_dir):
 
 def aggregate(cfg, samples):
     output_dir, _, probe_root = _paths(cfg)
+    split_name = label_test_split_name(cfg)
     headline_rows, class_rows, missing = [], [], []
     for sample_id in samples:
         for arm, (model, _) in ARMS.items():
@@ -170,15 +181,15 @@ def aggregate(cfg, samples):
         raise SystemExit("no complete probe runs found")
 
     headline = pd.DataFrame(headline_rows)
-    headline.to_csv(output_dir / "label_test_probe_metrics.csv", index=False)
+    headline.to_csv(output_dir / f"{split_name}_probe_metrics.csv", index=False)
     pd.DataFrame(class_rows).to_csv(
-        output_dir / "label_test_per_class_f1.csv", index=False
+        output_dir / f"{split_name}_per_class_f1.csv", index=False
     )
     metrics = ["accuracy", "balanced_accuracy", "macro_f1", "macro_auroc"]
     summary = headline.groupby("arm")[metrics].agg(["mean", "std"])
     summary.columns = [f"{name}_{stat}" for name, stat in summary.columns]
     summary = summary.reindex([arm for arm in ARMS if arm in summary.index])
-    summary.to_csv(output_dir / "label_test_summary.csv")
+    summary.to_csv(output_dir / f"{split_name}_summary.csv")
     print(summary.to_string())
 
 

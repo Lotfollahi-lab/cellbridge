@@ -17,7 +17,16 @@ from terra_multi.distill.inference import (
     evaluate_validation,
     nmse_from_cosine_loss,
 )
-from terra_multi.distill.model import TerraProjector, cosine_distill_loss
+from terra_multi.distill.make_splits import (
+    label_test_split_name,
+    select_label_test_samples,
+)
+from terra_multi.distill.model import (
+    TerraProjector,
+    cosine_distill_loss,
+    covariance_loss,
+    variance_loss,
+)
 
 
 def load_config(path):
@@ -28,6 +37,10 @@ def load_config(path):
         "terra_dim": 384,
         "hidden_dim": 1024,
         "dropout": 0.1,
+        "lambda_cos": 1.0,
+        "lambda_var": 0.1,
+        "lambda_cov": 0.01,
+        "var_gamma": 1.0,
         "num_workers": 8,
         "seed": 0,
     }
@@ -66,25 +79,54 @@ def init_wandb(cfg):
     )
 
 
-def run_epoch(model, loader, device, optimizer=None):
+def _distillation_losses(model, uni, teacher, cfg):
+    normed, raw = model(uni, return_raw=True)
+    losses = {
+        "loss_cos": cosine_distill_loss(normed, teacher),
+        "loss_var": variance_loss(raw, cfg["var_gamma"]),
+        "loss_cov": covariance_loss(raw),
+    }
+    losses["loss_total"] = (
+        cfg["lambda_cos"] * losses["loss_cos"]
+        + cfg["lambda_var"] * losses["loss_var"]
+        + cfg["lambda_cov"] * losses["loss_cov"]
+    )
+    return losses
+
+
+def run_epoch(model, loader, device, cfg, optimizer=None):
     training = optimizer is not None
     model.train(training)
-    total_loss = total_cells = 0
+    totals = {name: 0.0 for name in ("loss_total", "loss_cos", "loss_var", "loss_cov")}
+    total_cells = 0
     for uni, teacher in loader:
         uni = uni.to(device, non_blocking=True)
         teacher = teacher.to(device, non_blocking=True)
         with torch.set_grad_enabled(training):
-            loss = cosine_distill_loss(model(uni), teacher)
+            losses = _distillation_losses(model, uni, teacher, cfg)
         if training:
             optimizer.zero_grad(set_to_none=True)
-            loss.backward()
+            losses["loss_total"].backward()
             optimizer.step()
-        total_loss += loss.item() * len(uni)
+        for name, loss in losses.items():
+            totals[name] += loss.item() * len(uni)
         total_cells += len(uni)
     if total_cells == 0:
         raise ValueError("cannot run an epoch with no cells")
-    mean_loss = total_loss / total_cells
-    return mean_loss, 1.0 - mean_loss
+    metrics = {name: value / total_cells for name, value in totals.items()}
+    metrics["cosine_similarity"] = 1.0 - metrics["loss_cos"]
+    return metrics
+
+
+def make_loader(cache, cfg, training):
+    return DataLoader(
+        CellEmbeddingDataset(cache.uni, cache.terra),
+        batch_size=cfg["batch_size"],
+        num_workers=cfg["num_workers"],
+        pin_memory=torch.cuda.is_available(),
+        shuffle=training,
+        drop_last=training,
+    )
 
 
 def fit(
@@ -103,48 +145,34 @@ def fit(
     train_rows, val_rows = [], []
 
     for epoch in range(1, cfg["max_epochs"] + 1):
-        train_loss, train_cosine = run_epoch(model, train_loader, device, optimizer)
-        val_loss, val_cosine = run_epoch(model, val_loader, device)
-        train_nmse = nmse_from_cosine_loss(train_loss, teacher_variance["train"])
-        val_nmse = nmse_from_cosine_loss(val_loss, teacher_variance["val"])
+        train_metrics = run_epoch(model, train_loader, device, cfg, optimizer)
+        val_metrics = run_epoch(model, val_loader, device, cfg)
+        train_metrics["normalized_mse"] = nmse_from_cosine_loss(
+            train_metrics["loss_cos"], teacher_variance["train"]
+        )
+        val_metrics["normalized_mse"] = nmse_from_cosine_loss(
+            val_metrics["loss_cos"], teacher_variance["val"]
+        )
         lr = optimizer.param_groups[0]["lr"]
         print(
-            f"epoch {epoch:3d} | train loss {train_loss:.4f} "
-            f"cos {train_cosine:.4f} nmse {train_nmse:.4f} | "
-            f"val loss {val_loss:.4f} cos {val_cosine:.4f} "
-            f"nmse {val_nmse:.4f}"
+            f"epoch {epoch:3d} | train total {train_metrics['loss_total']:.4f} "
+            f"cos {train_metrics['cosine_similarity']:.4f} | "
+            f"val total {val_metrics['loss_total']:.4f} "
+            f"cos {val_metrics['cosine_similarity']:.4f}"
         )
-        train_rows.append(
-            {
-                "epoch": epoch,
-                "loss": train_loss,
-                "cosine_similarity": train_cosine,
-                "normalized_mse": train_nmse,
-                "lr": lr,
-            }
-        )
-        val_rows.append(
-            {
-                "epoch": epoch,
-                "loss": val_loss,
-                "cosine_similarity": val_cosine,
-                "normalized_mse": val_nmse,
-            }
-        )
+        train_rows.append({"epoch": epoch, **train_metrics, "lr": lr})
+        val_rows.append({"epoch": epoch, **val_metrics})
         if run is not None:
             run.log(
                 {
                     "epoch": epoch,
                     "lr": lr,
-                    "train/loss": train_loss,
-                    "train/cosine_similarity": train_cosine,
-                    "train/normalized_mse": train_nmse,
-                    "val/loss": val_loss,
-                    "val/cosine_similarity": val_cosine,
-                    "val/normalized_mse": val_nmse,
+                    **{f"train/{name}": value for name, value in train_metrics.items()},
+                    **{f"val/{name}": value for name, value in val_metrics.items()},
                 }
             )
 
+        val_loss = val_metrics["loss_total"]
         if val_loss < best_loss - 1e-6:
             best_loss, best_epoch, patience = val_loss, epoch, 0
             torch.save(
@@ -190,6 +218,7 @@ def main():
 
         write_split_table(cfg)
     splits = load_splits(split_path)
+    splits["label_test"] = select_label_test_samples(cfg, splits["label_test"])
     if args.limit_samples is not None:
         splits = {
             name: samples[: args.limit_samples] for name, samples in splits.items()
@@ -226,33 +255,14 @@ def main():
         "train": embedding_variance(train_cache.terra),
         "val": embedding_variance(val_cache.terra),
     }
-    print(
-        "teacher variance: "
-        + " ".join(
-            f"{name}={variance:.4f}" for name, variance in teacher_variance.items()
-        )
-    )
 
     for name, cache in (("train", train_cache), ("val", val_cache)):
         pd.DataFrame({"sample_id": cache.sample_ids, "cell_id": cache.cell_ids}).to_csv(
             out_dir / f"selected_cells_{name}_{tag}.csv", index=False
         )
 
-    loader_args = {
-        "batch_size": cfg["batch_size"],
-        "num_workers": cfg["num_workers"],
-        "pin_memory": torch.cuda.is_available(),
-    }
-    train_loader = DataLoader(
-        CellEmbeddingDataset(train_cache.uni, train_cache.terra),
-        shuffle=True,
-        **loader_args,
-    )
-    val_loader = DataLoader(
-        CellEmbeddingDataset(val_cache.uni, val_cache.terra),
-        shuffle=False,
-        **loader_args,
-    )
+    train_loader = make_loader(train_cache, cfg, training=True)
+    val_loader = make_loader(val_cache, cfg, training=False)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = TerraProjector(
@@ -287,6 +297,7 @@ def main():
     val_metrics = evaluate_validation(
         model, val_cache, device, out_dir, cfg["batch_size"]
     )
+    label_test_name = label_test_split_name(cfg)
     test_metrics = evaluate_label_test(
         model,
         cfg,
@@ -294,12 +305,13 @@ def main():
         device,
         out_dir,
         cfg["batch_size"],
+        split_name=label_test_name,
     )
     summary = {
         "best_epoch": best_epoch,
         "best_val_loss": best_loss,
         "distill_val": val_metrics,
-        "label_test": test_metrics,
+        label_test_name: test_metrics,
     }
     print("=== evaluation ===")
     print(json.dumps(summary, indent=2))
@@ -313,8 +325,8 @@ def main():
                 "best_val_loss": best_loss,
                 "distill_val/mean_cosine": val_metrics["mean_cosine"],
                 "distill_val/normalized_mse": val_metrics["normalized_mse"],
-                "label_test/mean_cosine": test_metrics["mean_cosine"],
-                "label_test/normalized_mse": test_metrics["normalized_mse"],
+                f"{label_test_name}/mean_cosine": test_metrics["mean_cosine"],
+                f"{label_test_name}/normalized_mse": test_metrics["normalized_mse"],
             }
         )
         run.finish()

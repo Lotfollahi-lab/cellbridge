@@ -79,11 +79,13 @@ def evaluate_validation(model, cache, device, out_dir, batch_size):
     return metrics
 
 
-def evaluate_label_test(model, cfg, samples, device, out_dir, batch_size):
+def evaluate_label_test(
+    model, cfg, samples, device, out_dir, batch_size, split_name="label_test"
+):
     if not samples:
         raise ValueError("label_test split is empty")
 
-    sample_dir = Path(out_dir) / "label_test_distilled"
+    sample_dir = Path(out_dir) / f"{split_name}_distilled"
     sample_dir.mkdir(parents=True, exist_ok=True)
     all_ids, all_samples, all_predicted, all_cosine = [], [], [], []
     squared_error = teacher_squared = 0.0
@@ -112,7 +114,7 @@ def evaluate_label_test(model, cfg, samples, device, out_dir, batch_size):
         all_predicted.append(predicted)
 
     np.savez(
-        Path(out_dir) / "pred_embeddings_label_test.npz",
+        Path(out_dir) / f"pred_embeddings_{split_name}.npz",
         cell_ids=np.concatenate(all_ids),
         sample_id=np.concatenate(all_samples),
         pred_emb=np.concatenate(all_predicted),

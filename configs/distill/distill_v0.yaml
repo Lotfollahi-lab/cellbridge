@@ -27,6 +27,10 @@ dropout: 0.1
 batch_size: 8192
 lr: 3.0e-4
 weight_decay: 1.0e-4
+lambda_cos: 1.0
+lambda_var: 0.1
+lambda_cov: 0.01
+var_gamma: 1.0
 max_epochs: 100
 patience: 10
 num_workers: 8
@@ -47,6 +51,10 @@ wandb:
 
 # Held-out linear probes.
 eval:
+  label_test_mode: fast  # choices: fast, full
+  label_test_fast_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_n: 5
+  label_test_fast_seed: 0
   test_frac: 0.2
   split_axis: y
   pca: true

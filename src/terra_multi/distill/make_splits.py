@@ -10,6 +10,40 @@ import yaml
 from terra_multi.distill.data import all_samples, annotated_samples
 
 
+def label_test_split_name(cfg):
+    mode = cfg.get("eval", {}).get("label_test_mode", "full")
+    return "label_test_fast" if mode == "fast" else "label_test"
+
+
+def select_label_test_samples(cfg, samples):
+    """Select the configured full or fast annotated evaluation set."""
+    settings = cfg.get("eval", {})
+    mode = settings.get("label_test_mode", "full")
+    if mode == "full":
+        return list(samples)
+    if mode != "fast":
+        raise ValueError(f"eval.label_test_mode must be 'fast' or 'full', got {mode!r}")
+
+    path = Path(settings.get("label_test_fast_path", "splits/label_test_fast_v1.csv"))
+    table = pd.read_csv(path)
+    if "sample_id" not in table:
+        raise ValueError(f"{path} must contain a sample_id column")
+
+    full_set = set(map(str, samples))
+    candidates = table["sample_id"].astype(str).tolist()
+    missing = sorted(set(candidates) - full_set)
+    if missing:
+        raise ValueError(f"{path} contains samples outside label_test: {missing}")
+
+    n = int(settings.get("label_test_fast_n", 5))
+    if not 0 < n <= len(candidates):
+        raise ValueError(
+            f"label_test_fast_n must be in [1, {len(candidates)}], got {n}"
+        )
+    seed = int(settings.get("label_test_fast_seed", 0))
+    return np.random.default_rng(seed).choice(candidates, n, replace=False).tolist()
+
+
 def partition_samples(samples, annotated, val_frac, seed):
     annotated = set(annotated)
     unannotated = [sample for sample in samples if sample not in annotated]
