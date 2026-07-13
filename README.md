@@ -38,17 +38,30 @@ The source is separated by responsibility:
 - `inference.py`: post-training predictions and metrics.
 - `evaluate_probes.py`: held-out linear probes and aggregation.
 
-Launchers accept a config, so new variants only need a new YAML file:
+Launch training and the four label-probe arms as one dependency-linked workflow:
 
 ```bash
-scripts/distill/submit_train.sh configs/distill/distill_v0.yaml
-scripts/distill/submit_probes.sh configs/distill/distill_v0.yaml
+scripts/distill/submit_experiment.sh configs/distill/distill_v0_vicreg_mild.yaml
+```
+
+The provided v0 configs are `distill_v0_cosine_only.yaml`,
+`distill_v0_vicreg_mild.yaml`, and `distill_v0_vicreg_strong.yaml`. Each uses
+the five-sample `label_test_fast` set by default; set `eval.label_test_mode` to
+`full` to evaluate all annotated HEST samples. Training writes the best
+checkpoint, resolved config, epoch metrics, and validation/fast-test predicted
+embeddings before the probe jobs start.
+
+Training and probes can also be submitted separately:
+
+```bash
+scripts/distill/submit_train.sh configs/distill/distill_v0_vicreg_mild.yaml
+scripts/distill/submit_probes.sh configs/distill/distill_v0_vicreg_mild.yaml
 ```
 
 Submit one evaluation arm directly:
 
 ```bash
-scripts/distill/submit_probe.sh configs/distill/distill_v0.yaml distilled
+scripts/distill/submit_probe.sh configs/distill/distill_v0_vicreg_mild.yaml distilled
 ```
 
 ## OOD evaluation

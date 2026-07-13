@@ -32,20 +32,14 @@ esac
 LOG_DIR="$OUTPUT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-QUEUE="${DISTILL_EVAL_QUEUE:-${QUEUE:-training-normal}}"
+QUEUE="${DISTILL_EVAL_QUEUE:-training-normal}"
 BGROUP="${BGROUP:-s10396}"
 MEM_GB="${DISTILL_EVAL_MEM_GB:-32}"
 NCORES="${DISTILL_EVAL_NCORES:-4}"
 ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
 
-GPU_SPEC="${DISTILL_EVAL_GPU_SPEC:-${CPU_GPU_SPEC:-}}"
-if [ -z "$GPU_SPEC" ]; then
-  case ",${QUEUE}," in
-    *,training-normal,*|*,training-parallel,*|*,gpu-interactive,*|*,inference,*) GPU_SPEC="-" ;;
-  esac
-fi
-GPU_DIRECTIVE=""
-[ -n "$GPU_SPEC" ] && GPU_DIRECTIVE="#BSUB -gpu \"${GPU_SPEC}\""
+GPU_SPEC="${DISTILL_EVAL_GPU_SPEC:--}"
+GPU_DIRECTIVE="#BSUB -gpu \"${GPU_SPEC}\""
 DEP_DIRECTIVE=""
 [ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"${DEPENDENCY}\""
 

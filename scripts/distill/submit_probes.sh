@@ -5,7 +5,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CONFIG="${1:-$ROOT/configs/distill/distill_v0.yaml}"
+CONFIG="${1:-$ROOT/configs/distill/distill_v0_vicreg_mild.yaml}"
 case "$CONFIG" in
   /*) ;;
   *) CONFIG="$ROOT/$CONFIG" ;;
@@ -14,7 +14,10 @@ esac
 ARMS=(uni_baseline terra_teacher distilled concat_oracle)
 job_ids=()
 for arm in "${ARMS[@]}"; do
-  output="$("$SCRIPT_DIR/submit_probe.sh" "$CONFIG" "$arm")"
+  if ! output="$("$SCRIPT_DIR/submit_probe.sh" "$CONFIG" "$arm" 2>&1)"; then
+    printf '%s\n' "$output" >&2
+    exit 1
+  fi
   printf '%s\n' "$output"
   job_id="$(printf '%s\n' "$output" | sed -nE 's/.*Job <([0-9]+)>.*/\1/p' | tail -n1)"
   [ -n "$job_id" ] || {

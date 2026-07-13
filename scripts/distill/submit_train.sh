@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-CONFIG="${1:-$ROOT/configs/distill/distill_v0.yaml}"
+CONFIG="${1:-$ROOT/configs/distill/distill_v0_vicreg_mild.yaml}"
 case "$CONFIG" in
   /*) ;;
   *) CONFIG="$ROOT/$CONFIG" ;;
@@ -27,12 +27,13 @@ esac
 LOG_DIR="$OUTPUT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-QUEUE="${DISTILL_QUEUE:-${GPU_QUEUE:-training-normal}}"
-GPU_SPEC="${DISTILL_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=20000}}"
+QUEUE="${DISTILL_QUEUE:-training-normal}"
+GPU_SPEC="${DISTILL_GPU_SPEC:--}"
 BGROUP="${BGROUP:-s10396}"
 MEM_GB="${DISTILL_MEM_GB:-64}"
 NCORES="${DISTILL_NCORES:-12}"
 ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
+GPU_DIRECTIVE="#BSUB -gpu \"${GPU_SPEC}\""
 
 bsub <<EOF
 #BSUB -J ${RUN_NAME}
@@ -40,7 +41,7 @@ bsub <<EOF
 #BSUB -e ${LOG_DIR}/${RUN_NAME}_%J.err
 #BSUB -n ${NCORES}
 #BSUB -q ${QUEUE}
-#BSUB -gpu "${GPU_SPEC}"
+${GPU_DIRECTIVE}
 #BSUB -G ${BGROUP}
 #BSUB -M ${MEM_GB}G
 #BSUB -R "select[mem>${MEM_GB}G] rusage[mem=${MEM_GB}G] span[hosts=1]"
