@@ -7,6 +7,7 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 - `src/terra_multi/preprocess/`: numbered HEST preprocessing steps.
 - `src/terra_multi/exploration/`: expression and cell-type probes.
 - `src/terra_multi/distill/`: UNI-to-TERRA distillation.
+- `src/terra_multi/lora/`: LoRA adaptation from H&E crops to TERRA features.
 - `src/terra_multi/evaluation/`: evaluation on non-ST datasets.
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
@@ -76,6 +77,46 @@ The v1 config defaults to the five-sample fast label test. Its KMeans model,
 assignments, exported features, metrics, and resolved prototype settings are
 written under `outputs/distill_v1/`; the best student checkpoint is written to
 `checkpoints/distill_v1/best.pt`.
+
+## LoRA: H&E to TERRA
+
+LoRA distillation trains UNI2-h directly from cell-centred H&E crops. The frozen
+encoder gets rank-8 LoRA adapters in its last two or four attention blocks and
+a 384-D TERRA projection head. It supports `contrastive` and `contrastive_gex`
+objectives; the latter adds a 100-gene reconstruction head. Because the HEST
+assays have different gene panels, train-only HVGs are selected over the panel
+union and SmoothL1 is masked wherever a gene was not assayed. Neither gene
+selection nor any training decision reads `label_test_fast` or PhenoCell.
+
+Submit training, best-checkpoint selection, feature export, and both HEST and
+PhenoCell probes with one command:
+
+```bash
+scripts/lora/submit_experiment.sh configs/lora/contrastive_k0.yaml
+```
+
+Submit the head-only baseline plus all three requested LoRA runs together:
+
+```bash
+scripts/lora/submit_suite.sh
+```
+
+The four configs are:
+
+- `configs/lora/frozen_head_only.yaml`: frozen UNI plus a trained
+  projection head.
+- `configs/lora/contrastive_k0.yaml`: contrastive, last two blocks.
+- `configs/lora/contrastive_last4.yaml`: contrastive, last four blocks.
+- `configs/lora/contrastive_gex_last4.yaml`: contrastive plus 100-gene GEX,
+  last four blocks.
+
+Each evaluation exports original UNI, adapter-disabled head, adapted UNI, and
+adapted projected features; the GEX run also exports its 1024-D penultimate
+feature. Results live below the configured `output_dir/evaluation/`, including
+a compact `summary.csv` with HEST five-sample means and PhenoCell all/immune
+macro-F1 and balanced accuracy. Set `max_cells_per_sample` lower for a quick
+training smoke run. Training and validation use deterministic, full batches of
+unique cells from one tissue section, so section identity cannot solve InfoNCE.
 
 ## OOD evaluation
 

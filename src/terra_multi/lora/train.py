@@ -1,0 +1,415 @@
+"""Train UNI2-h LoRA adapters directly from H&E cell crops."""
+
+import argparse
+import json
+import math
+import os
+import random
+from pathlib import Path
+from uuid import uuid4
+
+import numpy as np
+import pandas as pd
+import torch
+import yaml
+from torch.utils.data import DataLoader
+
+from terra_multi.distill.train import init_wandb
+from terra_multi.lora.data import WithinSampleBatchSampler, build_datasets
+from terra_multi.lora.model import (
+    build_uni2_distiller,
+    compute_loss,
+    make_checkpoint,
+)
+
+
+def load_config(path):
+    with open(path) as handle:
+        cfg = yaml.safe_load(handle)
+    if cfg.get("distill_version") != "lora":
+        raise ValueError("LoRA training requires distill_version: lora")
+
+    cfg.setdefault("sampling_seed", 0)
+    cfg.setdefault("max_cells_per_sample", 5_000)
+    cfg.setdefault("terra_key", "cell_emb")
+    cfg.setdefault("crop", {})
+    cfg["crop"].setdefault("target_size", 224)
+    cfg["crop"].setdefault("target_pixel_size_um", 0.5)
+
+    model = cfg.setdefault("model", {})
+    model.setdefault("trainable_blocks", "last_2")
+    model.setdefault("lora_rank", 8)
+    model.setdefault("lora_alpha", 16)
+    model.setdefault("lora_dropout", 0.05)
+    model.setdefault("image_dim", 1536)
+    model.setdefault("terra_dim", 384)
+    model.setdefault("gex_hidden_dim", 1024)
+    model.setdefault("gex_dropout", 0.1)
+
+    objective = cfg.setdefault("objective", {})
+    objective.setdefault("mode", "contrastive")
+    objective.setdefault("lambda_contrastive", 1.0)
+    objective.setdefault("lambda_gex", 1.0)
+    objective.setdefault("temperature", 0.07)
+    objective.setdefault("gex_loss", "smooth_l1")
+    if objective["mode"] not in {"contrastive", "contrastive_gex"}:
+        raise ValueError("objective.mode must be 'contrastive' or 'contrastive_gex'")
+    if float(objective["temperature"]) <= 0:
+        raise ValueError("objective.temperature must be positive")
+    if objective["gex_loss"] != "smooth_l1":
+        raise ValueError("objective.gex_loss must be 'smooth_l1'")
+    if min(float(objective["lambda_contrastive"]), float(objective["lambda_gex"])) < 0:
+        raise ValueError("objective loss weights must be non-negative")
+
+    gex = cfg.setdefault("gex", {})
+    gex.setdefault("num_selected_genes", 100)
+    gex.setdefault("max_cells_for_selection", 200_000)
+    if objective["mode"] == "contrastive_gex" and int(gex["num_selected_genes"]) < 1:
+        raise ValueError("contrastive_gex requires gex.num_selected_genes > 0")
+
+    training = cfg.setdefault("training", {})
+    defaults = {
+        "batch_size": 16,
+        "batches_per_sample_visit": 32,
+        "max_steps": 20_000,
+        "eval_every": 1_000,
+        "patience": 5,
+        "lr_lora": 1e-4,
+        "lr_heads": 3e-4,
+        "weight_decay": 1e-4,
+        "precision": "bf16",
+        "num_workers": 8,
+        "seed": 0,
+        "log_every": 20,
+    }
+    for key, value in defaults.items():
+        training.setdefault(key, value)
+    if int(training["batch_size"]) < 2:
+        raise ValueError("training.batch_size must be at least 2 for InfoNCE")
+    if int(training["batches_per_sample_visit"]) < 1:
+        raise ValueError("training.batches_per_sample_visit must be positive")
+    if int(training["max_steps"]) < 1 or int(training["eval_every"]) < 1:
+        raise ValueError("training.max_steps and training.eval_every must be positive")
+    if int(training["patience"]) < 1 or int(training["log_every"]) < 1:
+        raise ValueError("training.patience and training.log_every must be positive")
+    if int(training["num_workers"]) < 0:
+        raise ValueError("training.num_workers must be non-negative")
+    if training["precision"] not in {"bf16", "fp16", "fp32"}:
+        raise ValueError("training.precision must be bf16, fp16, or fp32")
+
+    cfg.setdefault("wandb", {}).setdefault("enabled", False)
+    return cfg
+
+
+def model_config(cfg, num_genes):
+    settings = dict(cfg["model"])
+    weights_path = settings.pop("weights_path", None)
+    settings["mode"] = cfg["objective"]["mode"]
+    settings["num_genes"] = int(num_genes)
+    return settings, weights_path
+
+
+def make_optimizer(model, cfg):
+    lora = list(model.lora_parameters())
+    heads = list(model.head_parameters())
+    if not heads:
+        raise ValueError("no trainable heads found")
+    grouped = {id(parameter) for parameter in [*lora, *heads]}
+    trainable = {
+        id(parameter) for parameter in model.parameters() if parameter.requires_grad
+    }
+    if grouped != trainable:
+        raise ValueError("optimizer groups do not exactly cover trainable parameters")
+
+    training = cfg["training"]
+    groups = []
+    if lora:
+        groups.append(
+            {"params": lora, "lr": float(training["lr_lora"]), "name": "lora"}
+        )
+    groups.append({"params": heads, "lr": float(training["lr_heads"]), "name": "heads"})
+    optimizer = torch.optim.AdamW(groups, weight_decay=float(training["weight_decay"]))
+    return optimizer, {
+        "lora": sum(parameter.numel() for parameter in lora),
+        "heads": sum(parameter.numel() for parameter in heads),
+    }
+
+
+def make_loader(dataset, cfg, training):
+    batch_size = int(cfg["training"]["batch_size"])
+    workers = int(cfg["training"]["num_workers"])
+    generator = torch.Generator().manual_seed(int(cfg["training"]["seed"]))
+    loader_kwargs = {
+        "num_workers": workers,
+        "pin_memory": torch.cuda.is_available(),
+        "persistent_workers": workers > 0,
+        "generator": generator,
+    }
+    sampler = WithinSampleBatchSampler(
+        dataset,
+        batch_size,
+        seed=int(cfg["training"]["seed"]),
+        shuffle=training,
+        batches_per_sample_visit=int(cfg["training"]["batches_per_sample_visit"]),
+    )
+    return DataLoader(dataset, batch_sampler=sampler, **loader_kwargs)
+
+
+def _amp_settings(device, precision):
+    if precision == "fp32" or device.type != "cuda":
+        return False, torch.float32
+    if precision == "bf16":
+        if not torch.cuda.is_bf16_supported():
+            raise RuntimeError("bf16 was requested but this GPU does not support it")
+        return True, torch.bfloat16
+    return True, torch.float16
+
+
+def _to_device(batch, device):
+    images = batch["image"].to(device, non_blocking=True)
+    terra = batch["terra"].to(device, non_blocking=True)
+    gex = batch.get("gex")
+    if gex is not None:
+        gex = gex.to(device, non_blocking=True)
+    gex_mask = batch.get("gex_mask")
+    if gex_mask is not None:
+        gex_mask = gex_mask.to(device, non_blocking=True)
+    return images, terra, gex, gex_mask
+
+
+def _loss(model, batch, device, cfg, amp_enabled, amp_dtype):
+    images, terra, gex, gex_mask = _to_device(batch, device)
+    with torch.autocast(
+        device_type=device.type,
+        dtype=amp_dtype,
+        enabled=amp_enabled,
+    ):
+        outputs = model(images)
+        losses = compute_loss(
+            outputs,
+            terra,
+            gex,
+            gex_mask,
+            **cfg["objective"],
+        )
+    return losses, len(images)
+
+
+@torch.inference_mode()
+def evaluate(model, loader, device, cfg, amp_enabled, amp_dtype):
+    model.eval()
+    totals = {}
+    n_cells = 0
+    for batch in loader:
+        metrics, batch_size = _loss(model, batch, device, cfg, amp_enabled, amp_dtype)
+        for name, value in metrics.items():
+            totals[name] = totals.get(name, 0.0) + float(value) * batch_size
+        n_cells += batch_size
+    if n_cells == 0:
+        raise ValueError("validation has no contrastive batches")
+    return {name: value / n_cells for name, value in totals.items()}
+
+
+def atomic_torch_save(state, path):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
+    try:
+        torch.save(state, temporary)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def train_loop(
+    model, train_loader, val_loader, optimizer, device, cfg, checkpoint, run
+):
+    training = cfg["training"]
+    amp_enabled, amp_dtype = _amp_settings(device, training["precision"])
+    scaler = torch.amp.GradScaler(
+        "cuda", enabled=amp_enabled and amp_dtype == torch.float16
+    )
+    max_steps = int(training["max_steps"])
+    eval_every = int(training["eval_every"])
+    patience_limit = int(training["patience"])
+    log_every = int(training["log_every"])
+    best_loss, best_step, stale_evals = math.inf, 0, 0
+    train_rows, val_rows = [], []
+    step = epoch = 0
+
+    while step < max_steps and stale_evals < patience_limit:
+        sampler = train_loader.batch_sampler
+        if hasattr(sampler, "set_epoch"):
+            sampler.set_epoch(epoch)
+        for batch in train_loader:
+            model.train()
+            optimizer.zero_grad(set_to_none=True)
+            losses, _ = _loss(model, batch, device, cfg, amp_enabled, amp_dtype)
+            scaler.scale(losses["loss_total"]).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            step += 1
+
+            train_metrics = {
+                "step": step,
+                **{name: float(value.detach()) for name, value in losses.items()},
+                "lr": next(
+                    group["lr"]
+                    for group in optimizer.param_groups
+                    if group.get("name") == "lora"
+                )
+                if any(group.get("name") == "lora" for group in optimizer.param_groups)
+                else optimizer.param_groups[0]["lr"],
+            }
+            if step % log_every == 0 or step == 1:
+                train_rows.append(train_metrics)
+                printable = " ".join(
+                    f"{name}={value:.4f}"
+                    for name, value in train_metrics.items()
+                    if name.startswith("loss_")
+                )
+                print(f"step {step:6d} | {printable}")
+            if run is not None:
+                run.log(
+                    {
+                        "step": step,
+                        "lr": train_metrics["lr"],
+                        **{
+                            f"train/{name}": value
+                            for name, value in train_metrics.items()
+                            if name.startswith("loss_")
+                        },
+                    }
+                )
+
+            should_evaluate = step % eval_every == 0 or step == max_steps
+            if should_evaluate:
+                val_metrics = evaluate(
+                    model, val_loader, device, cfg, amp_enabled, amp_dtype
+                )
+                val_row = {"step": step, **val_metrics}
+                val_rows.append(val_row)
+                print(
+                    f"validation {step:6d} | total={val_metrics['loss_total']:.4f} "
+                    f"contrastive={val_metrics['loss_contrastive']:.4f} "
+                    f"top1={val_metrics['contrastive_top1']:.4f} "
+                    f"top5={val_metrics['contrastive_top5']:.4f}"
+                )
+                if run is not None:
+                    run.log(
+                        {
+                            "step": step,
+                            **{
+                                f"val/{name}": value
+                                for name, value in val_metrics.items()
+                            },
+                        }
+                    )
+
+                val_loss = val_metrics["loss_total"]
+                if math.isfinite(val_loss) and val_loss < best_loss - 1e-6:
+                    best_loss, best_step, stale_evals = val_loss, step, 0
+                    atomic_torch_save(
+                        make_checkpoint(
+                            model,
+                            step=step,
+                            val_loss=val_loss,
+                            config=cfg,
+                        ),
+                        checkpoint,
+                    )
+                else:
+                    stale_evals += 1
+                    if stale_evals >= patience_limit:
+                        print(f"early stopping at step {step} (best step {best_step})")
+                        break
+            if step >= max_steps:
+                break
+        epoch += 1
+
+    if best_step == 0 or not Path(checkpoint).exists():
+        raise RuntimeError("training produced no finite validation checkpoint")
+    return best_step, best_loss, train_rows, val_rows
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", required=True)
+    args = parser.parse_args()
+    cfg = load_config(args.config)
+
+    seed = int(cfg["training"]["seed"])
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    out_dir = Path(cfg["output_dir"])
+    checkpoint_dir = Path(cfg["checkpoint_dir"])
+    out_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint = checkpoint_dir / "best.pt"
+    checkpoint.unlink(missing_ok=True)
+
+    num_genes = (
+        int(cfg["gex"]["num_selected_genes"])
+        if cfg["objective"]["mode"] == "contrastive_gex"
+        else 0
+    )
+    settings, weights_path = model_config(cfg, num_genes)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = build_uni2_distiller(weights_path=weights_path, **settings).to(device)
+    transform = model.eval_transforms
+
+    train_dataset, val_dataset, selected_genes = build_datasets(
+        cfg,
+        transform,
+        out_dir / "selected_genes.json",
+    )
+    if len(selected_genes or []) != num_genes:
+        raise ValueError(
+            f"expected {num_genes} selected genes, got {len(selected_genes or [])}"
+        )
+    if selected_genes:
+        cfg["gex"]["selected_genes"] = list(selected_genes)
+    with open(out_dir / "resolved_config.yaml", "w") as handle:
+        yaml.safe_dump(cfg, handle, sort_keys=False)
+
+    train_loader = make_loader(train_dataset, cfg, training=True)
+    val_loader = make_loader(val_dataset, cfg, training=False)
+    optimizer, parameter_counts = make_optimizer(model, cfg)
+    print(
+        f"cells: train={len(train_dataset):,} val={len(val_dataset):,} | "
+        f"trainable LoRA={parameter_counts['lora']:,} heads={parameter_counts['heads']:,}"
+    )
+
+    run = init_wandb(cfg)
+    best_step, best_loss, train_rows, val_rows = train_loop(
+        model,
+        train_loader,
+        val_loader,
+        optimizer,
+        device,
+        cfg,
+        checkpoint,
+        run,
+    )
+    pd.DataFrame(train_rows).to_csv(out_dir / "train_metrics.csv", index=False)
+    pd.DataFrame(val_rows).to_csv(out_dir / "val_metrics.csv", index=False)
+    summary = {
+        "best_step": best_step,
+        "best_val_loss": best_loss,
+        "train_cells": len(train_dataset),
+        "val_cells": len(val_dataset),
+        "trainable_parameters": parameter_counts,
+    }
+    with open(out_dir / "train_summary.json", "w") as handle:
+        json.dump(summary, handle, indent=2)
+    print(json.dumps(summary, indent=2))
+    if run is not None:
+        run.summary.update(summary)
+        run.finish()
+
+
+if __name__ == "__main__":
+    main()
