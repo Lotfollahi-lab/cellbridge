@@ -104,8 +104,10 @@ written under `outputs/distill_v1/`; the best student checkpoint is written to
 
 LoRA distillation trains UNI2-h directly from cell-centred H&E crops. The frozen
 encoder gets rank-8 LoRA adapters in its last two or four attention blocks and
-a 384-D TERRA projection head. It supports `contrastive` and `contrastive_gex`
-objectives; the latter adds a 100-gene reconstruction head. Because the HEST
+a 384-D TERRA projection head. `objective.mode` selects contrastive-only or the
+optional 100-gene GEX head. Independently, `objective.targets` selects either
+the original exact-pair InfoNCE targets or soft targets derived from pairwise
+TERRA cosine similarity within each single-section batch. Because the HEST
 assays have different gene panels, train-only HVGs are selected over the panel
 union and SmoothL1 is masked wherever a gene was not assayed. Neither gene
 selection nor any training decision reads `label_test_fast` or PhenoCell.
@@ -117,19 +119,42 @@ PhenoCell probes with one command:
 scripts/lora/submit_experiment.sh configs/lora/contrastive_k0.yaml
 ```
 
+Run the new soft-target experiment with the same training and evaluation
+pipeline:
+
+```bash
+scripts/lora/submit_experiment.sh configs/lora/terra_similarity_last4.yaml
+```
+
+Its only alignment change is:
+
+```yaml
+objective:
+  targets: terra_similarity
+  teacher_temperature: 0.1
+  exact_match_boost: 0.05
+  bidirectional: true
+```
+
+The diagonal boost guarantees that the exact cell remains the strongest
+positive. Similar TERRA cells receive softer positive mass, and the loss is
+`KL(teacher || image-to-TERRA)`, optionally averaged with TERRA-to-image.
+
 Submit the head-only baseline plus all three requested LoRA runs together:
 
 ```bash
 scripts/lora/submit_suite.sh
 ```
 
-The four configs are:
+The main configs are:
 
 - `configs/lora/frozen_head_only.yaml`: frozen UNI plus a trained
   projection head.
 - `configs/lora/contrastive_k0.yaml`: contrastive, last two blocks.
 - `configs/lora/contrastive_last4.yaml`: contrastive, last four blocks.
 - `configs/lora/contrastive_gex_last4.yaml`: contrastive plus 100-gene GEX,
+  last four blocks.
+- `configs/lora/terra_similarity_last4.yaml`: TERRA-similarity soft targets,
   last four blocks.
 
 Each evaluation exports original UNI, adapter-disabled head, adapted UNI, and

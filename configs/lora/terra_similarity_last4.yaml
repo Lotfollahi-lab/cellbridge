@@ -1,0 +1,73 @@
+distill_version: lora
+run_name: lora_terra_similarity_last4
+
+data_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest
+manifest_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/manifest.csv
+splits_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/hest80_strict_v1.csv
+max_cells_per_sample: 5000
+max_open_wsis: 64
+sampling_seed: 0
+terra_key: cell_emb
+
+crop:
+  target_size: 224
+  target_pixel_size_um: 0.5
+
+model:
+  trainable_blocks: last_4
+  lora_rank: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  image_dim: 1536
+  terra_dim: 384
+
+objective:
+  mode: contrastive
+  targets: terra_similarity
+  temperature: 0.07
+  teacher_temperature: 0.1
+  exact_match_boost: 0.05
+  bidirectional: true
+
+training:
+  batch_size: 16
+  max_steps: 20000
+  eval_every: 1000
+  patience: 5
+  lr_lora: 1.0e-4
+  lr_heads: 3.0e-4
+  weight_decay: 1.0e-4
+  precision: bf16
+  num_workers: 8
+  seed: 0
+  log_every: 20
+
+output_dir: outputs/lora/terra_similarity_last4
+checkpoint_dir: checkpoints/lora/terra_similarity_last4
+phenocell_config: configs/evaluation/phenocell.yaml
+
+wandb:
+  enabled: true
+  project: terra-uni-distillation
+  group: distill_lora
+  name: lora_terra_similarity_last4
+  mode: online
+
+eval:
+  label_test_fast_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_n: 5
+  batch_size: 64
+  num_workers: 8
+  test_frac: 0.2
+  split_axis: y
+  pca: true
+  uni_pca_components: 256
+  methods: [linear, knn]
+  Cs: [0.1, 1, 10]
+  knn_neighbors: 20
+  knn_metric: cosine
+  knn_weights: uniform
+  class_weight: balanced
+  label_column: group
+  label_id_column: cell_id
+  min_class_count: 25

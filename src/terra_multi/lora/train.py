@@ -52,10 +52,22 @@ def load_config(path):
     objective.setdefault("lambda_gex", 1.0)
     objective.setdefault("temperature", 0.07)
     objective.setdefault("gex_loss", "smooth_l1")
+    objective.setdefault("targets", "exact")
+    objective.setdefault("teacher_temperature", 0.1)
+    objective.setdefault("exact_match_boost", 0.05)
+    objective.setdefault("bidirectional", True)
     if objective["mode"] not in {"contrastive", "contrastive_gex"}:
         raise ValueError("objective.mode must be 'contrastive' or 'contrastive_gex'")
+    if objective["targets"] not in {"exact", "terra_similarity"}:
+        raise ValueError("objective.targets must be 'exact' or 'terra_similarity'")
     if float(objective["temperature"]) <= 0:
         raise ValueError("objective.temperature must be positive")
+    if float(objective["teacher_temperature"]) <= 0:
+        raise ValueError("objective.teacher_temperature must be positive")
+    if float(objective["exact_match_boost"]) <= 0:
+        raise ValueError("objective.exact_match_boost must be positive")
+    if not isinstance(objective["bidirectional"], bool):
+        raise ValueError("objective.bidirectional must be true or false")
     if objective["gex_loss"] != "smooth_l1":
         raise ValueError("objective.gex_loss must be 'smooth_l1'")
     if min(float(objective["lambda_contrastive"]), float(objective["lambda_gex"])) < 0:

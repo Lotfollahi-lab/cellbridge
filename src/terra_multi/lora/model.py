@@ -13,6 +13,7 @@ import torch.nn.functional as F
 
 CHECKPOINT_FORMAT = "terra_multi.lora/1"
 OBJECTIVE_MODES = {"contrastive", "contrastive_gex"}
+TARGET_TYPES = {"exact", "terra_similarity"}
 
 
 class LoRALinear(nn.Module):
@@ -333,13 +334,11 @@ class LoRAUNIDistiller(nn.Module):
                 destination.copy_(source)
 
 
-def symmetric_contrastive_loss(
+def _similarity_logits(
     image_z: torch.Tensor,
     terra_z: torch.Tensor,
-    temperature: float = 0.07,
-) -> dict[str, torch.Tensor]:
-    """Symmetric CLIP-style InfoNCE and in-batch retrieval accuracy."""
-
+    temperature: float,
+) -> torch.Tensor:
     if temperature <= 0:
         raise ValueError("temperature must be positive")
     if image_z.ndim != 2 or terra_z.ndim != 2 or image_z.shape != terra_z.shape:
@@ -351,11 +350,11 @@ def symmetric_contrastive_loss(
 
     image_z = F.normalize(image_z, dim=-1)
     terra_z = F.normalize(terra_z, dim=-1)
-    logits = image_z @ terra_z.T / temperature
-    labels = torch.arange(len(logits), device=logits.device)
-    loss_i2t = F.cross_entropy(logits, labels)
-    loss_t2i = F.cross_entropy(logits.T, labels)
+    return image_z @ terra_z.T / temperature
 
+
+def _retrieval_metrics(logits: torch.Tensor) -> dict[str, torch.Tensor]:
+    labels = torch.arange(len(logits), device=logits.device)
     top_k = min(5, len(logits))
     image_top = logits.topk(top_k, dim=1).indices
     terra_top = logits.T.topk(top_k, dim=1).indices
@@ -368,10 +367,78 @@ def symmetric_contrastive_loss(
         + (terra_top == labels[:, None]).any(dim=1).float().mean()
     )
     return {
-        "loss_contrastive": 0.5 * (loss_i2t + loss_t2i),
         "contrastive_top1": top1,
         "contrastive_top5": top5,
     }
+
+
+def symmetric_contrastive_loss(
+    image_z: torch.Tensor,
+    terra_z: torch.Tensor,
+    temperature: float = 0.07,
+    *,
+    bidirectional: bool = True,
+) -> dict[str, torch.Tensor]:
+    """CLIP-style exact-pair InfoNCE and in-batch retrieval accuracy."""
+
+    logits = _similarity_logits(image_z, terra_z, temperature)
+    labels = torch.arange(len(logits), device=logits.device)
+    loss = F.cross_entropy(logits, labels)
+    if bidirectional:
+        loss = 0.5 * (loss + F.cross_entropy(logits.T, labels))
+    return {"loss_contrastive": loss, **_retrieval_metrics(logits)}
+
+
+def terra_similarity_targets(
+    terra_z: torch.Tensor,
+    teacher_temperature: float = 0.1,
+    exact_match_boost: float = 0.05,
+) -> torch.Tensor:
+    """Create soft in-batch targets from pairwise TERRA cosine similarity."""
+
+    if terra_z.ndim != 2 or len(terra_z) == 0:
+        raise ValueError("terra_z must be a non-empty [batch, feature] tensor")
+    if teacher_temperature <= 0:
+        raise ValueError("teacher_temperature must be positive")
+    if exact_match_boost <= 0:
+        raise ValueError("exact_match_boost must be positive")
+
+    with torch.autocast(device_type=terra_z.device.type, enabled=False):
+        normalized = F.normalize(terra_z.detach().float(), dim=-1)
+        teacher_logits = normalized @ normalized.T
+        teacher_logits.diagonal().add_(exact_match_boost)
+        targets = F.softmax(teacher_logits / teacher_temperature, dim=-1)
+    return targets.detach()
+
+
+def _distribution_kl(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    return F.kl_div(
+        F.log_softmax(logits, dim=-1), targets, reduction="batchmean"
+    )
+
+
+def soft_target_contrastive_loss(
+    image_z: torch.Tensor,
+    terra_z: torch.Tensor,
+    temperature: float = 0.07,
+    *,
+    teacher_temperature: float = 0.1,
+    exact_match_boost: float = 0.05,
+    bidirectional: bool = True,
+) -> dict[str, torch.Tensor]:
+    """Match image-to-TERRA similarities to a soft TERRA teacher distribution."""
+
+    logits = _similarity_logits(image_z, terra_z, temperature)
+    targets = terra_similarity_targets(
+        terra_z,
+        teacher_temperature=teacher_temperature,
+        exact_match_boost=exact_match_boost,
+    )
+    loss = _distribution_kl(logits, targets)
+    if bidirectional:
+        loss = 0.5 * (loss + _distribution_kl(logits.T, targets))
+
+    return {"loss_contrastive": loss, **_retrieval_metrics(logits)}
 
 
 def compute_loss(
@@ -385,17 +452,36 @@ def compute_loss(
     lambda_gex: float = 1.0,
     temperature: float = 0.07,
     gex_loss: str = "smooth_l1",
+    targets: str = "exact",
+    teacher_temperature: float = 0.1,
+    exact_match_boost: float = 0.05,
+    bidirectional: bool = True,
 ) -> dict[str, torch.Tensor]:
     """Compute the configured LoRA objective and retrieval metrics."""
 
     if mode not in OBJECTIVE_MODES:
         raise ValueError(f"mode must be one of {sorted(OBJECTIVE_MODES)}")
+    if targets not in TARGET_TYPES:
+        raise ValueError(f"targets must be one of {sorted(TARGET_TYPES)}")
     if "projected" not in outputs:
         raise ValueError("model outputs are missing 'projected'")
 
-    metrics = symmetric_contrastive_loss(
-        outputs["projected"], terra_target, temperature
-    )
+    if targets == "exact":
+        metrics = symmetric_contrastive_loss(
+            outputs["projected"],
+            terra_target,
+            temperature,
+            bidirectional=bidirectional,
+        )
+    else:
+        metrics = soft_target_contrastive_loss(
+            outputs["projected"],
+            terra_target,
+            temperature,
+            teacher_temperature=teacher_temperature,
+            exact_match_boost=exact_match_boost,
+            bidirectional=bidirectional,
+        )
     total = lambda_contrastive * metrics["loss_contrastive"]
     if mode == "contrastive_gex":
         if gex_loss != "smooth_l1":
