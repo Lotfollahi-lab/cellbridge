@@ -34,6 +34,6 @@ for arm in "${ARMS[@]}"; do
   job_ids+=("$job_id")
 done
 
-dependency="$(printf 'ended(%s)&&' "${job_ids[@]}")"
+dependency="$(printf 'done(%s)&&' "${job_ids[@]}")"
 dependency="${dependency%&&}"
 DEPENDENCY="$dependency" "$SCRIPT_DIR/submit_probe.sh" "$CONFIG" aggregate
