@@ -337,8 +337,16 @@ def _hest_dataset(cfg, sample_id, transform):
     )
 
 
-def export_hest(cfg, model, device, output_dir, checkpoint_identity, overwrite=False):
-    """Export all requested arms for the five label_test_fast HEST samples."""
+def export_hest(
+    cfg, model, device, output_dir, checkpoint_identity, overwrite=False, samples=None
+):
+    """Export all requested arms for the five label_test_fast HEST samples.
+
+    ``samples`` restricts the export to a subset, so one job can own one sample.
+    A partial run leaves the manifest alone: it must list the whole
+    label_test_fast set for ``probe_hest``, and concurrent per-sample jobs would
+    otherwise race to overwrite it. A later full (cached) run rebuilds it.
+    """
     import torch
 
     settings = cfg["eval"]
@@ -353,7 +361,14 @@ def export_hest(cfg, model, device, output_dir, checkpoint_identity, overwrite=F
         "lora_projected": model.terra_dim,
         "gex_penultimate": model.gex_hidden_dim,
     }
-    for sample_id in label_test_fast_samples(cfg):
+    wanted = label_test_fast_samples(cfg)
+    if samples is not None:
+        requested = [str(sample_id) for sample_id in samples]
+        unknown = sorted(set(requested) - set(wanted))
+        if unknown:
+            raise ValueError(f"not label_test_fast samples: {unknown}")
+        wanted = [sample_id for sample_id in wanted if sample_id in set(requested)]
+    for sample_id in wanted:
         source = _hest_source_identity(cfg, sample_id)
         with np.load(source["terra"]["path"], allow_pickle=True) as terra:
             expected_cells = len(terra["cell_ids"])
@@ -410,7 +425,8 @@ def export_hest(cfg, model, device, output_dir, checkpoint_identity, overwrite=F
                 "signature": signature,
             }
         )
-    _write_manifest(output_dir / "features" / "manifest.csv", rows)
+    if samples is None:
+        _write_manifest(output_dir / "features" / "manifest.csv", rows)
     return pd.DataFrame(rows)
 
 
@@ -700,7 +716,30 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg):
     return metrics, predictions
 
 
-def probe_hest(cfg, output_dir):
+def cached_probe_metrics(path, signature):
+    """Return a finished probe's metrics when it matches ``signature``."""
+    path = Path(path)
+    if not path.exists():
+        return None
+    try:
+        cached = pd.read_csv(path)
+    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError):
+        return None
+    if len(cached) != 1 or "signature" not in cached:
+        return None
+    if str(cached["signature"].iloc[0]) != str(signature):
+        return None
+    return cached.iloc[0].to_dict()
+
+
+def probe_hest(cfg, output_dir, samples=None):
+    """Probe every exported arm of each label_test_fast sample.
+
+    Each (sample, arm) probe is independent and is cached under its own
+    signature, so one job can own one sample and a later full run reuses the
+    finished work. A partial run does not write the combined probe tables:
+    concurrent jobs would race, and the tables must cover the whole set.
+    """
     manifest_path = output_dir / "features" / "manifest.csv"
     manifest = pd.read_csv(manifest_path)
     expected = label_test_fast_samples(cfg)
@@ -708,6 +747,12 @@ def probe_hest(cfg, output_dir):
         raise ValueError(
             "HEST feature manifest is not the configured label_test_fast set"
         )
+    if samples is not None:
+        requested = {str(sample_id) for sample_id in samples}
+        unknown = sorted(requested - set(expected))
+        if unknown:
+            raise ValueError(f"not label_test_fast samples: {unknown}")
+        manifest = manifest[manifest["sample_id"].astype(str).isin(requested)]
     result_rows = []
     for row in manifest.itertuples(index=False):
         sample_dir = _hest_sample_dir(cfg, str(row.sample_id))
@@ -718,12 +763,6 @@ def probe_hest(cfg, output_dir):
             "adata": file_identity(sample_dir / f"{row.sample_id}.h5ad"),
         }
         for arm in FEATURE_ARMS:
-            features, cell_ids = _load_hest_feature(row.path, arm, row.signature)
-            if features is None:
-                continue
-            metrics, predictions = evaluate_hest_sample(
-                features, cell_ids, str(row.sample_id), arm, cfg
-            )
             signature = stable_signature(
                 {
                     "features": str(row.signature),
@@ -732,8 +771,19 @@ def probe_hest(cfg, output_dir):
                     "settings": cfg["eval"],
                 }
             )
-            metrics["signature"] = signature
             result_dir = output_dir / "probes" / str(row.sample_id) / arm
+            cached = cached_probe_metrics(result_dir / "metrics.csv", signature)
+            if cached is not None:
+                result_rows.append(cached)
+                print(f"[HEST/{row.sample_id}/{arm}] current")
+                continue
+            features, cell_ids = _load_hest_feature(row.path, arm, row.signature)
+            if features is None:
+                continue
+            metrics, predictions = evaluate_hest_sample(
+                features, cell_ids, str(row.sample_id), arm, cfg
+            )
+            metrics["signature"] = signature
             result_dir.mkdir(parents=True, exist_ok=True)
             pd.DataFrame([metrics]).to_csv(result_dir / "metrics.csv", index=False)
             np.savez(result_dir / "predictions.npz", signature=signature, **predictions)
@@ -743,6 +793,8 @@ def probe_hest(cfg, output_dir):
                 f"balanced accuracy={metrics['balanced_accuracy']:.4f}"
             )
     results = pd.DataFrame(result_rows)
+    if samples is not None:
+        return results, None
     results.to_csv(output_dir / "probe_metrics.csv", index=False)
     metric_names = ["macro_f1", "balanced_accuracy", "accuracy", "weighted_f1"]
     summary = results.groupby("arm")[metric_names].agg(["mean", "std"])
@@ -954,7 +1006,27 @@ def main(argv=None):
     parser.add_argument("--skip-hest", action="store_true")
     parser.add_argument("--skip-phenocell", action="store_true")
     parser.add_argument("--skip-probes", action="store_true")
+    parser.add_argument(
+        "--samples",
+        help="comma-separated HEST samples to export; omit for all five",
+    )
+    parser.add_argument(
+        "--probe-only",
+        action="store_true",
+        help="probe already-exported features; loads no model and needs no GPU",
+    )
+    parser.add_argument(
+        "--probe-samples",
+        help="comma-separated HEST samples to probe; implies --probe-only",
+    )
     args = parser.parse_args(argv)
+    samples = args.samples.split(",") if args.samples else None
+    if samples is not None and not args.skip_probes:
+        parser.error("--samples exports a subset, so it requires --skip-probes")
+    probe_samples = args.probe_samples.split(",") if args.probe_samples else None
+    probe_only = args.probe_only or probe_samples is not None
+    if probe_only and samples is not None:
+        parser.error("--samples exports; --probe-only probes. Use one or the other")
 
     with open(args.config) as handle:
         cfg = yaml.safe_load(handle)
@@ -974,6 +1046,16 @@ def main(argv=None):
         or cfg.get("eval", {}).get("output_dir", Path(cfg["output_dir"]) / "evaluation")
     )
 
+    # Probing only reads exported features, so skip the encoder entirely: these
+    # jobs need no GPU and can run wherever there is a free core.
+    if probe_only:
+        probe_hest(
+            cfg,
+            evaluation_root / "hest_label_test_fast",
+            samples=probe_samples,
+        )
+        return
+
     import torch
 
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -981,7 +1063,15 @@ def main(argv=None):
     hest_metrics = phenocell_metrics = None
     if not args.skip_hest:
         hest_dir = evaluation_root / "hest_label_test_fast"
-        export_hest(cfg, model, device, hest_dir, checkpoint_identity, args.overwrite)
+        export_hest(
+            cfg,
+            model,
+            device,
+            hest_dir,
+            checkpoint_identity,
+            args.overwrite,
+            samples=samples,
+        )
         if not args.skip_probes:
             hest_metrics, _ = probe_hest(cfg, hest_dir)
     if not args.skip_phenocell:
