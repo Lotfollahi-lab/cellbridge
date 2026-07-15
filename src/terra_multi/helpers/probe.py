@@ -33,6 +33,9 @@ def fit_classifier(X_train, y_train, Cs, class_weight="balanced"):
                     scoring="balanced_accuracy",
                     class_weight=class_weight,
                     max_iter=2000,
+                    # The 3 Cs x 3 folds are independent; fitting them serially left
+                    # every core but one idle and made a probe take ~9 minutes.
+                    n_jobs=-1,
                 ),
             ),
         ]
