@@ -24,8 +24,13 @@ split_axis: y
 pca: true
 uni_pca_components: 256
 
-# Multinomial linear probe.
+# Shared linear and label-reference kNN evaluation.
+models: [terra, terra_neighbor, uni, concat, neighbor_concat]
+methods: [linear, knn]
 Cs: [0.1, 1, 10]
+knn_neighbors: 20
+knn_metric: cosine
+knn_weights: uniform
 class_weight: balanced
 
 output_dir: outputs/granular_celltype/TENX116

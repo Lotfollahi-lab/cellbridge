@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-CONFIG="${CONFIG:-$ROOT/configs/exploration/celltype.yaml}"
+CONFIG="${CONFIG:-$ROOT/configs/exploration/celltype_tenx116.yaml}"
 OUTPUT_DIR="$(sed -nE 's/^[[:space:]]*output_dir:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
 case "$OUTPUT_DIR" in
   /*) : ;;

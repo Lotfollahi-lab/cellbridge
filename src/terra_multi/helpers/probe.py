@@ -1,20 +1,13 @@
-"""Linear probes: StandardScaler on train, then RidgeCV (regression) or
-LogisticRegressionCV (classification)."""
+"""Backward-compatible imports for the shared evaluation estimators."""
 
-from sklearn.linear_model import LogisticRegressionCV, RidgeCV
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from terra_multi.evaluation.linear_probe import (
+    fit_linear_classifier,
+    fit_linear_regressor,
+)
 
 
 def fit_probe(X_train, Y_train, alphas):
-    model = Pipeline(
-        [
-            ("scaler", StandardScaler()),
-            ("ridge", RidgeCV(alphas=list(alphas), alpha_per_target=True)),
-        ]
-    )
-    model.fit(X_train, Y_train)
-    return model
+    return fit_linear_regressor(X_train, Y_train, alphas)
 
 
 def predict(model, X):
@@ -22,23 +15,4 @@ def predict(model, X):
 
 
 def fit_classifier(X_train, y_train, Cs, class_weight="balanced"):
-    model = Pipeline(
-        [
-            ("scaler", StandardScaler()),
-            (
-                "logreg",
-                LogisticRegressionCV(
-                    Cs=list(Cs),
-                    cv=3,
-                    scoring="balanced_accuracy",
-                    class_weight=class_weight,
-                    max_iter=2000,
-                    # The 3 Cs x 3 folds are independent; fitting them serially left
-                    # every core but one idle and made a probe take ~9 minutes.
-                    n_jobs=-1,
-                ),
-            ),
-        ]
-    )
-    model.fit(X_train, y_train)
-    return model
+    return fit_linear_classifier(X_train, y_train, Cs, class_weight)

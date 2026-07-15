@@ -8,7 +8,7 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 - `src/terra_multi/exploration/`: expression and cell-type probes.
 - `src/terra_multi/distill/`: UNI-to-TERRA distillation.
 - `src/terra_multi/lora/`: LoRA adaptation from H&E crops to TERRA features.
-- `src/terra_multi/evaluation/`: evaluation on non-ST datasets.
+- `src/terra_multi/evaluation/`: shared linear/kNN evaluation and PhenoCell.
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
 
@@ -29,6 +29,28 @@ Submit the numbered steps for one sample:
 scripts/preprocess/run_sample_preprocess.sh TENX116
 ```
 
+## Shared evaluation
+
+Cell-type evaluation has one implementation under `src/terra_multi/evaluation/`:
+
+- `linear_probe.py`: the existing standardized logistic-regression protocol.
+- `zero_shot.py`: cosine kNN with no fitted model parameters.
+- `classification.py`: shared fitting, metrics, and prediction artifacts.
+- `hest.py` and `phenocell.py`: dataset-specific split and preparation rules.
+
+kNN is non-parametric but not label-free: it uses labelled cells from the
+training reference split. Checked-in configs run both `linear` and `knn`.
+Historical linear result paths and schemas are unchanged; kNN artifacts live
+under `knn/` and use separate `*_knn.csv` summaries.
+
+Run every configured HEST feature arm and both evaluators locally with one
+command:
+
+```bash
+PYTHONPATH=src python -m terra_multi.evaluation.run \
+  --config configs/exploration/celltype_tenx116.yaml
+```
+
 ## Distillation
 
 The source is separated by responsibility:
@@ -37,7 +59,7 @@ The source is separated by responsibility:
 - `model.py`: projector and loss.
 - `train.py`: loaders, optimization, and checkpointing.
 - `inference.py`: post-training predictions and metrics.
-- `evaluate_probes.py`: held-out linear probes and aggregation.
+- `evaluate_probes.py`: feature-arm setup and shared evaluation aggregation.
 
 Launch training and the four label-probe arms as one dependency-linked workflow:
 
@@ -138,7 +160,7 @@ DEPENDENCY=<distillation-job-id> \
   scripts/evaluation/phenocell/submit_all.sh configs/evaluation/phenocell.yaml
 ```
 
-The probe reports both the full 14-class benchmark and an immune-only task.
+The evaluators report both the full 14-class benchmark and an immune-only task.
 Change `crop_size`, `projection.checkpoint`, or `output_dir` in a copied config
 to keep evaluation variants isolated.
 

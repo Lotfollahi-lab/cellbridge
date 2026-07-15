@@ -20,15 +20,12 @@ import numpy as np
 import pandas as pd
 import yaml
 from PIL import Image
-from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    balanced_accuracy_score,
-    f1_score,
+from terra_multi.evaluation.classification import (
+    evaluate_classification,
+    method_directory,
+    resolve_methods,
 )
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
+from terra_multi.evaluation.linear_probe import reduce_features
 
 from terra_multi.evaluation.phenocell_data import (
     centered_crop,
@@ -37,7 +34,11 @@ from terra_multi.evaluation.phenocell_data import (
     reconstruct_image,
     to_uint8_rgb,
 )
-from terra_multi.evaluation.probe_phenocell import IMMUNE_CLASSES
+from terra_multi.evaluation.phenocell import (
+    evaluate_phenocell_task,
+    prepare_phenocell_task,
+    validate_official_split,
+)
 
 FEATURE_ARMS = (
     "uni_original",
@@ -596,33 +597,8 @@ def export_phenocell(
 
 
 def _reduce_features(features, train_indices, components, seed=0):
-    if not components:
-        return features, None
-    components = int(components)
-    maximum = min(len(train_indices), features.shape[1])
-    if components > maximum:
-        raise ValueError(
-            f"cannot fit {components} PCA components from {maximum} available"
-        )
-    pca = PCA(n_components=components, svd_solver="randomized", random_state=seed)
-    pca.fit(features[train_indices])
-    return pca.transform(features).astype(np.float32), float(
-        pca.explained_variance_ratio_.sum()
-    )
-
-
-def _classifier(C, class_weight="balanced", max_iter=2000):
-    return Pipeline(
-        [
-            ("scale", StandardScaler()),
-            (
-                "classifier",
-                LogisticRegression(
-                    C=float(C), class_weight=class_weight, max_iter=int(max_iter)
-                ),
-            ),
-        ]
-    )
+    """Compatibility wrapper around the shared train-only PCA."""
+    return reduce_features(features, train_indices, components, seed)
 
 
 def _load_hest_feature(path, arm, expected_signature):
@@ -634,11 +610,10 @@ def _load_hest_feature(path, arm, expected_signature):
         return data[arm].astype(np.float32), data["cell_ids"].astype(str)
 
 
-def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg):
-    """Run the existing spatial StandardScaler cell-type probe for one sample."""
-    from terra_multi.exploration.run_celltype_probe import load_labels
+def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear"):
+    """Run one shared evaluator on a spatial HEST split."""
+    from terra_multi.evaluation.hest import load_labels
     from terra_multi.helpers.io import load_coords
-    from terra_multi.helpers.probe import fit_classifier
     from terra_multi.helpers.splits import spatial_split
 
     settings = cfg["eval"]
@@ -685,33 +660,37 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg):
         X, explained = _reduce_features(
             X, train, settings.get("uni_pca_components", 256)
         )
-    model = fit_classifier(
-        X[train],
-        y[train],
-        settings.get("Cs", [0.1, 1, 10]),
-        settings.get("class_weight", "balanced"),
+    result = evaluate_classification(
+        X,
+        y,
+        train,
+        test,
+        method,
+        settings,
+        row_ids=ids,
     )
-    predicted = model.predict(X[test])
+    common = result.metrics
     metrics = {
         "sample_id": sample_id,
         "arm": arm,
-        "n_features": X.shape[1],
-        "n_train": len(train),
-        "n_test": len(test),
-        "n_classes": len(model.classes_),
-        "accuracy": accuracy_score(y[test], predicted),
-        "balanced_accuracy": balanced_accuracy_score(y[test], predicted),
-        "macro_f1": f1_score(y[test], predicted, average="macro", zero_division=0),
-        "weighted_f1": f1_score(
-            y[test], predicted, average="weighted", zero_division=0
-        ),
+        "n_features": common["n_features"],
+        "n_train": common["n_train"],
+        "n_test": common["n_test"],
+        "n_classes": common["n_classes"],
+        "accuracy": common["accuracy"],
+        "balanced_accuracy": common["balanced_accuracy"],
+        "macro_f1": common["macro_f1"],
+        "weighted_f1": common["weighted_f1"],
         "pca_explained_variance": explained,
     }
+    for key in ("n_neighbors", "neighbor_metric", "neighbor_weights"):
+        if key in common:
+            metrics[key] = common[key]
     predictions = {
-        "cell_ids_test": ids[test],
-        "y_true": y[test],
-        "y_pred": predicted,
-        "classes": model.classes_.astype(str),
+        "cell_ids_test": result.predictions["row_ids_test"],
+        "y_true": result.predictions["y_true"],
+        "y_pred": result.predictions["y_pred"],
+        "classes": result.predictions["classes"].astype(str),
     }
     return metrics, predictions
 
@@ -753,7 +732,8 @@ def probe_hest(cfg, output_dir, samples=None):
         if unknown:
             raise ValueError(f"not label_test_fast samples: {unknown}")
         manifest = manifest[manifest["sample_id"].astype(str).isin(requested)]
-    result_rows = []
+    methods = resolve_methods(cfg["eval"])
+    result_rows = {method: [] for method in methods}
     for row in manifest.itertuples(index=False):
         sample_dir = _hest_sample_dir(cfg, str(row.sample_id))
         probe_sources = {
@@ -763,46 +743,66 @@ def probe_hest(cfg, output_dir, samples=None):
             "adata": file_identity(sample_dir / f"{row.sample_id}.h5ad"),
         }
         for arm in FEATURE_ARMS:
-            signature = stable_signature(
-                {
+            features = cell_ids = None
+            for method in methods:
+                signature_payload = {
                     "features": str(row.signature),
                     "sources": probe_sources,
                     "arm": arm,
                     "settings": cfg["eval"],
                 }
-            )
-            result_dir = output_dir / "probes" / str(row.sample_id) / arm
-            cached = cached_probe_metrics(result_dir / "metrics.csv", signature)
-            if cached is not None:
-                result_rows.append(cached)
-                print(f"[HEST/{row.sample_id}/{arm}] current")
-                continue
-            features, cell_ids = _load_hest_feature(row.path, arm, row.signature)
-            if features is None:
-                continue
-            metrics, predictions = evaluate_hest_sample(
-                features, cell_ids, str(row.sample_id), arm, cfg
-            )
-            metrics["signature"] = signature
-            result_dir.mkdir(parents=True, exist_ok=True)
-            pd.DataFrame([metrics]).to_csv(result_dir / "metrics.csv", index=False)
-            np.savez(result_dir / "predictions.npz", signature=signature, **predictions)
-            result_rows.append(metrics)
-            print(
-                f"[HEST/{row.sample_id}/{arm}] macro-F1={metrics['macro_f1']:.4f}, "
-                f"balanced accuracy={metrics['balanced_accuracy']:.4f}"
-            )
-    results = pd.DataFrame(result_rows)
+                if method != "linear":
+                    signature_payload["method"] = method
+                signature = stable_signature(signature_payload)
+                base_dir = output_dir / "probes" / str(row.sample_id) / arm
+                result_dir = method_directory(base_dir, method)
+                cached = cached_probe_metrics(result_dir / "metrics.csv", signature)
+                if cached is not None:
+                    result_rows[method].append(cached)
+                    print(f"[HEST/{row.sample_id}/{arm}/{method}] current")
+                    continue
+                if features is None:
+                    features, cell_ids = _load_hest_feature(
+                        row.path, arm, row.signature
+                    )
+                if features is None:
+                    break
+                metrics, predictions = evaluate_hest_sample(
+                    features, cell_ids, str(row.sample_id), arm, cfg, method
+                )
+                metrics["signature"] = signature
+                result_dir.mkdir(parents=True, exist_ok=True)
+                pd.DataFrame([metrics]).to_csv(result_dir / "metrics.csv", index=False)
+                np.savez(
+                    result_dir / "predictions.npz",
+                    signature=signature,
+                    **predictions,
+                )
+                result_rows[method].append(metrics)
+                print(
+                    f"[HEST/{row.sample_id}/{arm}/{method}] "
+                    f"macro-F1={metrics['macro_f1']:.4f}, "
+                    f"balanced accuracy={metrics['balanced_accuracy']:.4f}"
+                )
     if samples is not None:
-        return results, None
-    results.to_csv(output_dir / "probe_metrics.csv", index=False)
+        primary = "linear" if "linear" in methods else methods[0]
+        return pd.DataFrame(result_rows[primary]), None
+
     metric_names = ["macro_f1", "balanced_accuracy", "accuracy", "weighted_f1"]
-    summary = results.groupby("arm")[metric_names].agg(["mean", "std"])
-    summary.columns = [f"{name}_{stat}" for name, stat in summary.columns]
-    summary.reindex([arm for arm in FEATURE_ARMS if arm in summary.index]).to_csv(
-        output_dir / "probe_summary.csv"
-    )
-    return results, summary
+    summaries = {}
+    for method in methods:
+        results = pd.DataFrame(result_rows[method])
+        suffix = "" if method == "linear" else f"_{method}"
+        results.to_csv(output_dir / f"probe_metrics{suffix}.csv", index=False)
+        summary = results.groupby("arm")[metric_names].agg(["mean", "std"])
+        summary.columns = [f"{name}_{stat}" for name, stat in summary.columns]
+        summary = summary.reindex(
+            [arm for arm in FEATURE_ARMS if arm in summary.index]
+        )
+        summary.to_csv(output_dir / f"probe_summary{suffix}.csv")
+        summaries[method] = (results, summary)
+    primary = "linear" if "linear" in methods else methods[0]
+    return summaries[primary]
 
 
 def load_phenocell_arm(manifest, arm):
@@ -827,130 +827,120 @@ def load_phenocell_arm(manifest, arm):
     return np.concatenate(features), pd.concat(records, ignore_index=True)
 
 
-def validate_official_split(table, split_path):
-    """Require complete sample coverage and exact agreement with the official split."""
-    official = pd.read_csv(split_path).rename(
-        columns={"sample_name": "sample_id", "train_test_val_split": "official_split"}
-    )
-    official["sample_id"] = official["sample_id"].astype(str)
-    official["official_split"] = official["official_split"].replace({"valid": "val"})
-    if official["sample_id"].duplicated().any():
-        raise ValueError("official PhenoCell split contains duplicate samples")
-    observed = table[["sample_id", "split"]].drop_duplicates().copy()
-    observed["split"] = observed["split"].replace({"valid": "val"})
-    if observed["sample_id"].duplicated().any():
-        raise ValueError("a PhenoCell sample has multiple observed splits")
-    if set(observed["sample_id"]) != set(official["sample_id"]):
-        raise ValueError(
-            "PhenoCell features do not cover every official sample exactly"
-        )
-    merged = official.merge(observed, on="sample_id", validate="one_to_one")
-    if not (merged["official_split"] == merged["split"]).all():
-        raise ValueError("PhenoCell feature metadata disagrees with the official split")
-
-
-def evaluate_phenocell_arm(features, table, task, arm, settings):
-    selected = np.ones(len(table), dtype=bool)
-    if task == "immune":
-        selected = table["label"].isin(IMMUNE_CLASSES).to_numpy()
-    split = table["split"].replace({"valid": "val"}).to_numpy()
-    train = np.flatnonzero(selected & (split == "train"))
-    val = np.flatnonzero(selected & (split == "val"))
-    test = np.flatnonzero(selected & (split == "test"))
-    if min(len(train), len(val), len(test)) == 0:
-        raise ValueError(f"{task}: an official PhenoCell split is empty")
-
-    explained = None
-    if arm in PCA_ARMS and settings.get("uni_pca_components", 256):
-        features, explained = _reduce_features(
-            features,
-            train,
-            settings.get("uni_pca_components", 256),
-            settings.get("seed", 0),
-        )
-    y = table["label"].to_numpy()
-    best_C, best_score = None, -np.inf
-    for C in settings.get("Cs", [0.1, 1, 10]):
-        model = _classifier(
-            C, settings.get("class_weight", "balanced"), settings.get("max_iter", 2000)
-        )
-        model.fit(features[train], y[train])
-        score = f1_score(
-            y[val], model.predict(features[val]), average="macro", zero_division=0
-        )
-        if score > best_score:
-            best_C, best_score = float(C), float(score)
-    model = _classifier(
-        best_C, settings.get("class_weight", "balanced"), settings.get("max_iter", 2000)
-    )
-    fit = np.concatenate([train, val])
-    model.fit(features[fit], y[fit])
-    predicted = model.predict(features[test])
+def _format_phenocell_result(data, result, task, arm):
+    common = result.metrics
     metrics = {
         "task": task,
         "arm": arm,
-        "n_features": features.shape[1],
-        "n_train": len(train),
-        "n_val": len(val),
-        "n_test": len(test),
-        "n_classes": len(model.classes_),
-        "best_C": best_C,
-        "val_macro_f1": best_score,
-        "test_accuracy": accuracy_score(y[test], predicted),
-        "test_balanced_accuracy": balanced_accuracy_score(y[test], predicted),
-        "test_macro_f1": f1_score(y[test], predicted, average="macro", zero_division=0),
-        "test_weighted_f1": f1_score(
-            y[test], predicted, average="weighted", zero_division=0
-        ),
-        "pca_explained_variance": explained,
+        "n_features": common["n_features"],
+        "n_train": common["n_train"],
+        "n_val": common["n_val"],
+        "n_test": common["n_test"],
+        "n_classes": common["n_classes"],
+        "test_accuracy": common["accuracy"],
+        "test_balanced_accuracy": common["balanced_accuracy"],
+        "test_macro_f1": common["macro_f1"],
+        "test_weighted_f1": common["weighted_f1"],
+        "pca_explained_variance": data.pca_explained_variance,
     }
+    for key in (
+        "best_C",
+        "val_macro_f1",
+        "n_neighbors",
+        "neighbor_metric",
+        "neighbor_weights",
+    ):
+        if key in common:
+            metrics[key] = common[key]
     predictions = {
-        "row_id": table.iloc[test]["row_id"].to_numpy(),
-        "y_true": y[test],
-        "y_pred": predicted,
-        "classes": model.classes_.astype(str),
+        "row_id": result.predictions["row_ids_test"],
+        "y_true": result.predictions["y_true"],
+        "y_pred": result.predictions["y_pred"],
+        "classes": result.predictions["classes"].astype(str),
     }
     return metrics, predictions
 
 
+def evaluate_phenocell_arm(features, table, task, arm, settings, method="linear"):
+    """Compatibility helper for evaluating one LoRA PhenoCell arm."""
+    data = prepare_phenocell_task(
+        features,
+        table,
+        task,
+        settings,
+        pca=arm in PCA_ARMS,
+    )
+    result = evaluate_phenocell_task(data, method, settings)
+    return _format_phenocell_result(data, result, task, arm)
+
+
 def probe_phenocell(cfg, output_dir):
     manifest = pd.read_csv(output_dir / "features" / "manifest.csv")
-    all_metrics = []
+    settings = cfg.get("probe", {})
+    methods = resolve_methods(settings)
+    all_metrics = {method: [] for method in methods}
     for arm in FEATURE_ARMS:
         features, table = load_phenocell_arm(manifest, arm)
         if features is None:
             continue
         validate_official_split(table, cfg["data"]["split"])
-        for task in cfg.get("probe", {}).get("tasks", ["all", "immune"]):
-            metrics, predictions = evaluate_phenocell_arm(
-                features, table, task, arm, cfg.get("probe", {})
+        for task in settings.get("tasks", ["all", "immune"]):
+            data = prepare_phenocell_task(
+                features,
+                table,
+                task,
+                settings,
+                pca=arm in PCA_ARMS,
             )
-            signature = stable_signature(
-                {
+            for method in methods:
+                result = evaluate_phenocell_task(data, method, settings)
+                metrics, predictions = _format_phenocell_result(
+                    data, result, task, arm
+                )
+                signature_payload = {
                     "features": manifest["signature"].astype(str).tolist(),
                     "official_split": file_identity(cfg["data"]["split"]),
                     "arm": arm,
                     "task": task,
-                    "settings": cfg.get("probe", {}),
+                    "settings": settings,
                 }
-            )
-            metrics["signature"] = signature
-            result_dir = output_dir / "probes" / task / arm
-            result_dir.mkdir(parents=True, exist_ok=True)
-            pd.DataFrame([metrics]).to_csv(result_dir / "metrics.csv", index=False)
-            np.savez(result_dir / "predictions.npz", signature=signature, **predictions)
-            all_metrics.append(metrics)
-            print(
-                f"[PhenoCell/{task}/{arm}] macro-F1={metrics['test_macro_f1']:.4f}, "
-                f"balanced accuracy={metrics['test_balanced_accuracy']:.4f}"
-            )
-    result = pd.DataFrame(all_metrics)
-    result.to_csv(output_dir / "probe_summary.csv", index=False)
-    return result
+                if method != "linear":
+                    signature_payload["method"] = method
+                signature = stable_signature(signature_payload)
+                metrics["signature"] = signature
+                base_dir = output_dir / "probes" / task / arm
+                result_dir = method_directory(base_dir, method)
+                result_dir.mkdir(parents=True, exist_ok=True)
+                pd.DataFrame([metrics]).to_csv(
+                    result_dir / "metrics.csv", index=False
+                )
+                np.savez(
+                    result_dir / "predictions.npz",
+                    signature=signature,
+                    **predictions,
+                )
+                all_metrics[method].append(metrics)
+                print(
+                    f"[PhenoCell/{task}/{arm}/{method}] "
+                    f"macro-F1={metrics['test_macro_f1']:.4f}, "
+                    f"balanced accuracy={metrics['test_balanced_accuracy']:.4f}"
+                )
+    results = {}
+    for method in methods:
+        result = pd.DataFrame(all_metrics[method])
+        suffix = "" if method == "linear" else f"_{method}"
+        result.to_csv(output_dir / f"probe_summary{suffix}.csv", index=False)
+        results[method] = result
+    primary = "linear" if "linear" in methods else methods[0]
+    return results[primary]
 
 
 def write_evaluation_summary(
-    cfg, output_dir, hest_metrics=None, phenocell_metrics=None
+    cfg,
+    output_dir,
+    hest_metrics=None,
+    phenocell_metrics=None,
+    method="linear",
 ):
     """Write the headline metrics used to compare LoRA runs and ablations."""
     run_name = cfg.get("run_name", Path(cfg["output_dir"]).name)
@@ -982,7 +972,8 @@ def write_evaluation_summary(
         )
     if not rows:
         return None
-    path = Path(output_dir) / "summary.csv"
+    suffix = "" if method == "linear" else f"_{method}"
+    path = Path(output_dir) / f"summary{suffix}.csv"
     _write_manifest(path, rows)
     print(f"wrote evaluation summary -> {path}")
     return pd.DataFrame(rows)
@@ -1030,6 +1021,21 @@ def main(argv=None):
 
     with open(args.config) as handle:
         cfg = yaml.safe_load(handle)
+    evaluation_root = Path(
+        args.output_dir
+        or cfg.get("eval", {}).get("output_dir", Path(cfg["output_dir"]) / "evaluation")
+    )
+
+    # Exported features are self-contained. Probe-only jobs do not need the
+    # training checkpoint, encoder weights, or a GPU.
+    if probe_only:
+        probe_hest(
+            cfg,
+            evaluation_root / "hest_label_test_fast",
+            samples=probe_samples,
+        )
+        return
+
     checkpoint_path = _checkpoint_path(cfg, args.checkpoint)
     weights_path = cfg.get("model", {}).get("weights_path")
     checkpoint_identity = {
@@ -1041,26 +1047,11 @@ def main(argv=None):
             else "trident-default"
         ),
     }
-    evaluation_root = Path(
-        args.output_dir
-        or cfg.get("eval", {}).get("output_dir", Path(cfg["output_dir"]) / "evaluation")
-    )
-
-    # Probing only reads exported features, so skip the encoder entirely: these
-    # jobs need no GPU and can run wherever there is a free core.
-    if probe_only:
-        probe_hest(
-            cfg,
-            evaluation_root / "hest_label_test_fast",
-            samples=probe_samples,
-        )
-        return
-
     import torch
 
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     model = load_model(checkpoint_path, device, weights_path)
-    hest_metrics = phenocell_metrics = None
+    hest_metrics = phenocell_metrics = phenocell_cfg = None
     if not args.skip_hest:
         hest_dir = evaluation_root / "hest_label_test_fast"
         export_hest(
@@ -1089,6 +1080,30 @@ def main(argv=None):
             phenocell_metrics = probe_phenocell(phenocell_cfg, phenocell_dir)
     if not args.skip_probes:
         write_evaluation_summary(cfg, evaluation_root, hest_metrics, phenocell_metrics)
+        methods = set(resolve_methods(cfg["eval"]))
+        if phenocell_cfg is not None:
+            methods.update(resolve_methods(phenocell_cfg.get("probe", {})))
+        for method in sorted(methods - {"linear"}):
+            hest_method = phenocell_method = None
+            hest_path = (
+                evaluation_root
+                / "hest_label_test_fast"
+                / f"probe_metrics_{method}.csv"
+            )
+            phenocell_path = (
+                evaluation_root / "phenocell" / f"probe_summary_{method}.csv"
+            )
+            if not args.skip_hest and hest_path.exists():
+                hest_method = pd.read_csv(hest_path)
+            if not args.skip_phenocell and phenocell_path.exists():
+                phenocell_method = pd.read_csv(phenocell_path)
+            write_evaluation_summary(
+                cfg,
+                evaluation_root,
+                hest_method,
+                phenocell_method,
+                method,
+            )
 
 
 if __name__ == "__main__":

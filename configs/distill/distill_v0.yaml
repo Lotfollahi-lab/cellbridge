@@ -49,7 +49,7 @@ wandb:
   name: null
   mode: online
 
-# Held-out linear probes.
+# Held-out linear and kNN evaluation.
 eval:
   label_test_mode: fast  # choices: fast, full
   label_test_fast_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/label_test_fast_v1.csv
@@ -59,7 +59,11 @@ eval:
   split_axis: y
   pca: true
   uni_pca_components: 256
+  methods: [linear, knn]
   Cs: [0.1, 1, 10]
+  knn_neighbors: 20
+  knn_metric: cosine
+  knn_weights: uniform
   class_weight: balanced
   label_column: group
   label_id_column: cell_id

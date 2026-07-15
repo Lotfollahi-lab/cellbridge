@@ -16,6 +16,7 @@ from terra_multi.distill.make_splits import (
     label_test_split_name,
     select_label_test_samples,
 )
+from terra_multi.evaluation.classification import method_directory, resolve_methods
 
 ARMS = {
     "uni_baseline": ("uni", False),
@@ -103,7 +104,7 @@ def _arm_config(cfg, sample_id, arm, distilled_dir, output_dir):
             else _sample_path(data_root, sample_id, "_terra.npz")
         )
         terra_key = cfg["terra_key"]
-    return {
+    config = {
         "sample_id": sample_id,
         "terra_embeddings": terra_path,
         "uni_embeddings": _sample_path(data_root, sample_id, "_uni2.npz"),
@@ -126,6 +127,10 @@ def _arm_config(cfg, sample_id, arm, distilled_dir, output_dir):
         "output_dir": str(output_dir),
         "model": model,
     }
+    for name in ("methods", "knn_neighbors", "knn_metric", "knn_weights"):
+        if name in settings:
+            config[name] = settings[name]
+    return config
 
 
 def _run_probe(config_path, model, root):
@@ -138,7 +143,7 @@ def _run_probe(config_path, model, root):
         [
             sys.executable,
             "-m",
-            "terra_multi.exploration.run_celltype_probe",
+            "terra_multi.evaluation.run",
             "--config",
             str(config_path),
             "--model",
@@ -179,7 +184,7 @@ def _read_result(model_dir):
     return metrics, dict(zip(classes, scores.astype(float)))
 
 
-def aggregate(cfg, samples):
+def _aggregate_method(cfg, samples, method):
     output_dir, _, probe_root = _paths(cfg)
     split_name = label_test_split_name(cfg)
     arms = arms_for_config(cfg)
@@ -187,7 +192,8 @@ def aggregate(cfg, samples):
     for sample_id in samples:
         for arm in arms:
             model = _model_for_arm(arm)
-            model_dir = probe_root / sample_id / arm / model
+            base_dir = probe_root / sample_id / arm
+            model_dir = method_directory(base_dir, method) / model
             required = (model_dir / "metrics.csv", model_dir / "predictions.npz")
             if not all(path.exists() for path in required):
                 missing.append(f"{sample_id}/{arm}")
@@ -220,21 +226,31 @@ def aggregate(cfg, samples):
             )
 
     if missing:
-        print(f"WARNING: {len(missing)} incomplete runs, e.g. {missing[:5]}")
+        raise SystemExit(
+            f"{len(missing)} incomplete {method} runs, e.g. {missing[:5]}"
+        )
     if not headline_rows:
-        raise SystemExit("no complete probe runs found")
+        raise SystemExit(f"no complete {method} probe runs found")
 
     headline = pd.DataFrame(headline_rows)
-    headline.to_csv(output_dir / f"{split_name}_probe_metrics.csv", index=False)
+    method_name = "" if method == "linear" else f"_{method}"
+    headline.to_csv(
+        output_dir / f"{split_name}{method_name}_probe_metrics.csv", index=False
+    )
     pd.DataFrame(class_rows).to_csv(
-        output_dir / f"{split_name}_per_class_f1.csv", index=False
+        output_dir / f"{split_name}{method_name}_per_class_f1.csv", index=False
     )
     metrics = ["accuracy", "balanced_accuracy", "macro_f1", "macro_auroc"]
     summary = headline.groupby("arm")[metrics].agg(["mean", "std"])
     summary.columns = [f"{name}_{stat}" for name, stat in summary.columns]
     summary = summary.reindex([arm for arm in arms if arm in summary.index])
-    summary.to_csv(output_dir / f"{split_name}_summary.csv")
+    summary.to_csv(output_dir / f"{split_name}{method_name}_summary.csv")
     print(summary.to_string())
+
+
+def aggregate(cfg, samples):
+    for method in resolve_methods(cfg["eval"]):
+        _aggregate_method(cfg, samples, method)
 
 
 def main():

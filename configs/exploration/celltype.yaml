@@ -27,8 +27,12 @@ split_axis: y
 pca: true
 uni_pca_components: 256
 
-# --- classifier ---
+# --- evaluation ---
+methods: [linear, knn]
 Cs: [0.1, 1, 10]
+knn_neighbors: 20
+knn_metric: cosine
+knn_weights: uniform
 class_weight: balanced
 
 # Output root, relative to the project root (where jobs and by-hand runs execute).

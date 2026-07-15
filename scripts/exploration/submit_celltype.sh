@@ -12,7 +12,7 @@ BGROUP="${BGROUP:-s10396}"
 MEM_GB="${CELLTYPE_MEM_GB:-${MEM_GB:-8}}"
 NCORES="${CELLTYPE_NCORES:-${NCORES:-1}}"
 ENV_PATH="${ENV_PATH:-/lustre/scratch126/cellgen/lotfollahi/so25/envs/terra-dev}"
-CONFIG="${CONFIG:-$ROOT/configs/exploration/celltype.yaml}"
+CONFIG="${CONFIG:-$ROOT/configs/exploration/celltype_tenx116.yaml}"
 GPU_SPEC="${CELLTYPE_GPU_SPEC:-${CPU_GPU_SPEC:-}}"
 if [ -z "$GPU_SPEC" ]; then
   case ",${QUEUE}," in
@@ -52,5 +52,5 @@ python3 --version
 cd "${ROOT}"
 # Respect the allocated slots and prevent hidden BLAS/OpenMP oversubscription.
 export OMP_NUM_THREADS=${NCORES} OPENBLAS_NUM_THREADS=${NCORES} MKL_NUM_THREADS=${NCORES} NUMEXPR_NUM_THREADS=${NCORES}
-PYTHONPATH=src python3 -m terra_multi.exploration.run_celltype_probe --config "${CONFIG}" --model "${MODEL}"
+PYTHONPATH=src python3 -m terra_multi.evaluation.run --config "${CONFIG}" --model "${MODEL}"
 EOF
