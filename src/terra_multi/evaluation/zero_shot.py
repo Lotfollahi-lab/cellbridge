@@ -29,7 +29,9 @@ def fit_knn_classifier(
         metric=metric,
         weights=weights,
         algorithm="brute",
-        n_jobs=1,
+        # Brute-force neighbour search is O(n_test x n_train x d); parallelise the
+        # query across cores so a large sample is not left on a single thread.
+        n_jobs=-1,
     )
     model.fit(features, labels)
     return model
