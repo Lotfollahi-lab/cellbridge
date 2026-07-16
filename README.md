@@ -8,6 +8,7 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 - `src/terra_multi/exploration/`: expression and cell-type probes.
 - `src/terra_multi/distill/`: UNI-to-TERRA distillation.
 - `src/terra_multi/lora/`: LoRA adaptation from H&E crops to TERRA features.
+- `src/terra_multi/jepa/`: spatial context-to-target JEPA alignment.
 - `src/terra_multi/evaluation/`: shared linear/kNN evaluation and PhenoCell.
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
@@ -164,6 +165,31 @@ a compact `summary.csv` with HEST five-sample means and PhenoCell all/immune
 macro-F1 and balanced accuracy. Set `max_cells_per_sample` lower for a quick
 training smoke run. Training and validation use deterministic, full batches of
 unique cells from one tissue section, so section identity cannot solve InfoNCE.
+
+## Spatial JEPA
+
+The first JEPA experiment samples a contiguous block of eight target cells.
+Each target gets its own target-centred ring of 64 uniformly sampled nearby UNI
+image embeddings, matching the target-centred extraction task. Every window
+comes from one tissue section; the target cell's image embedding is excluded,
+as are context centers within an 80 µm guard band. Coordinates are local,
+expressed in microns, and divided by the fixed 300 µm context radius. The 100k
+cap limits anchor sampling only, not the spatial cell universe. TERRA targets
+are centered and scaled with statistics fitted only on `distill_train`
+sections. Extraction keeps cells with a complete 64-cell context, and every
+evaluation arm is aligned to that same cell set.
+
+Submit training, five parallel held-out HEST extractions, linear/kNN evaluation,
+and final aggregation with one command:
+
+```bash
+scripts/jepa/submit_experiment.sh configs/jepa/spatial_block.yaml
+```
+
+The best checkpoint is written to `checkpoints/jepa/spatial_block_v1/best.pt`.
+Contextual embeddings and evaluation summaries are written below
+`outputs/jepa/spatial_block_v1/features/` and
+`outputs/jepa/spatial_block_v1/evaluation/hest_label_test_fast/`, respectively.
 
 ## OOD evaluation
 
