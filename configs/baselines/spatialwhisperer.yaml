@@ -1,0 +1,68 @@
+baseline:
+  name: spatialwhisperer
+  embedding_dim: 512
+  normalized: true
+  save_dtype: float16
+
+model:
+  repository: /lustre/scratch126/cellgen/lotfollahi/so25/repos/spatialwhisperer
+  hf_repo: Good-Lab/spatialwhisperer
+  revision: 23107503e5679924e33a118aa90d70d5c168ceeb
+  checkpoint_filename: spatialwhisperer.ckpt
+  precision: bf16
+
+output_dir: outputs/baselines/spatialwhisperer
+
+hest:
+  data_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest
+  manifest_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/manifest.csv
+  splits_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/hest80_strict_v1.csv
+  label_test_fast_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_n: 5
+  crop:
+    target_size: 224
+    target_pixel_size_um: 0.5
+  extraction:
+    batch_size: 64
+    num_workers: 8
+  probe:
+    methods: [linear, knn]
+    test_frac: 0.2
+    split_axis: y
+    pca: false
+    Cs: [0.1, 1, 10]
+    knn_neighbors: 20
+    knn_metric: cosine
+    knn_weights: uniform
+    class_weight: balanced
+    max_iter: 2000
+    seed: 0
+    label_column: group
+    label_id_column: cell_id
+    min_class_count: 25
+
+phenocell:
+  data:
+    lmdb: /lustre/scratch126/cellgen/lotfollahi/so25/data/eval/phenocell/phenocell_lmdb
+    metadata: /lustre/scratch126/cellgen/lotfollahi/so25/data/eval/phenocell/phenocell_info.csv
+    split: /lustre/scratch126/cellgen/lotfollahi/so25/data/eval/phenocell/splits/phenocell_dataset_split.csv
+    image_shape: [1440, 1920]
+    tile_size: 224
+    value_scale: 250
+  crop:
+    # Preserve the existing PhenoCell 96 px field of view, then resize for UNI2.
+    source_size: 96
+    target_size: 224
+  extraction:
+    batch_size: 64
+  probe:
+    tasks: [all, immune]
+    methods: [linear, knn]
+    pca: false
+    Cs: [0.1, 1, 10]
+    knn_neighbors: 20
+    knn_metric: cosine
+    knn_weights: uniform
+    class_weight: balanced
+    max_iter: 2000
+    seed: 0
