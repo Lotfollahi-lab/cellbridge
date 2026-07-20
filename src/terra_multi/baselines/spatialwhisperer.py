@@ -18,7 +18,8 @@ import pandas as pd
 import yaml
 from PIL import Image
 
-from terra_multi.baselines.artifacts import (
+import terra_multi.evaluation.artifacts as artifact_utils
+from terra_multi.evaluation.artifacts import (
     feature_file_is_current,
     feature_signature,
     file_identity,
@@ -132,6 +133,16 @@ def _precision_dtype(torch, precision):
     if str(precision).lower() not in choices:
         raise ValueError(f"unsupported precision {precision!r}")
     return choices[str(precision).lower()]
+
+
+def _integration_source_paths():
+    package = Path(__file__).resolve().parents[1]
+    return (
+        Path(__file__),
+        Path(artifact_utils.__file__),
+        package / "lora" / "data.py",
+        package / "evaluation" / "phenocell_data.py",
+    )
 
 
 class SpatialWhispererEncoder:
@@ -263,18 +274,7 @@ def load_encoder(cfg, device=None) -> SpatialWhispererEncoder:
         "uni2_weights": file_identity(uni_weights),
         "geneformer_weights": path_identity(geneformer_dir),
         "terra_multi_integration": [
-            file_identity(Path(__file__), checksum=True),
-            file_identity(Path(__file__).with_name("artifacts.py"), checksum=True),
-            file_identity(
-                Path(__file__).resolve().parents[1] / "lora" / "data.py",
-                checksum=True,
-            ),
-            file_identity(
-                Path(__file__).resolve().parents[1]
-                / "evaluation"
-                / "phenocell_data.py",
-                checksum=True,
-            ),
+            file_identity(path, checksum=True) for path in _integration_source_paths()
         ],
         "projection_dim": projection_dim,
         "normalized": True,

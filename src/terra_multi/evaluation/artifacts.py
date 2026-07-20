@@ -1,11 +1,3 @@
-"""Signed, model-agnostic embedding artifacts used by every baseline.
-
-One artifact owns one sample and keeps cell identifiers row-aligned with a
-single ``embeddings`` matrix.  Signatures cover the model, source data, and
-preprocessing settings so an interrupted or stale extraction cannot be reused
-silently.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -54,19 +46,16 @@ def stable_signature(payload) -> str:
 
 def file_identity(path, *, checksum=False) -> dict:
     """Describe a source file, optionally including its content checksum."""
-    unresolved = Path(path).expanduser()
-    resolved = unresolved.resolve()
-    stat = resolved.stat()
+    path = Path(path).resolve()
+    stat = path.stat()
     identity = {
-        "path": str(resolved),
-        "size": int(stat.st_size),
-        "mtime_ns": int(stat.st_mtime_ns),
+        "path": str(path),
+        "size": stat.st_size,
+        "mtime_ns": stat.st_mtime_ns,
     }
-    if unresolved != resolved:
-        identity["requested_path"] = str(unresolved)
     if checksum:
         digest = hashlib.sha256()
-        with open(resolved, "rb") as handle:
+        with open(path, "rb") as handle:
             for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
                 digest.update(chunk)
         identity["sha256"] = digest.hexdigest()
@@ -185,9 +174,7 @@ def write_feature_file(
     if not _finite_in_chunks(embeddings):
         raise ValueError("embeddings contain non-finite values")
 
-    overlap = {"format_version", "signature", "cell_ids", "embeddings"} & set(
-        metadata
-    )
+    overlap = {"format_version", "signature", "cell_ids", "embeddings"} & set(metadata)
     if overlap:
         raise ValueError(f"metadata uses reserved keys: {sorted(overlap)}")
     missing = set(CORE_METADATA) - set(metadata)
@@ -369,7 +356,9 @@ def write_json(path, payload):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
     try:
-        temporary.write_text(json.dumps(payload, indent=2, default=_json_default) + "\n")
+        temporary.write_text(
+            json.dumps(payload, indent=2, default=_json_default) + "\n"
+        )
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)

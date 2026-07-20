@@ -61,6 +61,84 @@ def load_labels(path, keep_classes=None, id_column="cell_id", label_column="cell
     return dict(zip(cell_ids, labels))
 
 
+@dataclass(frozen=True)
+class LabeledHestFeatures:
+    features: np.ndarray
+    labels: np.ndarray
+    cell_ids: np.ndarray
+    train_indices: np.ndarray
+    test_indices: np.ndarray
+    pca_explained_variance: float | None
+
+
+def prepare_labeled_hest_features(
+    features,
+    cell_ids,
+    labels_path,
+    adata_path,
+    settings,
+    *,
+    pca=False,
+    pca_components=256,
+    seed=0,
+):
+    """Align a feature matrix to HEST labels and coordinates, then spatially split."""
+    features = np.asarray(features, dtype=np.float32)
+    cell_ids = np.asarray(cell_ids).astype(str)
+    if features.ndim != 2 or len(features) != len(cell_ids):
+        raise ValueError(
+            f"features must have shape ({len(cell_ids)}, D), got {features.shape}"
+        )
+    if not np.isfinite(features).all():
+        raise ValueError("HEST features contain non-finite values")
+    if len(np.unique(cell_ids)) != len(cell_ids):
+        raise ValueError("HEST features contain duplicate cell IDs")
+
+    id_column = settings.get("label_id_column", "cell_id")
+    label_column = settings.get("label_column", "group")
+    labels_table = pd.read_csv(labels_path)
+    if label_column not in labels_table:
+        raise KeyError(f"{labels_path}: missing label column {label_column!r}")
+    counts = labels_table[label_column].astype(str).value_counts()
+    minimum = int(settings.get("min_class_count", 25))
+    keep_classes = set(counts.index[counts >= minimum])
+    if not keep_classes:
+        raise ValueError(f"{labels_path}: no class has at least {minimum} cells")
+    label_map = load_labels(
+        labels_path, keep_classes, id_column=id_column, label_column=label_column
+    )
+
+    coords, coord_ids = load_coords(adata_path)
+    coord_ids = np.asarray(coord_ids).astype(str)
+    if len(np.unique(coord_ids)) != len(coord_ids):
+        raise ValueError(f"{adata_path}: duplicate coordinate cell IDs")
+    coord_row = {cell_id: row for row, cell_id in enumerate(coord_ids)}
+    keep = np.array(
+        [
+            cell_id in coord_row and label_map.get(cell_id) in keep_classes
+            for cell_id in cell_ids
+        ]
+    )
+    ids = cell_ids[keep]
+    if len(ids) < 2:
+        raise ValueError("fewer than two feature rows have labels and coordinates")
+    selected = features[keep]
+    order = np.argsort(ids)
+    ids, selected = ids[order], selected[order]
+    labels = np.asarray([label_map[cell_id] for cell_id in ids])
+    aligned_coords = coords[[coord_row[cell_id] for cell_id in ids]]
+    train, test = spatial_split(
+        ids,
+        aligned_coords,
+        float(settings.get("test_frac", 0.2)),
+        settings.get("split_axis", "y"),
+    )
+    explained = None
+    if pca:
+        selected, explained = reduce_features(selected, train, pca_components, seed)
+    return LabeledHestFeatures(selected, labels, ids, train, test, explained)
+
+
 def _aligned_inputs(cfg, model):
     terra_key = cfg["terra_neighbor_key" if model in NEIGHBOR_MODELS else "terra_key"]
     terra, terra_ids = load_embeddings(cfg["terra_embeddings"], key=terra_key)

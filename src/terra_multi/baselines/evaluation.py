@@ -2,35 +2,30 @@
 
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 
 import numpy as np
 import pandas as pd
 
-from terra_multi.baselines.artifacts import (
+from terra_multi.evaluation.artifacts import (
     file_identity,
     load_feature_file,
-    scalar_string,
     stable_signature,
     summarize_feature_file,
     write_table,
 )
 from terra_multi.evaluation.classification import (
+    cached_probe_metrics,
     evaluate_classification,
     resolve_methods,
+    write_probe_result,
 )
-from terra_multi.evaluation.hest import load_labels
-from terra_multi.evaluation.linear_probe import reduce_features
+from terra_multi.evaluation.hest import prepare_labeled_hest_features
 from terra_multi.evaluation.phenocell import (
     evaluate_phenocell_task,
     prepare_phenocell_task,
     validate_official_split,
 )
-from terra_multi.helpers.io import load_coords
-from terra_multi.helpers.splits import spatial_split
 
 
 def _as_strings(values):
@@ -242,92 +237,6 @@ def finalize_phenocell_manifest(cfg, output_dir) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-@dataclass(frozen=True)
-class HestFeatureData:
-    features: np.ndarray
-    labels: np.ndarray
-    cell_ids: np.ndarray
-    train_indices: np.ndarray
-    test_indices: np.ndarray
-    pca_explained_variance: float | None
-
-
-def prepare_hest_features(features, cell_ids, labels_path, adata_path, settings):
-    """Align arbitrary embeddings to HEST labels/coordinates and spatially split."""
-    features = np.asarray(features, dtype=np.float32)
-    cell_ids = _as_strings(cell_ids)
-    if features.ndim != 2 or len(features) != len(cell_ids):
-        raise ValueError(
-            f"features must have shape ({len(cell_ids)}, D), got {features.shape}"
-        )
-    if not np.isfinite(features).all():
-        raise ValueError("HEST features contain non-finite values")
-    if len(np.unique(cell_ids)) != len(cell_ids):
-        raise ValueError("HEST features contain duplicate cell IDs")
-
-    id_column = settings.get("label_id_column", "cell_id")
-    label_column = settings.get("label_column", "group")
-    labels_table = pd.read_csv(labels_path)
-    if label_column not in labels_table:
-        raise KeyError(f"{labels_path}: missing label column {label_column!r}")
-    counts = labels_table[label_column].astype(str).value_counts()
-    minimum = int(settings.get("min_class_count", 25))
-    keep_classes = set(counts.index[counts >= minimum])
-    if not keep_classes:
-        raise ValueError(f"{labels_path}: no class has at least {minimum} cells")
-    label_map = load_labels(
-        labels_path,
-        keep_classes,
-        id_column=id_column,
-        label_column=label_column,
-    )
-
-    coords, coord_ids = load_coords(adata_path)
-    coord_ids = _as_strings(coord_ids)
-    if len(np.unique(coord_ids)) != len(coord_ids):
-        raise ValueError(f"{adata_path}: duplicate coordinate cell IDs")
-    coord_map = {cell_id: row for row, cell_id in enumerate(coord_ids)}
-    keep = np.asarray(
-        [
-            cell_id in coord_map and label_map.get(cell_id) in keep_classes
-            for cell_id in cell_ids
-        ],
-        dtype=bool,
-    )
-    selected_ids = cell_ids[keep]
-    if len(selected_ids) < 2:
-        raise ValueError("fewer than two feature rows have labels and coordinates")
-    selected_features = features[keep]
-    order = np.argsort(selected_ids)
-    selected_ids = selected_ids[order]
-    selected_features = selected_features[order]
-    selected_labels = np.asarray([label_map[cell_id] for cell_id in selected_ids])
-    selected_coords = coords[[coord_map[cell_id] for cell_id in selected_ids]]
-    train, test = spatial_split(
-        selected_ids,
-        selected_coords,
-        float(settings.get("test_frac", 0.2)),
-        settings.get("split_axis", "y"),
-    )
-
-    explained = None
-    if settings.get("pca", False):
-        selected_features, explained = reduce_features(
-            selected_features,
-            train,
-            settings.get("pca_components", 256),
-            settings.get("seed", 0),
-        )
-    return HestFeatureData(
-        selected_features,
-        selected_labels,
-        selected_ids,
-        train,
-        test,
-        explained,
-    )
-
-
 def evaluate_hest_features(data, sample_id, feature_name, method, settings):
     result = evaluate_classification(
         data.features,
@@ -364,31 +273,6 @@ def evaluate_hest_features(data, sample_id, feature_name, method, settings):
     return metrics, predictions
 
 
-def _cached_metrics(path, signature):
-    path = Path(path)
-    if not path.exists():
-        return None
-    try:
-        table = pd.read_csv(path)
-    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError):
-        return None
-    if len(table) != 1 or "signature" not in table:
-        return None
-    if str(table["signature"].iloc[0]) != str(signature):
-        return None
-    predictions_path = path.with_name("predictions.npz")
-    try:
-        with np.load(predictions_path, allow_pickle=False) as predictions:
-            if (
-                "signature" not in predictions
-                or scalar_string(predictions["signature"]) != str(signature)
-            ):
-                return None
-    except (OSError, ValueError, KeyError):
-        return None
-    return table.iloc[0].to_dict()
-
-
 def _probe_protocol_identity():
     """Hash evaluator code so metric caches cannot survive protocol changes."""
     package = Path(__file__).resolve().parents[1]
@@ -401,17 +285,6 @@ def _probe_protocol_identity():
         package / "helpers" / "splits.py",
     )
     return [file_identity(path, checksum=True) for path in paths]
-
-
-def _write_predictions(path, signature, predictions):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp.npz")
-    try:
-        np.savez(temporary, signature=np.asarray(signature), **predictions)
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def probe_hest(cfg, output_dir, samples=None):
@@ -437,8 +310,15 @@ def probe_hest(cfg, output_dir, samples=None):
             expected_signature=row.signature,
             expected_dim=cfg["baseline"]["embedding_dim"],
         )
-        data = prepare_hest_features(
-            features, cell_ids, labels_path, adata_path, settings
+        data = prepare_labeled_hest_features(
+            features,
+            cell_ids,
+            labels_path,
+            adata_path,
+            settings,
+            pca=bool(settings.get("pca", False)),
+            pca_components=int(settings.get("pca_components", 256)),
+            seed=int(settings.get("seed", 0)),
         )
         for method in methods:
             signature = stable_signature(
@@ -452,7 +332,7 @@ def probe_hest(cfg, output_dir, samples=None):
                 }
             )
             result_dir = Path(output_dir) / "probes" / sample_id / method
-            cached = _cached_metrics(result_dir / "metrics.csv", signature)
+            cached = cached_probe_metrics(result_dir / "metrics.csv", signature)
             if cached is not None:
                 results[method].append(cached)
                 print(f"[HEST/{sample_id}/{method}] current")
@@ -464,9 +344,7 @@ def probe_hest(cfg, output_dir, samples=None):
                 method,
                 settings,
             )
-            metrics["signature"] = signature
-            write_table(result_dir / "metrics.csv", [metrics])
-            _write_predictions(result_dir / "predictions.npz", signature, predictions)
+            metrics = write_probe_result(result_dir, metrics, predictions, signature)
             results[method].append(metrics)
             print(
                 f"[HEST/{sample_id}/{method}] macro-F1={metrics['macro_f1']:.4f}, "
@@ -569,7 +447,7 @@ def probe_phenocell(cfg, output_dir):
                 }
             )
             result_dir = Path(output_dir) / "probes" / task / method
-            cached = _cached_metrics(result_dir / "metrics.csv", signature)
+            cached = cached_probe_metrics(result_dir / "metrics.csv", signature)
             if cached is not None:
                 all_metrics[method].append(cached)
                 print(f"[PhenoCell/{task}/{method}] current")
@@ -578,9 +456,7 @@ def probe_phenocell(cfg, output_dir):
             metrics, predictions = _format_phenocell_result(
                 data, result, task, cfg["baseline"]["name"]
             )
-            metrics["signature"] = signature
-            write_table(result_dir / "metrics.csv", [metrics])
-            _write_predictions(result_dir / "predictions.npz", signature, predictions)
+            metrics = write_probe_result(result_dir, metrics, predictions, signature)
             all_metrics[method].append(metrics)
             print(
                 f"[PhenoCell/{task}/{method}] "

@@ -1,16 +1,4 @@
-"""Export and probe LoRA-UNI features on held-out HEST and PhenoCell.
-
-The default CLI performs the complete evaluation from raw cell crops::
-
-    python -m terra_multi.lora.evaluate --config CONFIG
-
-Feature files carry a content signature derived from the checkpoint and source
-data.  A file is reused only when that signature and its schema both match.
-"""
-
 import argparse
-import hashlib
-import json
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -20,12 +8,21 @@ import numpy as np
 import pandas as pd
 import yaml
 from PIL import Image
+from terra_multi.evaluation.artifacts import (
+    file_identity,
+    path_identity,
+    scalar_string,
+    stable_signature,
+    write_table,
+)
 from terra_multi.evaluation.classification import (
+    cached_probe_metrics,
     evaluate_classification,
     method_directory,
     resolve_methods,
+    write_probe_result,
 )
-from terra_multi.evaluation.linear_probe import reduce_features
+from terra_multi.evaluation.hest import prepare_labeled_hest_features
 
 from terra_multi.evaluation.phenocell_data import (
     centered_crop,
@@ -51,40 +48,6 @@ PCA_ARMS = {"uni_original", "lora_adapted"}
 FORMAT_VERSION = "terra_multi.lora.features/1"
 
 
-def stable_signature(payload):
-    """Return a deterministic SHA-256 signature for JSON-compatible metadata."""
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def file_identity(path, *, checksum=False):
-    """Describe a source file; checkpoints additionally receive a content hash."""
-    path = Path(path).resolve()
-    stat = path.stat()
-    identity = {
-        "path": str(path),
-        "size": stat.st_size,
-        "mtime_ns": stat.st_mtime_ns,
-    }
-    if checksum:
-        digest = hashlib.sha256()
-        with open(path, "rb") as handle:
-            for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
-                digest.update(chunk)
-        identity["sha256"] = digest.hexdigest()
-    return identity
-
-
-def path_identity(path):
-    """Describe either one file or the files immediately inside a directory."""
-    path = Path(path)
-    if path.is_file():
-        return file_identity(path)
-    if not path.is_dir():
-        raise FileNotFoundError(path)
-    return [file_identity(item) for item in sorted(path.iterdir()) if item.is_file()]
-
-
 def feature_signature(dataset, checkpoint_identity, source_identity, settings):
     return stable_signature(
         {
@@ -95,13 +58,6 @@ def feature_signature(dataset, checkpoint_identity, source_identity, settings):
             "settings": settings,
         }
     )
-
-
-def _scalar_string(value):
-    value = np.asarray(value)
-    if value.size != 1:
-        raise ValueError("expected a scalar string")
-    return str(value.reshape(()).item())
 
 
 def feature_file_is_current(
@@ -121,13 +77,10 @@ def feature_file_is_current(
         with np.load(path, allow_pickle=False) as data:
             if (
                 "format_version" not in data
-                or _scalar_string(data["format_version"]) != FORMAT_VERSION
+                or scalar_string(data["format_version"]) != FORMAT_VERSION
             ):
                 return False
-            if (
-                "signature" not in data
-                or _scalar_string(data["signature"]) != signature
-            ):
+            if "signature" not in data or scalar_string(data["signature"]) != signature:
                 return False
             if "cell_ids" not in data:
                 return False
@@ -427,16 +380,8 @@ def export_hest(
             }
         )
     if samples is None:
-        _write_manifest(output_dir / "features" / "manifest.csv", rows)
+        write_table(output_dir / "features" / "manifest.csv", rows)
     return pd.DataFrame(rows)
-
-
-def _write_manifest(path, rows):
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
-    pd.DataFrame(rows).to_csv(temporary, index=False)
-    os.replace(temporary, path)
 
 
 def _phenocell_signature(cfg, checkpoint_identity, sample_name):
@@ -592,18 +537,13 @@ def export_phenocell(
         raise ValueError(
             f"PhenoCell LMDB/metadata sample mismatch: missing={missing}, extra={extra}"
         )
-    _write_manifest(output_dir / "features" / "manifest.csv", rows)
+    write_table(output_dir / "features" / "manifest.csv", rows)
     return pd.DataFrame(rows)
-
-
-def _reduce_features(features, train_indices, components, seed=0):
-    """Compatibility wrapper around the shared train-only PCA."""
-    return reduce_features(features, train_indices, components, seed)
 
 
 def _load_hest_feature(path, arm, expected_signature):
     with np.load(path, allow_pickle=False) as data:
-        if _scalar_string(data["signature"]) != str(expected_signature):
+        if scalar_string(data["signature"]) != str(expected_signature):
             raise ValueError(f"{path}: signature disagrees with manifest")
         if arm not in data:
             return None, None
@@ -612,62 +552,26 @@ def _load_hest_feature(path, arm, expected_signature):
 
 def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear"):
     """Run one shared evaluator on a spatial HEST split."""
-    from terra_multi.evaluation.hest import load_labels
-    from terra_multi.helpers.io import load_coords
-    from terra_multi.helpers.splits import spatial_split
-
     settings = cfg["eval"]
     _, manifest_row = _hest_manifest_row(cfg, sample_id)
     sample_dir = _hest_sample_dir(cfg, sample_id, manifest_row)
-    labels_path = sample_dir / f"{sample_id}_granular_cell_labels.csv"
-    labels = pd.read_csv(labels_path)
-    id_column = settings.get("label_id_column", "cell_id")
-    label_column = settings.get("label_column", "group")
-    counts = labels[label_column].astype(str).value_counts()
-    keep_classes = set(counts.index[counts >= int(settings.get("min_class_count", 25))])
-    label_map = load_labels(
-        labels_path,
-        keep_classes,
-        id_column=id_column,
-        label_column=label_column,
+    data = prepare_labeled_hest_features(
+        features,
+        cell_ids,
+        sample_dir / f"{sample_id}_granular_cell_labels.csv",
+        sample_dir / f"{sample_id}.h5ad",
+        settings,
+        pca=arm in PCA_ARMS and settings.get("pca", True),
+        pca_components=settings.get("uni_pca_components", 256),
     )
-    coords, coord_ids = load_coords(sample_dir / f"{sample_id}.h5ad")
-    if len(np.unique(coord_ids.astype(str))) != len(coord_ids):
-        raise ValueError(f"{sample_id}: duplicate coordinate cell IDs")
-    coord_map = {cell_id: row for row, cell_id in enumerate(coord_ids.astype(str))}
-    keep = np.array(
-        [
-            cell_id in coord_map and label_map.get(cell_id) in keep_classes
-            for cell_id in cell_ids
-        ]
-    )
-    ids = np.asarray(cell_ids)[keep]
-    if len(ids) < 2:
-        raise ValueError(f"{sample_id}: fewer than two labelled feature rows")
-    X = np.asarray(features, dtype=np.float32)[keep]
-    order = np.argsort(ids)
-    ids, X = ids[order], X[order]
-    y = np.asarray([label_map[cell_id] for cell_id in ids])
-    aligned_coords = coords[[coord_map[cell_id] for cell_id in ids]]
-    train, test = spatial_split(
-        ids,
-        aligned_coords,
-        float(settings.get("test_frac", 0.2)),
-        settings.get("split_axis", "y"),
-    )
-    explained = None
-    if arm in PCA_ARMS and settings.get("pca", True):
-        X, explained = _reduce_features(
-            X, train, settings.get("uni_pca_components", 256)
-        )
     result = evaluate_classification(
-        X,
-        y,
-        train,
-        test,
+        data.features,
+        data.labels,
+        data.train_indices,
+        data.test_indices,
         method,
         settings,
-        row_ids=ids,
+        row_ids=data.cell_ids,
     )
     common = result.metrics
     metrics = {
@@ -681,7 +585,7 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear
         "balanced_accuracy": common["balanced_accuracy"],
         "macro_f1": common["macro_f1"],
         "weighted_f1": common["weighted_f1"],
-        "pca_explained_variance": explained,
+        "pca_explained_variance": data.pca_explained_variance,
     }
     for key in ("n_neighbors", "neighbor_metric", "neighbor_weights"):
         if key in common:
@@ -693,22 +597,6 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear
         "classes": result.predictions["classes"].astype(str),
     }
     return metrics, predictions
-
-
-def cached_probe_metrics(path, signature):
-    """Return a finished probe's metrics when it matches ``signature``."""
-    path = Path(path)
-    if not path.exists():
-        return None
-    try:
-        cached = pd.read_csv(path)
-    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError):
-        return None
-    if len(cached) != 1 or "signature" not in cached:
-        return None
-    if str(cached["signature"].iloc[0]) != str(signature):
-        return None
-    return cached.iloc[0].to_dict()
 
 
 def probe_hest(cfg, output_dir, samples=None):
@@ -770,13 +658,8 @@ def probe_hest(cfg, output_dir, samples=None):
                 metrics, predictions = evaluate_hest_sample(
                     features, cell_ids, str(row.sample_id), arm, cfg, method
                 )
-                metrics["signature"] = signature
-                result_dir.mkdir(parents=True, exist_ok=True)
-                pd.DataFrame([metrics]).to_csv(result_dir / "metrics.csv", index=False)
-                np.savez(
-                    result_dir / "predictions.npz",
-                    signature=signature,
-                    **predictions,
+                metrics = write_probe_result(
+                    result_dir, metrics, predictions, signature
                 )
                 result_rows[method].append(metrics)
                 print(
@@ -796,9 +679,7 @@ def probe_hest(cfg, output_dir, samples=None):
         results.to_csv(output_dir / f"probe_metrics{suffix}.csv", index=False)
         summary = results.groupby("arm")[metric_names].agg(["mean", "std"])
         summary.columns = [f"{name}_{stat}" for name, stat in summary.columns]
-        summary = summary.reindex(
-            [arm for arm in FEATURE_ARMS if arm in summary.index]
-        )
+        summary = summary.reindex([arm for arm in FEATURE_ARMS if arm in summary.index])
         summary.to_csv(output_dir / f"probe_summary{suffix}.csv")
         summaries[method] = (results, summary)
     primary = "linear" if "linear" in methods else methods[0]
@@ -809,7 +690,7 @@ def load_phenocell_arm(manifest, arm):
     features, records = [], []
     for row in manifest.itertuples(index=False):
         with np.load(row.path, allow_pickle=False) as data:
-            if _scalar_string(data["signature"]) != str(row.signature):
+            if scalar_string(data["signature"]) != str(row.signature):
                 raise ValueError(f"{row.path}: signature disagrees with manifest")
             if arm not in data:
                 return None, None
@@ -894,9 +775,7 @@ def probe_phenocell(cfg, output_dir):
             )
             for method in methods:
                 result = evaluate_phenocell_task(data, method, settings)
-                metrics, predictions = _format_phenocell_result(
-                    data, result, task, arm
-                )
+                metrics, predictions = _format_phenocell_result(data, result, task, arm)
                 signature_payload = {
                     "features": manifest["signature"].astype(str).tolist(),
                     "official_split": file_identity(cfg["data"]["split"]),
@@ -907,17 +786,10 @@ def probe_phenocell(cfg, output_dir):
                 if method != "linear":
                     signature_payload["method"] = method
                 signature = stable_signature(signature_payload)
-                metrics["signature"] = signature
                 base_dir = output_dir / "probes" / task / arm
                 result_dir = method_directory(base_dir, method)
-                result_dir.mkdir(parents=True, exist_ok=True)
-                pd.DataFrame([metrics]).to_csv(
-                    result_dir / "metrics.csv", index=False
-                )
-                np.savez(
-                    result_dir / "predictions.npz",
-                    signature=signature,
-                    **predictions,
+                metrics = write_probe_result(
+                    result_dir, metrics, predictions, signature
                 )
                 all_metrics[method].append(metrics)
                 print(
@@ -974,7 +846,7 @@ def write_evaluation_summary(
         return None
     suffix = "" if method == "linear" else f"_{method}"
     path = Path(output_dir) / f"summary{suffix}.csv"
-    _write_manifest(path, rows)
+    write_table(path, rows)
     print(f"wrote evaluation summary -> {path}")
     return pd.DataFrame(rows)
 
@@ -1086,9 +958,7 @@ def main(argv=None):
         for method in sorted(methods - {"linear"}):
             hest_method = phenocell_method = None
             hest_path = (
-                evaluation_root
-                / "hest_label_test_fast"
-                / f"probe_metrics_{method}.csv"
+                evaluation_root / "hest_label_test_fast" / f"probe_metrics_{method}.csv"
             )
             phenocell_path = (
                 evaluation_root / "phenocell" / f"probe_summary_{method}.csv"

@@ -1,9 +1,12 @@
 """Shared classification protocol for linear and kNN evaluation."""
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
@@ -11,6 +14,7 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
+from terra_multi.evaluation.artifacts import scalar_string, write_table
 from terra_multi.evaluation.linear_probe import (
     fit_linear_classifier,
     fit_validated_linear_classifier,
@@ -46,6 +50,47 @@ def method_directory(path, method):
     """Keep the established linear path and namespace additional methods."""
     path = Path(path)
     return path if method == "linear" else path / method
+
+
+def cached_probe_metrics(metrics_path, signature):
+    """Return a finished probe's metrics when it and its predictions match."""
+    metrics_path = Path(metrics_path)
+    if not metrics_path.exists():
+        return None
+    try:
+        table = pd.read_csv(metrics_path)
+    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError):
+        return None
+    if len(table) != 1 or "signature" not in table:
+        return None
+    if str(table["signature"].iloc[0]) != str(signature):
+        return None
+    predictions_path = metrics_path.with_name("predictions.npz")
+    try:
+        with np.load(predictions_path, allow_pickle=False) as predictions:
+            if (
+                "signature" not in predictions
+                or scalar_string(predictions["signature"]) != str(signature)
+            ):
+                return None
+    except (OSError, ValueError, KeyError):
+        return None
+    return table.iloc[0].to_dict()
+
+
+def write_probe_result(result_dir, metrics, predictions, signature):
+    """Atomically write one probe's metrics and predictions under its signature."""
+    result_dir = Path(result_dir)
+    metrics = {**metrics, "signature": str(signature)}
+    write_table(result_dir / "metrics.csv", [metrics])
+    predictions_path = result_dir / "predictions.npz"
+    temporary = predictions_path.with_name(f".{predictions_path.name}.{uuid4().hex}.tmp.npz")
+    try:
+        np.savez(temporary, signature=np.asarray(str(signature)), **predictions)
+        os.replace(temporary, predictions_path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return metrics
 
 
 def _fit(features, labels, train, val, method, settings):
