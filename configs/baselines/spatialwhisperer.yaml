@@ -1,6 +1,6 @@
 baseline:
   name: spatialwhisperer
-  embedding_dim: 512
+  embedding_dim: 2048
   normalized: true
   save_dtype: float16
 

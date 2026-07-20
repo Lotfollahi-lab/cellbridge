@@ -1,6 +1,6 @@
 # SpatialWhisperer baseline
 
-This integration extracts SpatialWhisperer's **normalized, projected 512-D
+This integration extracts SpatialWhisperer's **normalized, projected 2048-D
 image embedding** and evaluates exactly that representation with the existing
 cell-phenotyping protocol:
 
@@ -11,6 +11,14 @@ cell-phenotyping protocol:
 
 No PCA is applied to SpatialWhisperer. Both classifiers receive the same saved
 feature matrix, so extraction is done once and probing is cheap and repeatable.
+
+> [!NOTE]
+> The model card describes a 512-D shared space, but the pinned released
+> checkpoint, its projection-head tensors, and the authors' seed-training
+> configuration all specify 2048 dimensions. This integration follows and
+> validates the executable checkpoint: the second normalized image output is
+> 2048-D. A future genuine 512-D checkpoint must use a separate revision and
+> output directory.
 
 > [!CAUTION]
 > **The fast HEST set is held out from TERRA training, not necessarily from
@@ -106,7 +114,7 @@ $RUNNER prepare --config "$CONFIG"
 
 `check` is read-only and validates the repository, data paths, split, and
 configuration. `prepare` downloads/caches the model components and verifies
-that the image encoder can produce a finite, unit-normalized 512-D embedding.
+that the image encoder can produce a finite, unit-normalized 2048-D embedding.
 The config pins the Hugging Face checkpoint to immutable revision
 `23107503e5679924e33a118aa90d70d5c168ceeb`. Generated provenance records the
 resolved revision and checkpoint checksum. The first `prepare` run can take
@@ -231,7 +239,7 @@ Before reporting a table, verify that:
 2. both `linear` and `knn` results exist, with cosine `k=20` for kNN;
 3. PhenoCell contains both `all` and `immune` tasks using the official patient
    split;
-4. the feature metadata says 512 dimensions, normalized, and `pca=false`;
+4. the feature metadata says 2048 dimensions, normalized, and `pca=false`;
 5. the exact SpatialWhisperer Git revision and config are retained alongside
    the scores;
 6. the HEST table is clearly labelled **pretraining-exposed**.

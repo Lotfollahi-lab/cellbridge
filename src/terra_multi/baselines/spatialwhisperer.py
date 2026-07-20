@@ -55,6 +55,7 @@ from terra_multi.evaluation.phenocell_data import (
 BASELINE_NAME = "spatialwhisperer"
 HEST_DATASET_NAME = "hest/label_test_fast"
 PHENOCELL_DATASET_NAME = "phenocell"
+RELEASED_PROJECTION_DIM = 2048
 
 
 def load_config(path) -> dict:
@@ -74,8 +75,10 @@ def validate_config(cfg):
     baseline = cfg["baseline"]
     if baseline.get("name") != BASELINE_NAME:
         raise ValueError(f"baseline.name must be {BASELINE_NAME!r}")
-    if int(baseline.get("embedding_dim", 0)) != 512:
-        raise ValueError("the released SpatialWhisperer projection is 512-D")
+    if int(baseline.get("embedding_dim", 0)) != RELEASED_PROJECTION_DIM:
+        raise ValueError(
+            "the released SpatialWhisperer checkpoint projection is 2048-D"
+        )
     if baseline.get("normalized") is not True:
         raise ValueError("SpatialWhisperer embeddings must be L2-normalized")
     if str(baseline.get("save_dtype", "float16")) != "float16":
@@ -738,7 +741,10 @@ def check_inputs(cfg):
         f"PhenoCell: {len(phenocell):,} cells across "
         f"{phenocell['sample_id'].nunique()} samples"
     )
-    print("Embedding contract: normalized 512-D projection; PCA disabled")
+    print(
+        f"Embedding contract: normalized {RELEASED_PROJECTION_DIM}-D projection; "
+        "PCA disabled"
+    )
     print(
         "WARNING: the released checkpoint was trained on HEST-1K. Treat fast "
         "HEST as pretraining-exposed unless exact training IDs prove otherwise; "
