@@ -37,11 +37,16 @@ mkdir -p "$LOG_DIR"
 
 BGROUP="${BGROUP:-s10396}"
 GPU_QUEUE="${SPATIALWHISPERER_GPU_QUEUE:-training-normal}"
-CPU_QUEUE="${SPATIALWHISPERER_CPU_QUEUE:-${QUEUE:-oversubscribed}}"
+CPU_QUEUE="${SPATIALWHISPERER_CPU_QUEUE:-training-normal}"
+# prepare only loads the model (~3.3G of weights) and smoke-tests it, so it does
+# not need to sit behind training-normal's backlog. `inference` is an idle GPU
+# queue; the oversubscribed CPU hosts are unusable here because they leave only
+# ~8G of their 42G free.
+PREP_QUEUE="${SPATIALWHISPERER_PREP_QUEUE:-inference}"
 GPU_SPEC="${SPATIALWHISPERER_GPU_SPEC:-num=1:gmem=30000}"
 GPU_MEM_GB="${SPATIALWHISPERER_GPU_MEM_GB:-96}"
 GPU_NCORES="${SPATIALWHISPERER_GPU_NCORES:-12}"
-PREP_MEM_GB="${SPATIALWHISPERER_PREP_MEM_GB:-64}"
+PREP_MEM_GB="${SPATIALWHISPERER_PREP_MEM_GB:-32}"
 PREP_NCORES="${SPATIALWHISPERER_PREP_NCORES:-4}"
 PROBE_MEM_GB="${SPATIALWHISPERER_PROBE_MEM_GB:-128}"
 PROBE_NCORES="${SPATIALWHISPERER_PROBE_NCORES:-16}"
@@ -53,7 +58,14 @@ submit_pixi() {
   shift 6
   local dependency_directive="" gpu_directive="" run_command=""
   [ -z "$dependency" ] || dependency_directive="#BSUB -w \"$dependency\""
-  [ "$gpu" = 0 ] || gpu_directive="#BSUB -gpu \"$GPU_SPEC\""
+  if [ "$gpu" = 0 ]; then
+    # `-gpu "-"` still reserves the default GPU (num=1), but the GPU queues'
+    # esub rejects jobs that omit -gpu entirely, so it stays. Keep CPU-ish
+    # stages on an uncongested queue instead (see PREP_QUEUE).
+    gpu_directive='#BSUB -gpu "-"'
+  else
+    gpu_directive="#BSUB -gpu \"$GPU_SPEC\""
+  fi
   printf -v run_command '%q ' "$SCRIPT_DIR/run_in_env.sh" "$@"
   run_command="${run_command% }"
 
@@ -75,7 +87,7 @@ ${run_command}
 EOF
 }
 
-prep_id="$(submit_pixi prepare "$CPU_QUEUE" "$PREP_MEM_GB" "$PREP_NCORES" "" 0 \
+prep_id="$(submit_pixi prepare "$PREP_QUEUE" "$PREP_MEM_GB" "$PREP_NCORES" "" 0 \
   prepare --config "$CONFIG")"
 [ -n "$prep_id" ] || { echo "failed to submit prepare job" >&2; exit 1; }
 echo "  PREPARE       -> job $prep_id"
@@ -104,6 +116,7 @@ probe_id="$(bsub <<EOF | sed -nE 's/.*Job <([0-9]+)>.*/\1/p'
 #BSUB -e ${LOG_DIR}/probe_%J.err
 #BSUB -n ${PROBE_NCORES}
 #BSUB -q ${CPU_QUEUE}
+#BSUB -gpu "-"
 #BSUB -G ${BGROUP}
 #BSUB -M ${PROBE_MEM_GB}G
 #BSUB -R "select[mem>${PROBE_MEM_GB}G] rusage[mem=${PROBE_MEM_GB}G] span[hosts=1]"
