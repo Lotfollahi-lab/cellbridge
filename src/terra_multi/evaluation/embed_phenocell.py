@@ -9,6 +9,7 @@ import pandas as pd
 import yaml
 from PIL import Image
 
+from terra_multi.config import load_config
 from terra_multi.evaluation.phenocell_data import (
     centered_crop,
     iter_lmdb_samples,
@@ -27,9 +28,9 @@ def embed_crops(image, locations, encoder, transform, device, batch_size, crop_s
             rows = locations.iloc[start : start + batch_size]
             batch = [
                 transform(
-                    Image.fromarray(centered_crop(image, row.x, row.y, crop_size)).resize(
-                        (224, 224), Image.Resampling.BILINEAR
-                    )
+                    Image.fromarray(
+                        centered_crop(image, row.x, row.y, crop_size)
+                    ).resize((224, 224), Image.Resampling.BILINEAR)
                 )
                 for row in rows.itertuples()
             ]
@@ -76,8 +77,12 @@ def complete_manifest(output_dir, metadata):
     if not required.issubset(manifest):
         return None
     expected = metadata.groupby("sample_id").size().astype(int).to_dict()
-    observed = dict(zip(manifest["sample_id"].astype(str), manifest["n_cells"].astype(int)))
-    if observed != expected or not all(Path(path).exists() for path in manifest["path"]):
+    observed = dict(
+        zip(manifest["sample_id"].astype(str), manifest["n_cells"].astype(int))
+    )
+    if observed != expected or not all(
+        Path(path).exists() for path in manifest["path"]
+    ):
         return None
     return manifest
 
@@ -144,7 +149,9 @@ def main():
     for sample_name, entries in iter_lmdb_samples(data["lmdb"]):
         if args.limit_samples is not None and completed >= args.limit_samples:
             break
-        sample_metadata = metadata.loc[metadata["sample_id"].astype(str) == sample_name].copy()
+        sample_metadata = metadata.loc[
+            metadata["sample_id"].astype(str) == sample_name
+        ].copy()
         if sample_metadata.empty:
             raise ValueError(f"{sample_name}: no rows in {data['metadata']}")
         destination = output_path(output_dir, sample_name)
@@ -171,7 +178,9 @@ def main():
             write_sample(destination, locations, uni)
             count = len(locations)
             print(f"[{sample_name}] wrote {count:,} cells -> {destination}")
-        rows.append({"sample_id": sample_name, "n_cells": count, "path": str(destination)})
+        rows.append(
+            {"sample_id": sample_name, "n_cells": count, "path": str(destination)}
+        )
         completed += 1
 
     manifest = pd.DataFrame(rows)
