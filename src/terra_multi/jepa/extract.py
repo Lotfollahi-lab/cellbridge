@@ -14,7 +14,6 @@ from sklearn.neighbors import NearestNeighbors
 from terra_multi.cohorts import cohort_in_split, samples_in_split
 from terra_multi.config import load_config
 from terra_multi.jepa.artifacts import (
-    FORMAT_VERSION,
     checkpoint_digest as _checkpoint_digest,
     current_output,
     feature_signature,
@@ -22,8 +21,6 @@ from terra_multi.jepa.artifacts import (
 )
 from terra_multi.jepa.data import load_context_section, sample_context_rows
 from terra_multi.jepa.model import TargetNormalizer, load_model_state
-
-FORMAT_VERSION = "terra_multi.jepa.contextual/1"
 
 
 @dataclass(frozen=True)
