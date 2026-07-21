@@ -219,13 +219,16 @@ def finalize_phenocell_manifest(cfg, output_dir) -> pd.DataFrame:
             raise ValueError(f"{sample_id}: feature row_ids disagree with metadata")
         if not np.all(arrays["sample_id"].astype(str) == sample_id):
             raise ValueError(f"{sample_id}: artifact contains another sample")
-        observed_ids = (
-            arrays["sample_id"].astype(str)
-            + "/"
-            + arrays["tile_id"].astype(str)
-            + "/"
-            + arrays["cell_id"].astype(str)
-        )
+        # Rebuild via the canonical helper: numpy string arrays do not support
+        # `+` concatenation (raises UFuncNoLoopError), so reuse the pandas path
+        # that the extraction wrote these IDs with, guaranteeing an exact match.
+        observed_ids = phenocell_cell_ids(pd.DataFrame(
+            {
+                "sample_id": arrays["sample_id"],
+                "tile_id": arrays["tile_id"],
+                "cell_id": arrays["cell_id"],
+            }
+        ))
         if not np.array_equal(cell_ids, observed_ids):
             raise ValueError(f"{sample_id}: global cell IDs are inconsistent")
         summaries.append(summary)
