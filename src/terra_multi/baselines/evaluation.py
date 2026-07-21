@@ -508,17 +508,20 @@ def write_combined_summaries(cfg, output_root, hest_results, phenocell_results):
             write_table(Path(output_root) / f"summary_{method}.csv", rows)
 
 
-def probe_all(cfg, output_root, dataset="all"):
+def probe_all(cfg, output_root, dataset="all", samples=None):
     hest_results = phenocell_results = {}
     if dataset in {"all", "hest"}:
         hest_results = probe_hest(
-            cfg, Path(output_root) / "hest_label_test_fast"
+            cfg, Path(output_root) / "hest_label_test_fast", samples=samples
         )
     if dataset in {"all", "phenocell"}:
         phenocell_results = probe_phenocell(
             cfg, Path(output_root) / "phenocell"
         )
-    if dataset == "all":
+    # A per-sample run (samples set) probes a subset, so it must not write the
+    # combined summary: that needs every HEST sample, and concurrent per-sample
+    # jobs would race. A later full run reuses the cached probes and writes it.
+    if dataset == "all" and samples is None:
         manifest_paths = (
             Path(output_root)
             / "hest_label_test_fast"

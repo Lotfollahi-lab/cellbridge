@@ -794,6 +794,10 @@ def build_parser():
     probe.add_argument(
         "--dataset", choices=("all", "hest", "phenocell"), default="all"
     )
+    probe.add_argument(
+        "--samples",
+        help="comma-separated HEST samples to probe; requires --dataset hest",
+    )
     run = commands.add_parser("run", help="extract both datasets, then probe")
     _add_common(run)
     run.add_argument("--device")
@@ -819,7 +823,10 @@ def main(argv=None):
         return
     root = output_root(cfg, args.output_dir)
     if args.command == "probe":
-        probe_all(cfg, root, args.dataset)
+        samples = _parse_samples(args.samples)
+        if samples is not None and args.dataset != "hest":
+            parser.error("--samples only applies to --dataset hest")
+        probe_all(cfg, root, args.dataset, samples=samples)
         return
     if args.command == "prepare":
         prepare_model(cfg, root, args.device)
