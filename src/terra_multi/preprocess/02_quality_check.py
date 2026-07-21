@@ -10,7 +10,8 @@ import pyarrow.compute as pc
 import pyarrow.dataset as pa_ds
 import scanpy as sc
 import scipy.sparse as sp
-import yaml
+
+from terra_multi.config import load_config
 
 _CONTROL_PREFIXES = ("NegControlProbe_", "NegControlCodeword_", "BLANK_")
 _COLUMNS = ["cell_id", "feature_name", "x_location", "y_location", "he_x", "he_y", "qv"]
@@ -63,8 +64,7 @@ def main():
     parser.add_argument("--sample-id", required=True)
     args = parser.parse_args()
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
     qv_threshold = float(cfg.get("qv_threshold", 20))
 
     manifest = pd.read_csv(Path(cfg["output_root"]) / "manifest.csv").set_index("id")

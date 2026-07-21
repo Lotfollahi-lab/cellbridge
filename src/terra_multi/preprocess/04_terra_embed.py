@@ -8,7 +8,8 @@ from pathlib import Path
 import anndata as ad
 import numpy as np
 import pandas as pd
-import yaml
+
+from terra_multi.config import load_config
 
 MODEL_NAME = "Lotfollahi-lab/TERRA-112M"
 MIN_GENES_PER_CELL = 10
@@ -32,8 +33,7 @@ def main():
     if args.batch_size < 1:
         raise ValueError("--batch-size must be positive")
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
     keep_tokenized = bool(cfg.get("keep_tokenized", False))
     n_workers = len(os.sched_getaffinity(0))
 

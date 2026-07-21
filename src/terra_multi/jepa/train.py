@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import yaml
 from torch.utils.data import DataLoader
 
+from terra_multi.config import load_config as load_yaml_config
 from terra_multi.distill.train import init_wandb
 from terra_multi.jepa.data import (
     SpatialJEPADataset,
@@ -34,8 +35,7 @@ from terra_multi.jepa.model import (
 def load_config(path) -> dict:
     """Load defaults and validate one spatial-block JEPA configuration."""
 
-    with open(path) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_yaml_config(path)
     if not isinstance(cfg, dict) or cfg.get("jepa_version") != "spatial_block_v1":
         raise ValueError("JEPA training requires jepa_version: spatial_block_v1")
     for name in (

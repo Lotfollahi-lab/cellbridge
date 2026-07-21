@@ -2,7 +2,8 @@
 
 import argparse
 
-import yaml
+
+from terra_multi.config import load_config
 
 from terra_multi.evaluation.classification import METHODS, resolve_methods
 from terra_multi.evaluation.hest import MODELS, run_hest_evaluations
@@ -15,8 +16,7 @@ def main():
     parser.add_argument("--method", action="append", choices=METHODS)
     args = parser.parse_args()
 
-    with open(args.config) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_config(args.config)
     models = args.model or cfg.get("models", ["terra", "uni", "concat"])
     methods = resolve_methods(cfg, args.method)
 

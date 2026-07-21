@@ -14,6 +14,7 @@ import torch
 import yaml
 from torch.utils.data import DataLoader
 
+from terra_multi.config import load_config as load_yaml_config
 from terra_multi.distill.train import init_wandb
 from terra_multi.lora.data import WithinSampleBatchSampler, build_datasets
 from terra_multi.lora.model import (
@@ -24,8 +25,7 @@ from terra_multi.lora.model import (
 
 
 def load_config(path):
-    with open(path) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_yaml_config(path)
     if cfg.get("distill_version") != "lora":
         raise ValueError("LoRA training requires distill_version: lora")
 

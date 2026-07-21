@@ -16,7 +16,8 @@ import argparse
 from pathlib import Path
 
 import numpy as np
-import yaml
+
+from terra_multi.config import load_config
 
 from terra_multi.helpers.labels import (
     load_cell_polygons,
@@ -29,8 +30,7 @@ def main():
     parser = argparse.ArgumentParser(description="Build CellViT cell-type labels.")
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
 
     # Our cells + their H&E-pixel centroids (embedding row order), for the fallback.
     terra = np.load(cfg["terra_embeddings"], allow_pickle=True)

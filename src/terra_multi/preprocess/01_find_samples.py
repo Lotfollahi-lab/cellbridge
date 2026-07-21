@@ -2,7 +2,8 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-import yaml
+
+from terra_multi.config import load_config
 
 INPUTS = {
     "transcripts": ("transcripts", "_transcripts.parquet"),
@@ -54,8 +55,7 @@ def main():
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
 
     manifest = discover_samples(cfg)
 

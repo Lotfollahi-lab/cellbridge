@@ -7,7 +7,8 @@ import pandas as pd
 import pyarrow.compute as pc
 import pyarrow.dataset as pa_ds
 import scipy.sparse as sp
-import yaml
+
+from terra_multi.config import load_config
 
 from terra_multi.helpers.io import load_embeddings
 
@@ -19,8 +20,7 @@ def main():
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
 
     transcripts_path = cfg["transcripts_path"]
     adata_path = Path(cfg["adata_path"])

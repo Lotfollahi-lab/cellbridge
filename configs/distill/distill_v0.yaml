@@ -2,8 +2,8 @@
 run_name: distill_v0
 
 # Data and fixed sample split.
-data_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest
-splits_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/hest80_strict_v1.csv
+data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
 
 # Used when creating the split file.
 val_frac: 0.1
@@ -52,7 +52,7 @@ wandb:
 # Held-out linear and kNN evaluation.
 eval:
   label_test_mode: fast  # choices: fast, full
-  label_test_fast_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
   label_test_fast_n: 5
   label_test_fast_seed: 0
   test_frac: 0.2

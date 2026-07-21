@@ -15,7 +15,8 @@ import pyarrow.compute as pc
 import pyarrow.dataset as pa_ds
 import scanpy as sc
 import scipy.sparse as sp
-import yaml
+
+from terra_multi.config import load_config
 
 # Reuse the exact filter constants + helpers from the standard step
 _qc = importlib.import_module("terra_multi.preprocess.02_quality_check")
@@ -104,8 +105,7 @@ def main():
     parser.add_argument("--batch-rows", type=int, default=_BATCH_ROWS)
     args = parser.parse_args()
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
     qv_threshold = float(cfg.get("qv_threshold", 20))
 
     manifest = pd.read_csv(Path(cfg["output_root"]) / "manifest.csv").set_index("id")

@@ -16,6 +16,24 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 The HEST split is stored with the data at
 `data/train/hest/splits/hest80_strict_v1.csv`.
 
+## Configuration
+
+Checked-in YAML files are portable. Paths use `TERRA_MULTI_DATA_ROOT` and
+`TERRA_MULTI_REPOS_ROOT`, which default to the workspace `data/` and `repos/`
+directories. Set them explicitly when your layout differs. Preprocessing also
+requires `HEST_ROOT` for the upstream HEST release.
+
+For machine-specific overrides, copy `configs/local.example.yaml` to
+`configs/local.yaml` and export:
+
+```bash
+export TERRA_MULTI_CONFIG_OVERLAY=configs/local.yaml
+```
+
+The overlay is recursively merged before environment variables are expanded.
+LSF launchers use `scripts/submit_job.sh`; it reads the same resolved config,
+creates logs, submits the job, and prints only the numeric job ID.
+
 ## Preprocessing
 
 Run discovery and submit every sample:
@@ -101,7 +119,7 @@ assignments, exported features, metrics, and resolved prototype settings are
 written under `outputs/distill_v1/`; the best student checkpoint is written to
 `checkpoints/distill_v1/best.pt`.
 
-## LoRA: H&E to TERRA
+## LoRA: UNI to TERRA
 
 LoRA distillation trains UNI2-h directly from cell-centred H&E crops. The frozen
 encoder gets rank-8 LoRA adapters in its last two or four attention blocks and

@@ -5,7 +5,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml
+
+from terra_multi.config import load_config
 from PIL import Image
 
 DST_PIXEL_SIZE = 0.5
@@ -52,8 +53,7 @@ def main():
     if args.batch_size < 1:
         raise ValueError("--batch-size must be positive")
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
 
     manifest = pd.read_csv(Path(cfg["output_root"]) / "manifest.csv").set_index("id")
     row = manifest.loc[args.sample_id]

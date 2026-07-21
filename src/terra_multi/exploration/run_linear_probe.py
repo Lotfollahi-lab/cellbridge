@@ -3,7 +3,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml
+
+from terra_multi.config import load_config
 from sklearn.decomposition import PCA
 
 from terra_multi.helpers.io import (
@@ -45,8 +46,7 @@ def main():
     parser.add_argument("--model", required=True, choices=MODELS)
     args = parser.parse_args()
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
     model = args.model
 
     terra_emb, terra_ids = load_embeddings(

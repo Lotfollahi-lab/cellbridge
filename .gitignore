@@ -12,6 +12,7 @@ dist/
 .venv/
 venv/
 .env
+configs/local.yaml
 
 # Claude
 CLAUDE.md

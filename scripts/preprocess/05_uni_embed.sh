@@ -1,48 +1,14 @@
 #!/bin/bash
 set -euo pipefail
-
-SAMPLE_ID="$1"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-[ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
-
-QUEUE="${UNI_QUEUE:-${GPU_QUEUE:-training-normal}}"
-GPU_SPEC="${UNI_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=30000}}"
-BGROUP="${BGROUP:-s10396}"
-MEM_GB="${UNI_MEM_GB:-16}"
-NCORES="${UNI_NCORES:-12}"
-BATCH_SIZE="${UNI_BATCH_SIZE:-128}"
+SAMPLE="${1:?usage: 05_uni_embed.sh <sample-id>}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONFIG="${CONFIG:-$ROOT/configs/preprocess/preprocess.yaml}"
-DEP_DIRECTIVE=""
-[ -n "${DEPENDENCY:-}" ] && DEP_DIRECTIVE="#BSUB -w \"done(${DEPENDENCY})\""
-
-OUTPUT_ROOT="$(sed -nE 's/^[[:space:]]*output_root:[[:space:]]*([^#[:space:]]+).*/\1/p' "$CONFIG" | head -n1)"
-case "$OUTPUT_ROOT" in
-  /*) ;;
-  *) OUTPUT_ROOT="$ROOT/$OUTPUT_ROOT" ;;
-esac
-LOG_DIR="$OUTPUT_ROOT/$SAMPLE_ID/logs"
-mkdir -p "$LOG_DIR"
-
-bsub <<EOF
-#BSUB -J uni_${SAMPLE_ID}
-#BSUB -o ${LOG_DIR}/uni_${SAMPLE_ID}_%J.out
-#BSUB -e ${LOG_DIR}/uni_${SAMPLE_ID}_%J.err
-#BSUB -n ${NCORES}
-#BSUB -q ${QUEUE}
-#BSUB -gpu "${GPU_SPEC}"
-#BSUB -G ${BGROUP}
-#BSUB -M ${MEM_GB}G
-#BSUB -R "select[mem>${MEM_GB}G] rusage[mem=${MEM_GB}G] span[hosts=1]"
-${DEP_DIRECTIVE}
-
-set -euo pipefail
-module load ISG/conda
-conda activate hest
-cd "${ROOT}"
-PYTHONPATH=src python3 src/terra_multi/preprocess/05_uni_embed.py \
-  --config "${CONFIG}" \
-  --sample-id "${SAMPLE_ID}" \
-  --batch-size "${BATCH_SIZE}"
-EOF
+DEP="${DEPENDENCY:-}"; [[ -z "$DEP" || "$DEP" == *"("* ]] || DEP="done($DEP)"
+DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
+"$ROOT/scripts/submit_job.sh" submit "$CONFIG" --job "uni_${SAMPLE}" \
+  --log-prefix "uni_${SAMPLE}" --output-key output_root --log-subdir "$SAMPLE/logs" \
+  --queue "${UNI_QUEUE:-${GPU_QUEUE:-training-normal}}" \
+  --gpu "${UNI_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=30000}}" \
+  --memory "${UNI_MEM_GB:-16}" --cores "${UNI_NCORES:-12}" --environment hest \
+  "${DEP_ARGS[@]}" -- python3 src/terra_multi/preprocess/05_uni_embed.py \
+  --config "$CONFIG" --sample-id "$SAMPLE" --batch-size "${UNI_BATCH_SIZE:-128}"

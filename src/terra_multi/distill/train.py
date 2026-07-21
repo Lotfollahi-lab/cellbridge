@@ -10,6 +10,8 @@ import torch
 import yaml
 from torch.utils.data import DataLoader
 
+from terra_multi.cohorts import split_groups
+from terra_multi.config import load_config as load_yaml_config
 from terra_multi.distill.data import CellEmbeddingDataset, build_split_cache
 from terra_multi.distill.inference import (
     embedding_variance,
@@ -30,8 +32,7 @@ from terra_multi.distill.model import (
 
 
 def load_config(path):
-    with open(path) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_yaml_config(path)
     defaults = {
         "uni_dim": 1536,
         "terra_dim": 384,
@@ -51,14 +52,7 @@ def load_config(path):
 
 
 def load_splits(path):
-    table = pd.read_csv(path)
-    required = {"sample_id", "split"}
-    if not required.issubset(table.columns):
-        raise ValueError(f"{path} must contain columns {sorted(required)}")
-    return {
-        name: table.loc[table["split"] == name, "sample_id"].astype(str).tolist()
-        for name in ("distill_train", "distill_val", "label_test")
-    }
+    return split_groups(path)
 
 
 def init_wandb(cfg):

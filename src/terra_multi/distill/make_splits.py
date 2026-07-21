@@ -5,8 +5,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml
 
+from terra_multi.cohorts import cohort_in_split, load_cohort
+from terra_multi.config import load_config
 from terra_multi.distill.data import all_samples, annotated_samples
 
 
@@ -29,13 +30,12 @@ def select_label_test_samples(cfg, samples):
         raise ValueError(f"eval.label_test_mode must be 'fast' or 'full', got {mode!r}")
 
     path = Path(settings.get("label_test_fast_path", "splits/label_test_fast_v1.csv"))
-    table = pd.read_csv(path)
-    if "sample_id" not in table:
-        raise ValueError(f"{path} must contain a sample_id column")
-
-    full_set = set(map(str, samples))
-    candidates = table["sample_id"].astype(str).tolist()
-    missing = sorted(set(candidates) - full_set)
+    candidates = (
+        cohort_in_split(path, cfg["splits_path"], "label_test")
+        if cfg.get("splits_path")
+        else load_cohort(path)
+    )
+    missing = sorted(set(candidates) - set(map(str, samples)))
     if missing:
         raise ValueError(f"{path} contains samples outside label_test: {missing}")
 
@@ -89,8 +89,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
     args = parser.parse_args()
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
 
     path, table = write_split_table(cfg)
     print(f"wrote {path}")

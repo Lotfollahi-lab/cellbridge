@@ -1,9 +1,9 @@
 distill_version: lora
 run_name: lora_terra_similarity_last4
 
-data_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest
-manifest_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/manifest.csv
-splits_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/hest80_strict_v1.csv
+data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+manifest_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/manifest.csv
+splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
 max_cells_per_sample: 5000
 max_open_wsis: 64
 sampling_seed: 0
@@ -54,7 +54,7 @@ wandb:
   mode: online
 
 eval:
-  label_test_fast_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
   label_test_fast_n: 5
   batch_size: 64
   num_workers: 8

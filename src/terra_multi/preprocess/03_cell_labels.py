@@ -5,7 +5,8 @@ from pathlib import Path
 
 import anndata as ad
 import pandas as pd
-import yaml
+
+from terra_multi.config import load_config
 
 from terra_multi.helpers.labels import (
     load_cell_polygons,
@@ -20,8 +21,7 @@ def main():
     parser.add_argument("--sample-id", required=True)
     args = parser.parse_args()
 
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
     fallback_max_um = cfg.get("fallback_max_um", 20)
 
     manifest = pd.read_csv(Path(cfg["output_root"]) / "manifest.csv").set_index("id")

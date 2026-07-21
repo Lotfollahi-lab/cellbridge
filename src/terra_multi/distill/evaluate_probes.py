@@ -11,6 +11,8 @@ import pandas as pd
 import yaml
 from sklearn.metrics import f1_score
 
+from terra_multi.cohorts import samples_in_split
+from terra_multi.config import load_config
 from terra_multi.distill.data import LABEL_SUFFIX
 from terra_multi.distill.make_splits import (
     label_test_split_name,
@@ -71,9 +73,8 @@ def _paths(cfg):
 
 
 def _label_test_samples(cfg, limit=None):
-    splits = pd.read_csv(cfg["splits_path"])
-    samples = splits.loc[splits["split"] == "label_test", "sample_id"].astype(str)
-    selected = select_label_test_samples(cfg, samples.tolist())
+    samples = samples_in_split(cfg["splits_path"], "label_test")
+    selected = select_label_test_samples(cfg, samples)
     return selected[:limit] if limit is not None else selected
 
 
@@ -262,8 +263,7 @@ def main():
     parser.add_argument("--aggregate-only", action="store_true")
     parser.add_argument("--limit-samples", type=int)
     args = parser.parse_args()
-    with open(args.config) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_config(args.config)
 
     samples = _label_test_samples(cfg, args.limit_samples)
     arms = arms_for_config(cfg)

@@ -2,7 +2,8 @@
 
 import argparse
 
-import yaml
+
+from terra_multi.config import load_config
 
 from terra_multi.evaluation.hest import MODELS, load_labels, run_hest_evaluation
 from terra_multi.evaluation.linear_probe import reduce_features
@@ -18,8 +19,7 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--model", required=True, choices=MODELS)
     args = parser.parse_args()
-    with open(args.config) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_config(args.config)
     run_hest_evaluation(cfg, args.model, "linear")
 
 

@@ -14,6 +14,7 @@ import yaml
 from sklearn import __version__ as sklearn_version
 from torch.utils.data import DataLoader
 
+from terra_multi.config import load_config as load_yaml_config
 from terra_multi.distill.data import (
     build_split_cache,
     load_sample_embeddings,
@@ -35,8 +36,7 @@ from terra_multi.distill.train import init_wandb, load_splits
 
 
 def load_config(path):
-    with open(path) as fh:
-        cfg = yaml.safe_load(fh)
+    cfg = load_yaml_config(path)
     defaults = {
         "uni_dim": 1536,
         "hidden_dim": 1024,

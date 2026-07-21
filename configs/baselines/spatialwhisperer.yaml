@@ -5,7 +5,7 @@ baseline:
   save_dtype: float16
 
 model:
-  repository: /lustre/scratch126/cellgen/lotfollahi/so25/repos/spatialwhisperer
+  repository: ${TERRA_MULTI_REPOS_ROOT}/spatialwhisperer
   hf_repo: Good-Lab/spatialwhisperer
   revision: 23107503e5679924e33a118aa90d70d5c168ceeb
   checkpoint_filename: spatialwhisperer.ckpt
@@ -14,10 +14,10 @@ model:
 output_dir: outputs/baselines/spatialwhisperer
 
 hest:
-  data_root: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest
-  manifest_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/manifest.csv
-  splits_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/hest80_strict_v1.csv
-  label_test_fast_path: /lustre/scratch126/cellgen/lotfollahi/so25/data/train/hest/splits/label_test_fast_v1.csv
+  data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+  manifest_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/manifest.csv
+  splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
   label_test_fast_n: 5
   crop:
     target_size: 224
@@ -43,9 +43,9 @@ hest:
 
 phenocell:
   data:
-    lmdb: /lustre/scratch126/cellgen/lotfollahi/so25/data/eval/phenocell/phenocell_lmdb
-    metadata: /lustre/scratch126/cellgen/lotfollahi/so25/data/eval/phenocell/phenocell_info.csv
-    split: /lustre/scratch126/cellgen/lotfollahi/so25/data/eval/phenocell/splits/phenocell_dataset_split.csv
+    lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_lmdb
+    metadata: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_info.csv
+    split: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/splits/phenocell_dataset_split.csv
     image_shape: [1440, 1920]
     tile_size: 224
     value_scale: 250
