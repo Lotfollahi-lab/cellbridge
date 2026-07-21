@@ -15,10 +15,10 @@ from tempfile import TemporaryDirectory
 
 import numpy as np
 import pandas as pd
-import yaml
 from PIL import Image
 
 import terra_multi.evaluation.artifacts as artifact_utils
+from terra_multi.config import load_config as load_yaml_config
 from terra_multi.evaluation.artifacts import (
     feature_file_is_current,
     feature_signature,
@@ -59,8 +59,7 @@ RELEASED_PROJECTION_DIM = 2048
 
 
 def load_config(path) -> dict:
-    with open(path) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_yaml_config(path)
     if not isinstance(cfg, dict):
         raise ValueError(f"{path}: expected a YAML mapping")
     validate_config(cfg)
@@ -143,6 +142,8 @@ def _integration_source_paths():
     return (
         Path(__file__),
         Path(artifact_utils.__file__),
+        package / "evaluation" / "provenance.py",
+        package / "evaluation" / "storage.py",
         package / "lora" / "data.py",
         package / "evaluation" / "phenocell_data.py",
     )

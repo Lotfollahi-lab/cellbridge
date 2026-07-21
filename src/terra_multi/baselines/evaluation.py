@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from terra_multi.cohorts import cohort_in_split
 from terra_multi.evaluation.artifacts import (
     file_identity,
     load_feature_file,
@@ -34,34 +35,12 @@ def _as_strings(values):
 
 def label_test_fast_samples(hest_cfg) -> list[str]:
     """Return the fixed fast subset after proving it is held out by TERRA."""
-    splits_path = Path(hest_cfg["splits_path"])
-    fast_path = Path(hest_cfg["label_test_fast_path"])
-    splits = pd.read_csv(splits_path)
-    if not {"sample_id", "split"} <= set(splits):
-        raise ValueError(f"{splits_path} requires sample_id and split columns")
-    splits["sample_id"] = splits["sample_id"].astype(str)
-    if splits["sample_id"].duplicated().any():
-        raise ValueError(f"{splits_path} contains duplicate samples")
-
-    fast = pd.read_csv(fast_path)
-    if "sample_id" not in fast:
-        raise ValueError(f"{fast_path} requires a sample_id column")
-    samples = fast["sample_id"].astype(str).tolist()
-    if len(samples) != len(set(samples)):
-        raise ValueError(f"{fast_path} contains duplicate samples")
-    assigned = splits.set_index("sample_id")["split"].astype(str).to_dict()
-    invalid = [sample for sample in samples if assigned.get(sample) != "label_test"]
-    if invalid:
-        raise ValueError(
-            "label_test_fast contains samples outside label_test: "
-            f"{invalid[:5]}"
-        )
-    expected = int(hest_cfg.get("label_test_fast_n", 5))
-    if len(samples) != expected:
-        raise ValueError(
-            f"{fast_path} has {len(samples)} samples; expected exactly {expected}"
-        )
-    return samples
+    return cohort_in_split(
+        hest_cfg["label_test_fast_path"],
+        hest_cfg["splits_path"],
+        "label_test",
+        expected_count=int(hest_cfg.get("label_test_fast_n", 5)),
+    )
 
 
 def hest_manifest_row(hest_cfg, sample_id):

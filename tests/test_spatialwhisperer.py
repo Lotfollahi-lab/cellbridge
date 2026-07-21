@@ -51,12 +51,14 @@ def test_integration_provenance_tracks_moved_artifact_module():
     assert Path(sw.__file__).with_name("artifacts.py").resolve() not in paths
 
 
-def test_launchers_use_isolated_pixi_and_uv_probe_environment():
+def test_launchers_use_isolated_pixi_and_shared_submission_environment():
     scripts = ROOT / "scripts" / "baselines" / "spatialwhisperer"
     runner = (scripts / "run_in_env.sh").read_text()
     submitter = (scripts / "submit_parallel.sh").read_text()
+    helper = (ROOT / "src/terra_multi/cluster.py").read_text()
 
     assert "export PYTHONNOUSERSITE=1" in runner
-    assert "module load cellgen/uv" in submitter
-    assert 'source "${TERRA_ENV}/bin/activate"' in submitter
+    assert "scripts/submit_job.sh" in submitter
+    assert "module load cellgen/uv" in helper
+    assert "activate" in helper
     assert "conda activate" not in submitter

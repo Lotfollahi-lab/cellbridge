@@ -17,6 +17,7 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, Sampler
 
+from terra_multi.cohorts import cohort_in_split, samples_in_split
 from terra_multi.distill.data import select_indices
 
 TARGET_PATCH_SIZE = 224
@@ -55,39 +56,20 @@ def split_samples(
     if split not in VALID_SPLITS:
         raise ValueError(f"split must be one of {sorted(VALID_SPLITS)}, got {split!r}")
 
-    table = pd.read_csv(splits_path)
-    required = {"sample_id", "split"}
-    if not required <= set(table.columns):
-        raise ValueError(f"{splits_path} must contain columns {sorted(required)}")
-    table = table.loc[:, ["sample_id", "split"]].copy()
-    table["sample_id"] = table["sample_id"].map(canonical_id)
-    table["split"] = table["split"].astype(str)
-    if table["sample_id"].duplicated().any():
-        duplicates = table.loc[table["sample_id"].duplicated(), "sample_id"].tolist()
-        raise ValueError(f"{splits_path} contains duplicate samples: {duplicates[:5]}")
-
     if split != "label_test_fast":
-        samples = table.loc[table["split"] == split, "sample_id"].tolist()
-    else:
-        if label_test_fast_path is None:
-            raise ValueError("label_test_fast_path is required for label_test_fast")
-        fast = pd.read_csv(label_test_fast_path)
-        if "sample_id" not in fast:
-            raise ValueError(f"{label_test_fast_path} must contain a sample_id column")
-        samples = fast["sample_id"].map(canonical_id).tolist()
-        if len(samples) != len(set(samples)):
-            raise ValueError(f"{label_test_fast_path} contains duplicate samples")
-        assigned = table.set_index("sample_id")["split"].to_dict()
-        invalid = [sample for sample in samples if assigned.get(sample) != "label_test"]
-        if invalid:
-            raise ValueError(
-                "label_test_fast samples must belong to the held-out label_test split: "
-                f"{invalid[:5]}"
-            )
-
-    if not samples:
-        raise ValueError(f"split {split!r} is empty")
-    return samples
+        return samples_in_split(
+            splits_path,
+            split,
+            normalize_id=canonical_id,
+        )
+    if label_test_fast_path is None:
+        raise ValueError("label_test_fast_path is required for label_test_fast")
+    return cohort_in_split(
+        label_test_fast_path,
+        splits_path,
+        "label_test",
+        normalize_id=canonical_id,
+    )
 
 
 def source_patch_size(
