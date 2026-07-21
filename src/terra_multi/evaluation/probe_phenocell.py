@@ -5,7 +5,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml
+
+from terra_multi.config import load_config
 from sklearn.metrics import f1_score
 
 from terra_multi.evaluation.classification import (
@@ -146,8 +147,7 @@ def main():
     parser.add_argument("--arm", choices=ARMS)
     parser.add_argument("--methods", help="comma-separated: linear,knn")
     args = parser.parse_args()
-    with open(args.config) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_config(args.config)
 
     output_dir = Path(cfg["output_dir"])
     uni_dir = Path(cfg["embedding"]["output_dir"])

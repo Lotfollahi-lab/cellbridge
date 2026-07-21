@@ -18,6 +18,7 @@ import torch
 from scipy.spatial import cKDTree
 from torch.utils.data import Dataset
 
+from terra_multi.cohorts import samples_in_split
 from terra_multi.distill.data import select_indices
 
 
@@ -142,25 +143,7 @@ def sample_context_rows(
 def split_sample_ids(splits_path, split: str) -> list[str]:
     """Return one section-disjoint split from a complete assignment table."""
 
-    table = pd.read_csv(splits_path)
-    required = {"sample_id", "split"}
-    if not required <= set(table.columns):
-        raise ValueError(f"{splits_path} must contain columns {sorted(required)}")
-    table = table.loc[:, ["sample_id", "split"]].copy()
-    if table.isna().any().any():
-        raise ValueError(f"{splits_path} contains null sample IDs or splits")
-    table["sample_id"] = table["sample_id"].astype(str)
-    table["split"] = table["split"].astype(str)
-    duplicated = table.loc[table["sample_id"].duplicated(keep=False), "sample_id"]
-    if not duplicated.empty:
-        raise ValueError(
-            "section split assignments must be disjoint; duplicate samples include "
-            f"{duplicated.unique()[:5].tolist()}"
-        )
-    samples = table.loc[table["split"] == str(split), "sample_id"].tolist()
-    if not samples:
-        raise ValueError(f"split {split!r} is empty")
-    return samples
+    return samples_in_split(splits_path, split)
 
 
 def _manifest_rows(manifest_path) -> dict[str, dict]:

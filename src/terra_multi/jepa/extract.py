@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 
 import numpy as np
 import pandas as pd
 import torch
-import yaml
 from sklearn.neighbors import NearestNeighbors
 
+from terra_multi.cohorts import cohort_in_split, samples_in_split
+from terra_multi.config import load_config
+from terra_multi.jepa.artifacts import (
+    FORMAT_VERSION,
+    checkpoint_digest as _checkpoint_digest,
+    current_output,
+    feature_signature,
+    write_output,
+)
 from terra_multi.jepa.data import load_context_section, sample_context_rows
 from terra_multi.jepa.model import TargetNormalizer, load_model_state
 
@@ -273,99 +277,19 @@ def load_section(cfg, sample_id):
 
 def configured_samples(cfg, override=None):
     """Resolve CLI samples, the fast label set, or all label-test sections."""
-    if override:
-        return [value.strip() for value in override.split(",") if value.strip()]
     fast_path = cfg.get("eval", {}).get("label_test_fast_path")
-    if fast_path:
-        table = pd.read_csv(fast_path)
-        if "sample_id" not in table:
-            raise ValueError(f"{fast_path}: missing sample_id column")
-        return table["sample_id"].astype(str).tolist()
-    splits = pd.read_csv(cfg["splits_path"])
-    return splits.loc[splits["split"] == "label_test", "sample_id"].astype(str).tolist()
-
-
-def _file_identity(path):
-    path = Path(path).resolve()
-    stat = path.stat()
-    return {"path": str(path), "size": stat.st_size, "mtime_ns": stat.st_mtime_ns}
-
-
-def _checkpoint_digest(path):
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        for chunk in iter(lambda: handle.read(8 * 1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def feature_signature(checkpoint_digest, sources, settings):
-    payload = {
-        "format": FORMAT_VERSION,
-        "checkpoint": checkpoint_digest,
-        "sources": [_file_identity(path) for path in sources],
-        "sampling": settings.__dict__,
-    }
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def current_output(path, signature):
-    """Return the row count when an existing strict NPZ matches its signature."""
-    try:
-        with np.load(path, allow_pickle=False) as data:
-            required = {
-                "format_version",
-                "signature",
-                "sample_id",
-                "cell_ids",
-                "jepa_emb",
-                "n_context",
-            }
-            if not required.issubset(data.files):
-                return None
-            if str(data["format_version"].item()) != FORMAT_VERSION:
-                return None
-            if str(data["signature"].item()) != signature:
-                return None
-            if data["jepa_emb"].ndim != 2:
-                return None
-            count = len(data["cell_ids"])
-            if len(data["jepa_emb"]) != count or len(data["n_context"]) != count:
-                return None
-            return count
-    except (OSError, ValueError, KeyError):
-        return None
-
-
-def write_output(path, sample_id, cell_ids, embeddings, counts, signature):
-    """Atomically write the stable contextual-embedding NPZ schema."""
-    path = Path(path)
-    cell_ids = np.asarray(cell_ids).astype(str)
-    embeddings = np.asarray(embeddings)
-    counts = np.asarray(counts)
-    if len(np.unique(cell_ids)) != len(cell_ids):
-        raise ValueError("cell_ids must be unique")
-    if embeddings.ndim != 2 or len(embeddings) != len(cell_ids):
-        raise ValueError("jepa_emb must be a row-aligned 2D array")
-    if counts.shape != (len(cell_ids),) or np.any(counts < 1):
-        raise ValueError("n_context must be positive and row-aligned")
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp.npz")
-    try:
-        np.savez(
-            temporary,
-            format_version=np.asarray(FORMAT_VERSION),
-            signature=np.asarray(signature),
-            sample_id=np.asarray(str(sample_id)),
-            cell_ids=cell_ids,
-            jepa_emb=embeddings.astype(np.float16),
-            n_context=counts.astype(np.int16),
-        )
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
+    configured = (
+        cohort_in_split(fast_path, cfg["splits_path"], "label_test")
+        if fast_path
+        else samples_in_split(cfg["splits_path"], "label_test")
+    )
+    if not override:
+        return configured
+    requested = [value.strip() for value in override.split(",") if value.strip()]
+    invalid = sorted(set(requested) - set(configured))
+    if not requested or len(requested) != len(set(requested)) or invalid:
+        raise ValueError(f"invalid configured samples: {invalid or requested}")
+    return requested
 
 
 def extract_sample(
@@ -427,8 +351,7 @@ def main(argv=None):
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args(argv)
 
-    with open(args.config) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_config(args.config)
     checkpoint_path = Path(args.checkpoint or Path(cfg["checkpoint_dir"]) / "best.pt")
     output_dir = Path(args.output_dir or Path(cfg["output_dir"]) / "features")
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")

@@ -15,9 +15,14 @@ def make_config(tmp_path):
     ).to_csv(sample_dir / "section_a_granular_cell_labels.csv", index=False)
     fast_path = tmp_path / "fast.csv"
     pd.DataFrame({"sample_id": ["section_a"]}).to_csv(fast_path, index=False)
+    splits_path = tmp_path / "splits.csv"
+    pd.DataFrame(
+        {"sample_id": ["section_a"], "split": ["label_test"]}
+    ).to_csv(splits_path, index=False)
     return {
         "data_root": str(data_root),
         "output_dir": str(tmp_path / "output"),
+        "splits_path": str(splits_path),
         "uni_key": "uni_emb",
         "terra_key": "cell_emb",
         "eval": {

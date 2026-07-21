@@ -113,8 +113,7 @@ def main():
     parser.add_argument("--limit-samples", type=int)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
-    with open(args.config) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_config(args.config)
 
     data = cfg["data"]
     embedding = cfg["embedding"]

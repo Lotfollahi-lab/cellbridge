@@ -6,8 +6,9 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
+from terra_multi.cohorts import cohort_in_split
+from terra_multi.config import load_config
 from terra_multi.evaluation.classification import resolve_methods
 from terra_multi.evaluation.hest import result_directory, run_hest_evaluations
 
@@ -21,14 +22,11 @@ ARMS = {
 def fast_samples(cfg: dict) -> list[str]:
     """Return the configured held-out sample IDs in their declared order."""
 
-    path = cfg["eval"]["label_test_fast_path"]
-    table = pd.read_csv(path)
-    if "sample_id" not in table:
-        raise ValueError(f"{path} must contain a sample_id column")
-    samples = table["sample_id"].astype(str).tolist()
-    if not samples or len(samples) != len(set(samples)):
-        raise ValueError(f"{path} must contain unique sample IDs")
-    return samples
+    return cohort_in_split(
+        cfg["eval"]["label_test_fast_path"],
+        cfg["splits_path"],
+        "label_test",
+    )
 
 
 def _sample_path(cfg: dict, sample_id: str, suffix: str) -> Path:
@@ -165,8 +163,7 @@ def main() -> None:
     parser.add_argument("--aggregate-only", action="store_true")
     args = parser.parse_args()
 
-    with open(args.config) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_config(args.config)
     configured = fast_samples(cfg)
     samples = _parse_samples(args.samples, configured)
     if args.aggregate_only:

@@ -9,6 +9,8 @@ import pandas as pd
 import torch
 import yaml
 
+from terra_multi.config import load_config
+
 from terra_multi.distill.inference import predict_embeddings
 from terra_multi.distill.model import TerraProjector
 from terra_multi.distill.prototype import PrototypeStudent, predict_student_features
@@ -77,8 +79,7 @@ def main():
     parser.add_argument("--config", required=True)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
-    with open(args.config) as handle:
-        cfg = yaml.safe_load(handle)
+    cfg = load_config(args.config)
 
     source_dir = Path(cfg["embedding"]["output_dir"])
     source_manifest = pd.read_csv(source_dir / "manifest.csv")
