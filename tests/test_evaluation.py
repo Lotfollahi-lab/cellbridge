@@ -19,8 +19,8 @@ from terra_multi.evaluation.classification import (
     resolve_methods,
 )
 from terra_multi.evaluation.hest import HestData, evaluate_hest_data
-from terra_multi.evaluation.phenocell import validate_official_split
-from terra_multi.evaluation.probe_phenocell import evaluate as evaluate_phenocell
+from terra_multi.evaluation.ood import validate_official_split
+from terra_multi.evaluation.probe_ood import evaluate as evaluate_phenocell
 from terra_multi.lora import evaluate as lora_evaluate
 from terra_multi.lora.evaluate import evaluate_phenocell_arm
 

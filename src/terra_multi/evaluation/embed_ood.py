@@ -1,4 +1,4 @@
-"""Extract reusable UNI embeddings for PhenoCell cells."""
+"""Extract reusable UNI embeddings for out-of-distribution cells."""
 
 import argparse
 import os
@@ -10,7 +10,7 @@ import yaml
 from PIL import Image
 
 from terra_multi.config import load_config
-from terra_multi.evaluation.phenocell_data import (
+from terra_multi.evaluation.ood_data import (
     centered_crop,
     iter_lmdb_samples,
     locate_cells,
@@ -68,7 +68,7 @@ def write_sample(path, locations, uni):
     os.replace(temporary, path)
 
 
-def complete_manifest(output_dir, metadata):
+def complete_manifest(output_dir, metadata, allow_unlabeled=False):
     path = output_dir / "manifest.csv"
     if not path.exists():
         return None
@@ -80,9 +80,15 @@ def complete_manifest(output_dir, metadata):
     observed = dict(
         zip(manifest["sample_id"].astype(str), manifest["n_cells"].astype(int))
     )
-    if observed != expected or not all(
-        Path(path).exists() for path in manifest["path"]
-    ):
+    files_ok = all(Path(path).exists() for path in manifest["path"])
+    if allow_unlabeled:
+        # Un-locatable cells are dropped, so a sample's embedded count may be
+        # below its metadata count; require the same samples and no over-count.
+        counts_ok = set(observed) == set(expected) and all(
+            observed[sample] <= expected[sample] for sample in observed
+        )
+        return manifest if counts_ok and files_ok else None
+    if observed != expected or not files_ok:
         return None
     return manifest
 
@@ -124,6 +130,7 @@ def main():
     embedding = cfg["embedding"]
     image_shape = tuple(data.get("image_shape", [1440, 1920]))
     tile_size = int(data.get("tile_size", 224))
+    allow_unlabeled = bool(data.get("allow_unlabeled_samples", False))
     output_dir = Path(embedding["output_dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -131,7 +138,7 @@ def main():
     metadata["row_id"] = np.arange(len(metadata))
     validate_existing_signature(output_dir, cfg)
     if not args.overwrite and args.limit_samples is None:
-        manifest = complete_manifest(output_dir, metadata)
+        manifest = complete_manifest(output_dir, metadata, allow_unlabeled)
         if manifest is not None:
             print(
                 f"UNI cache already complete: {manifest['n_cells'].sum():,} cells "
@@ -153,6 +160,8 @@ def main():
             metadata["sample_id"].astype(str) == sample_name
         ].copy()
         if sample_metadata.empty:
+            if allow_unlabeled:
+                continue
             raise ValueError(f"{sample_name}: no rows in {data['metadata']}")
         destination = output_path(output_dir, sample_name)
         if destination.exists() and not args.overwrite:
@@ -160,7 +169,14 @@ def main():
                 count = len(cached["row_id"])
             print(f"[{sample_name}] already complete ({count:,} cells)")
         else:
-            locations = locate_cells(sample_metadata, entries, image_shape, tile_size)
+            locations = locate_cells(
+                sample_metadata, entries, image_shape, tile_size,
+                skip_missing=allow_unlabeled,
+            )
+            skipped = len(sample_metadata) - len(locations)
+            if locations.empty:
+                print(f"[{sample_name}] no locatable cells ({skipped} skipped); skipped")
+                continue
             tiles = {index: entry["image"] for index, entry in entries.items()}
             image = to_uint8_rgb(
                 reconstruct_image(tiles, image_shape, tile_size),
@@ -177,7 +193,8 @@ def main():
             )
             write_sample(destination, locations, uni)
             count = len(locations)
-            print(f"[{sample_name}] wrote {count:,} cells -> {destination}")
+            note = f" ({skipped} unlocatable skipped)" if skipped else ""
+            print(f"[{sample_name}] wrote {count:,} cells -> {destination}{note}")
         rows.append(
             {"sample_id": sample_name, "n_cells": count, "path": str(destination)}
         )

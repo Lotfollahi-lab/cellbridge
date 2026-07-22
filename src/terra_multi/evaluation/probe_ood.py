@@ -1,4 +1,4 @@
-"""Compare frozen raw UNI and distilled features on PhenoCell labels."""
+"""Compare frozen raw UNI and distilled features on out-of-distribution labels."""
 
 import argparse
 from pathlib import Path
@@ -14,10 +14,10 @@ from terra_multi.evaluation.classification import (
     resolve_methods,
 )
 from terra_multi.evaluation.linear_probe import reduce_features
-from terra_multi.evaluation.phenocell import (
+from terra_multi.evaluation.ood import (
     IMMUNE_CLASSES,
-    evaluate_phenocell_task,
-    prepare_phenocell_task,
+    evaluate_ood_task,
+    prepare_ood_task,
     validate_official_split,
 )
 
@@ -120,7 +120,7 @@ def _format_result(data, result, task, arm):
 
 def evaluate(features, table, split, task, arm, settings, method="linear"):
     """Compatibility helper for evaluating one PhenoCell arm and method."""
-    data = prepare_phenocell_task(
+    data = prepare_ood_task(
         features,
         table,
         task,
@@ -128,7 +128,7 @@ def evaluate(features, table, split, task, arm, settings, method="linear"):
         pca=arm == "uni",
         split=split,
     )
-    result = evaluate_phenocell_task(data, method, settings)
+    result = evaluate_ood_task(data, method, settings)
     return _format_result(data, result, task, arm)
 
 
@@ -153,7 +153,11 @@ def main():
     uni_dir = Path(cfg["embedding"]["output_dir"])
     uni_manifest = pd.read_csv(uni_dir / "manifest.csv")
     uni, table, split = load_uni(uni_manifest)
-    validate_official_split(table, cfg["data"]["split"])
+    validate_official_split(
+        table,
+        cfg["data"]["split"],
+        require_full_coverage=not cfg["data"].get("allow_unlabeled_samples", False),
+    )
     arms = [args.arm] if args.arm else list(ARMS)
     methods = resolve_methods(cfg["probe"], args.methods)
     distilled = None
@@ -172,7 +176,7 @@ def main():
                 )
             features = distilled
         for task in cfg["probe"].get("tasks", ["all", "immune"]):
-            data = prepare_phenocell_task(
+            data = prepare_ood_task(
                 features,
                 table,
                 task,
@@ -181,7 +185,7 @@ def main():
                 split=split,
             )
             for method in methods:
-                result = evaluate_phenocell_task(data, method, cfg["probe"])
+                result = evaluate_ood_task(data, method, cfg["probe"])
                 metrics, class_rows, predictions = _format_result(
                     data, result, task, arm
                 )

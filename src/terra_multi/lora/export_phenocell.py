@@ -7,7 +7,7 @@ import pandas as pd
 from PIL import Image
 
 from terra_multi.evaluation.artifacts import file_identity, path_identity, write_table
-from terra_multi.evaluation.phenocell_data import (
+from terra_multi.evaluation.ood_data import (
     centered_crop,
     iter_lmdb_samples,
     locate_cells,
@@ -84,6 +84,7 @@ def export_phenocell(
     metadata["row_id"] = np.arange(len(metadata), dtype=np.int64)
     image_shape = tuple(data.get("image_shape", [1440, 1920]))
     tile_size = int(data.get("tile_size", 224))
+    allow_unlabeled = bool(data.get("allow_unlabeled_samples", False))
     crop_size = int(cfg.get("embedding", {}).get("crop_size", 96))
     batch_size = int(cfg.get("embedding", {}).get("batch_size", 128))
     required_arms = FEATURE_ARMS if model.mode == "contrastive_gex" else FEATURE_ARMS[:-1]
@@ -96,10 +97,12 @@ def export_phenocell(
     }
     rows, observed_samples = [], set()
     for sample_name, entries in iter_lmdb_samples(data["lmdb"]):
-        observed_samples.add(sample_name)
         sample_metadata = metadata.loc[metadata["sample_id"].astype(str) == sample_name].copy()
         if sample_metadata.empty:
+            if allow_unlabeled:
+                continue
             raise ValueError(f"{sample_name}: no metadata rows")
+        observed_samples.add(sample_name)
         signature = _signature(cfg, checkpoint_identity, sample_name)
         destination = output_dir / "features" / f"{sample_name.removesuffix('.hdf')}.npz"
         if not overwrite and feature_file_is_current(
@@ -114,7 +117,13 @@ def export_phenocell(
                 count = len(cached["cell_ids"])
             print(f"[PhenoCell/{sample_name}] current ({count:,} cells)")
         else:
-            locations = locate_cells(sample_metadata, entries, image_shape, tile_size)
+            locations = locate_cells(
+                sample_metadata, entries, image_shape, tile_size,
+                skip_missing=allow_unlabeled,
+            )
+            if locations.empty:
+                print(f"[PhenoCell/{sample_name}] no locatable cells; skipped")
+                continue
             image = to_uint8_rgb(
                 reconstruct_image(
                     {index: entry["image"] for index, entry in entries.items()},

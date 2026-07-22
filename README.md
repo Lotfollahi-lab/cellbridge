@@ -9,7 +9,7 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 - `src/terra_multi/distill/`: UNI-to-TERRA distillation.
 - `src/terra_multi/lora/`: LoRA adaptation from H&E crops to TERRA features.
 - `src/terra_multi/jepa/`: spatial context-to-target JEPA alignment.
-- `src/terra_multi/evaluation/`: shared linear/kNN evaluation and PhenoCell.
+- `src/terra_multi/evaluation/`: shared linear/kNN evaluation and OOD datasets (PhenoCell, PanNuke).
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
 
@@ -55,7 +55,7 @@ Cell-type evaluation has one implementation under `src/terra_multi/evaluation/`:
 - `linear_probe.py`: the existing standardized logistic-regression protocol.
 - `zero_shot.py`: cosine kNN with no fitted model parameters.
 - `classification.py`: shared fitting, metrics, and prediction artifacts.
-- `hest.py` and `phenocell.py`: dataset-specific split and preparation rules.
+- `hest.py` and `ood.py`: dataset-specific split and preparation rules.
 
 kNN is non-parametric but not label-free: it uses labelled cells from the
 training reference split. Checked-in configs run both `linear` and `knn`.
@@ -211,25 +211,28 @@ Contextual embeddings and evaluation summaries are written below
 
 ## OOD evaluation
 
-PhenoCell is evaluated separately from HEST. The workflow reconstructs each
-field from its LMDB tiles, extracts centred cell-context crops, and compares
-frozen raw UNI with distilled embeddings on the official patient split. Stable
-UNI features are kept under `data/eval/phenocell/embeddings/`; each experiment
-output keeps checkpoint-specific projections under `embeddings/distilled/` and
-probe results under `probes/`.
+OOD datasets (PhenoCell, PanNuke) are evaluated separately from HEST with one
+shared, dataset-neutral workflow. It reconstructs each field from its LMDB tiles,
+extracts centred cell-context crops, and compares frozen raw UNI with distilled
+embeddings on the dataset's official split. Stable UNI features are kept under
+`data/eval/<dataset>/embeddings/`; each experiment output keeps checkpoint-specific
+projections under `embeddings/distilled/` and probe results under `probes/`. The
+dataset is selected entirely by the config passed to the shared scripts:
 
 ```bash
-scripts/evaluation/phenocell/submit_all.sh configs/evaluation/phenocell.yaml
+scripts/evaluation/ood/submit_all.sh configs/evaluation/phenocell.yaml
+scripts/evaluation/ood/submit_all.sh configs/evaluation/pannuke.yaml
 ```
 
 If the projector is still training, make embedding wait for that LSF job:
 
 ```bash
 DEPENDENCY=<distillation-job-id> \
-  scripts/evaluation/phenocell/submit_all.sh configs/evaluation/phenocell.yaml
+  scripts/evaluation/ood/submit_all.sh configs/evaluation/pannuke.yaml
 ```
 
-The evaluators report both the full 14-class benchmark and an immune-only task.
+Each config lists the `probe.tasks` to report: PhenoCell runs the full 14-class
+benchmark plus an immune-only task, while PanNuke runs its five-class benchmark.
 Change `crop_size`, `projection.checkpoint`, or `output_dir` in a copied config
 to keep evaluation variants isolated.
 
@@ -238,5 +241,5 @@ probing. Keep `embedding.output_dir` unchanged, then change
 `projection.checkpoint` and the top-level `output_dir` in a copied config:
 
 ```bash
-scripts/evaluation/phenocell/submit_variant.sh configs/evaluation/my_variant.yaml
+scripts/evaluation/ood/submit_variant.sh configs/evaluation/my_variant.yaml
 ```

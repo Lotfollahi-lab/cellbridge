@@ -1,4 +1,4 @@
-"""Read PhenoCell tiles and recover cell-centred image crops."""
+"""Read tiled LMDB samples and recover cell-centred image crops."""
 
 import pickle
 import re
@@ -97,8 +97,13 @@ def instance_centroids(mask):
     }
 
 
-def locate_cells(metadata, entries, image_shape=(1440, 1920), tile_size=224):
-    """Add field-level x/y coordinates to one sample's metadata rows."""
+def locate_cells(metadata, entries, image_shape=(1440, 1920), tile_size=224, *, skip_missing=False):
+    """Add field-level x/y coordinates to one sample's metadata rows.
+
+    With ``skip_missing`` set, cells whose instance is absent from its tile mask
+    are dropped instead of raising; some benchmarks (e.g. PanNuke) list boundary
+    cells whose instance carries no pixels in the tiled mask.
+    """
     geometries = {geometry.index: geometry for geometry in tile_geometries(image_shape, tile_size)}
     located = metadata.copy()
     located["x"] = np.nan
@@ -112,6 +117,8 @@ def locate_cells(metadata, entries, image_shape=(1440, 1920), tile_size=224):
         centroids = instance_centroids(entry["instance_mask"])
         for row_index, instance_id in located.loc[rows, "cell_id"].astype(int).items():
             if instance_id not in centroids:
+                if skip_missing:
+                    continue
                 raise ValueError(f"{entry['tile_name']}: instance {instance_id} is missing from its mask")
             local_x, local_y = centroids[instance_id]
             located.at[row_index, "x"] = geometry.x0 + local_x - geometry.pad_left
@@ -119,6 +126,8 @@ def locate_cells(metadata, entries, image_shape=(1440, 1920), tile_size=224):
 
     missing = located[["x", "y"]].isna().any(axis=1)
     if missing.any():
+        if skip_missing:
+            return located.loc[~missing].copy()
         names = located.loc[missing, "tile_id"].astype(str).unique()[:5]
         raise ValueError(f"could not locate {missing.sum()} cells; tiles include {names.tolist()}")
     return located
@@ -160,7 +169,7 @@ def iter_lmdb_samples(path):
         import lmdb
     except ImportError as exc:
         raise ImportError(
-            "PhenoCell reading requires lmdb; run through the supplied uv --with lmdb launcher"
+            "LMDB reading requires lmdb; run through the supplied uv --with lmdb launcher"
         ) from exc
 
     environment = lmdb.open(str(path), readonly=True, lock=False, readahead=False, meminit=False)

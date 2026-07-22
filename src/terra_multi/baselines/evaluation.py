@@ -22,9 +22,9 @@ from terra_multi.evaluation.classification import (
     write_probe_result,
 )
 from terra_multi.evaluation.hest import prepare_labeled_hest_features
-from terra_multi.evaluation.phenocell import (
-    evaluate_phenocell_task,
-    prepare_phenocell_task,
+from terra_multi.evaluation.ood import (
+    evaluate_ood_task,
+    prepare_ood_task,
     validate_official_split,
 )
 
@@ -412,7 +412,7 @@ def probe_phenocell(cfg, output_dir):
     methods = resolve_methods(settings)
     all_metrics = {method: [] for method in methods}
     for task in settings.get("tasks", ["all", "immune"]):
-        data = prepare_phenocell_task(
+        data = prepare_ood_task(
             features, table, task, settings, pca=False
         )
         for method in methods:
@@ -434,7 +434,7 @@ def probe_phenocell(cfg, output_dir):
                 all_metrics[method].append(cached)
                 print(f"[PhenoCell/{task}/{method}] current")
                 continue
-            result = evaluate_phenocell_task(data, method, settings)
+            result = evaluate_ood_task(data, method, settings)
             metrics, predictions = _format_phenocell_result(
                 data, result, task, cfg["baseline"]["name"]
             )

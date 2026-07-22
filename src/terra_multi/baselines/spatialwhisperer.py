@@ -43,8 +43,8 @@ from terra_multi.baselines.evaluation import (
     phenocell_feature_path,
     probe_all,
 )
-from terra_multi.evaluation.phenocell import validate_official_split
-from terra_multi.evaluation.phenocell_data import (
+from terra_multi.evaluation.ood import validate_official_split
+from terra_multi.evaluation.ood_data import (
     centered_crop,
     iter_lmdb_samples,
     locate_cells,

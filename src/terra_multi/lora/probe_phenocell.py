@@ -15,9 +15,9 @@ from terra_multi.evaluation.classification import (
     resolve_methods,
     write_probe_result,
 )
-from terra_multi.evaluation.phenocell import (
-    evaluate_phenocell_task,
-    prepare_phenocell_task,
+from terra_multi.evaluation.ood import (
+    evaluate_ood_task,
+    prepare_ood_task,
     validate_official_split,
 )
 from terra_multi.lora.features import FEATURE_ARMS, FORMAT_VERSION, PCA_ARMS
@@ -86,8 +86,8 @@ def _format_result(data, result, task, arm):
 
 def evaluate_phenocell_arm(features, table, task, arm, settings, method="linear"):
     """Evaluate one LoRA feature arm with the shared PhenoCell protocol."""
-    data = prepare_phenocell_task(features, table, task, settings, pca=arm in PCA_ARMS)
-    result = evaluate_phenocell_task(data, method, settings)
+    data = prepare_ood_task(features, table, task, settings, pca=arm in PCA_ARMS)
+    result = evaluate_ood_task(data, method, settings)
     return _format_result(data, result, task, arm)
 
 
@@ -101,11 +101,15 @@ def probe_phenocell(cfg, output_dir):
         features, table = load_phenocell_arm(manifest, arm)
         if features is None:
             continue
-        validate_official_split(table, cfg["data"]["split"])
+        validate_official_split(
+            table,
+            cfg["data"]["split"],
+            require_full_coverage=not cfg["data"].get("allow_unlabeled_samples", False),
+        )
         for task in settings.get("tasks", ["all", "immune"]):
-            data = prepare_phenocell_task(features, table, task, settings, pca=arm in PCA_ARMS)
+            data = prepare_ood_task(features, table, task, settings, pca=arm in PCA_ARMS)
             for method in methods:
-                result = evaluate_phenocell_task(data, method, settings)
+                result = evaluate_ood_task(data, method, settings)
                 metrics, predictions = _format_result(data, result, task, arm)
                 payload = {
                     "features": manifest["signature"].astype(str).tolist(),

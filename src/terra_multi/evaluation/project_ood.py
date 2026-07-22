@@ -1,4 +1,4 @@
-"""Project cached PhenoCell UNI embeddings with one distillation checkpoint."""
+"""Project cached out-of-distribution UNI embeddings with one distillation checkpoint."""
 
 import argparse
 import os
