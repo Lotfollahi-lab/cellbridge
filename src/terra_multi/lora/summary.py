@@ -16,13 +16,25 @@ def write_evaluation_summary(
 ):
     run_name = cfg.get("run_name", Path(cfg["output_dir"]).name)
     rows = []
-    if hest_metrics is not None and not hest_metrics.empty:
-        means = hest_metrics.groupby("arm")[["macro_f1", "balanced_accuracy"]].mean()
+    hest_tables = (
+        hest_metrics.items()
+        if isinstance(hest_metrics, dict)
+        else [("label_test_fast", hest_metrics)]
+    )
+    for cohort, table in hest_tables:
+        if table is None or table.empty:
+            continue
+        means = table.groupby("arm")[["macro_f1", "balanced_accuracy"]].mean()
+        task = (
+            "label_test_fast_5_sample_mean"
+            if cohort == "label_test_fast"
+            else cohort
+        )
         rows.extend(
             {
                 "run_name": run_name,
                 "dataset": "HEST",
-                "task": "label_test_fast_5_sample_mean",
+                "task": task,
                 "arm": arm,
                 "macro_f1": values["macro_f1"],
                 "balanced_accuracy": values["balanced_accuracy"],

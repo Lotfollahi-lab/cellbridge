@@ -16,6 +16,8 @@ from torch.utils.data import DataLoader
 
 from terra_multi.config import load_config as load_yaml_config
 from terra_multi.distill.train import init_wandb
+from terra_multi.hierarchical.config import configure_hierarchy
+from terra_multi.hierarchical.objective import compute_hierarchy_objective
 from terra_multi.lora.data import WithinSampleBatchSampler, build_datasets
 from terra_multi.lora.model import (
     build_uni2_distiller,
@@ -110,7 +112,7 @@ def load_config(path):
         raise ValueError("training.precision must be bf16, fp16, or fp32")
 
     cfg.setdefault("wandb", {}).setdefault("enabled", False)
-    return cfg
+    return configure_hierarchy(cfg)
 
 
 def model_config(cfg, num_genes):
@@ -197,13 +199,24 @@ def _loss(model, batch, device, cfg, amp_enabled, amp_dtype):
         enabled=amp_enabled,
     ):
         outputs = model(images)
-        losses = compute_loss(
-            outputs,
-            terra,
-            gex,
-            gex_mask,
-            **cfg["objective"],
-        )
+        if cfg.get("hierarchy", {}).get("enabled", False):
+            losses = compute_hierarchy_objective(
+                outputs,
+                terra,
+                batch,
+                cfg["objective"],
+                cfg["hierarchy"],
+                gex_target=gex,
+                gex_mask=gex_mask,
+            )
+        else:
+            losses = compute_loss(
+                outputs,
+                terra,
+                gex,
+                gex_mask,
+                **cfg["objective"],
+            )
     return losses, len(images)
 
 
@@ -220,6 +233,20 @@ def evaluate(model, loader, device, cfg, amp_enabled, amp_dtype):
     if n_cells == 0:
         raise ValueError("validation has no contrastive batches")
     return {name: value / n_cells for name, value in totals.items()}
+
+
+def evaluate_validation(model, loaders, device, cfg, amp_enabled, amp_dtype):
+    """Evaluate one legacy loader or separately named validation cohorts."""
+
+    if not isinstance(loaders, dict):
+        return evaluate(model, loaders, device, cfg, amp_enabled, amp_dtype)
+    metrics = {}
+    for cohort, loader in loaders.items():
+        cohort_metrics = evaluate(model, loader, device, cfg, amp_enabled, amp_dtype)
+        metrics.update(
+            {f"{cohort}/{name}": value for name, value in cohort_metrics.items()}
+        )
+    return metrics
 
 
 def atomic_torch_save(state, path):
@@ -245,6 +272,7 @@ def train_loop(
     eval_every = int(training["eval_every"])
     patience_limit = int(training["patience"])
     log_every = int(training["log_every"])
+    selection_metric = training.get("selection_metric", "loss_total")
     best_loss, best_step, stale_evals = math.inf, 0, 0
     train_rows, val_rows = [], []
     step = epoch = 0
@@ -289,23 +317,25 @@ def train_loop(
                         **{
                             f"train/{name}": value
                             for name, value in train_metrics.items()
-                            if name.startswith("loss_")
+                            if name.startswith(("loss_", "hierarchy_", "negative_"))
                         },
                     }
                 )
 
             should_evaluate = step % eval_every == 0 or step == max_steps
             if should_evaluate:
-                val_metrics = evaluate(
+                val_metrics = evaluate_validation(
                     model, val_loader, device, cfg, amp_enabled, amp_dtype
                 )
+                if selection_metric not in val_metrics:
+                    raise KeyError(
+                        f"validation selection metric {selection_metric!r} is unavailable"
+                    )
                 val_row = {"step": step, **val_metrics}
                 val_rows.append(val_row)
                 print(
-                    f"validation {step:6d} | total={val_metrics['loss_total']:.4f} "
-                    f"contrastive={val_metrics['loss_contrastive']:.4f} "
-                    f"top1={val_metrics['contrastive_top1']:.4f} "
-                    f"top5={val_metrics['contrastive_top5']:.4f}"
+                    f"validation {step:6d} | {selection_metric}="
+                    f"{val_metrics[selection_metric]:.4f}"
                 )
                 if run is not None:
                     run.log(
@@ -318,7 +348,7 @@ def train_loop(
                         }
                     )
 
-                val_loss = val_metrics["loss_total"]
+                val_loss = val_metrics[selection_metric]
                 if math.isfinite(val_loss) and val_loss < best_loss - 1e-6:
                     best_loss, best_step, stale_evals = val_loss, step, 0
                     atomic_torch_save(
@@ -373,11 +403,39 @@ def main():
     model = build_uni2_distiller(weights_path=weights_path, **settings).to(device)
     transform = model.eval_transforms
 
-    train_dataset, val_dataset, selected_genes = build_datasets(
-        cfg,
-        transform,
-        out_dir / "selected_genes.json",
-    )
+    if cfg["hierarchy"]["enabled"]:
+        from terra_multi.hierarchical.training_data import (
+            build_hierarchy_data,
+            make_hierarchy_loaders,
+        )
+
+        hierarchy_data = build_hierarchy_data(
+            cfg, transform, out_dir / "selected_genes.json"
+        )
+        train_dataset = hierarchy_data.train
+        train_loader, val_loader = make_hierarchy_loaders(hierarchy_data, cfg)
+        selected_genes = hierarchy_data.genes
+        cohort_cells = {
+            "base_train": len(hierarchy_data.base_train),
+            "breast_train": len(hierarchy_data.breast_train),
+            "base_val": len(hierarchy_data.base_val),
+            "breast_val": len(hierarchy_data.breast_val),
+        }
+        train_cells = cohort_cells["base_train"] + cohort_cells["breast_train"]
+        val_cells = cohort_cells["base_val"] + cohort_cells["breast_val"]
+        pd.read_csv(cfg["hierarchy"]["split_manifest"]).to_csv(
+            out_dir / "split_manifest.csv", index=False
+        )
+    else:
+        train_dataset, val_dataset, selected_genes = build_datasets(
+            cfg,
+            transform,
+            out_dir / "selected_genes.json",
+        )
+        train_loader = make_loader(train_dataset, cfg, training=True)
+        val_loader = make_loader(val_dataset, cfg, training=False)
+        train_cells, val_cells = len(train_dataset), len(val_dataset)
+        cohort_cells = {}
     if len(selected_genes or []) != num_genes:
         raise ValueError(
             f"expected {num_genes} selected genes, got {len(selected_genes or [])}"
@@ -387,11 +445,9 @@ def main():
     with open(out_dir / "resolved_config.yaml", "w") as handle:
         yaml.safe_dump(cfg, handle, sort_keys=False)
 
-    train_loader = make_loader(train_dataset, cfg, training=True)
-    val_loader = make_loader(val_dataset, cfg, training=False)
     optimizer, parameter_counts = make_optimizer(model, cfg)
     print(
-        f"cells: train={len(train_dataset):,} val={len(val_dataset):,} | "
+        f"cells: train={train_cells:,} val={val_cells:,} | "
         f"trainable LoRA={parameter_counts['lora']:,} heads={parameter_counts['heads']:,}"
     )
 
@@ -411,10 +467,15 @@ def main():
     summary = {
         "best_step": best_step,
         "best_val_loss": best_loss,
-        "train_cells": len(train_dataset),
-        "val_cells": len(val_dataset),
+        "validation_selection_metric": cfg["training"].get(
+            "selection_metric", "loss_total"
+        ),
+        "train_cells": train_cells,
+        "val_cells": val_cells,
         "trainable_parameters": parameter_counts,
     }
+    if cohort_cells:
+        summary["cohort_cells"] = cohort_cells
     with open(out_dir / "train_summary.json", "w") as handle:
         json.dump(summary, handle, indent=2)
     print(json.dumps(summary, indent=2))

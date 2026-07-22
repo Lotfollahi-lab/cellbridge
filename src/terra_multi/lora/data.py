@@ -23,7 +23,7 @@ from terra_multi.distill.data import select_indices
 TARGET_PATCH_SIZE = 224
 DST_PIXEL_SIZE_UM = 0.5
 TERRA_DIM = 384
-VALID_SPLITS = {"distill_train", "distill_val", "label_test_fast"}
+VALID_SPLITS = {"distill_train", "distill_val", "label_test", "label_test_fast"}
 HVG_METHOD = "raw_overdispersion_union_rank_sum"
 
 
@@ -322,6 +322,12 @@ class HESTCellDataset(Dataset):
 
     def __len__(self):
         return self._length
+
+    @property
+    def sample_cell_ids(self) -> dict[str, np.ndarray]:
+        """Expose capped IDs in dataset order for metadata alignment."""
+
+        return {sample["sample_id"]: sample["cell_ids"] for sample in self._samples}
 
     def _get_wsi(self, sample):
         sample_id = sample["sample_id"]
@@ -653,28 +659,35 @@ def load_selected_genes(path) -> list[str]:
     return genes
 
 
+def dataset_kwargs(cfg, transform, genes=None):
+    """Translate shared LoRA configuration into HEST dataset arguments."""
+
+    data_root = cfg["data_root"]
+    crop = cfg.get("crop", {})
+    settings = {
+        "data_root": data_root,
+        "manifest_path": cfg.get("manifest_path", str(Path(data_root) / "manifest.csv")),
+        "splits_path": cfg["splits_path"],
+        "transform": transform,
+        "max_cells_per_sample": cfg.get("max_cells_per_sample"),
+        "seed": int(cfg.get("sampling_seed", 0)),
+        "terra_key": cfg.get("terra_key", "cell_emb"),
+        "target_size": int(crop.get("target_size", TARGET_PATCH_SIZE)),
+        "target_pixel_size_um": float(crop.get("target_pixel_size_um", DST_PIXEL_SIZE_UM)),
+        "max_open_wsis": int(cfg.get("max_open_wsis", 64)),
+    }
+    if genes is not None:
+        settings["genes"] = genes
+    return settings
+
+
 def build_datasets(cfg, transform, selected_genes_path=None):
     """Build train/validation datasets and fit train-only genes when requested."""
     data_root = cfg["data_root"]
     manifest_path = cfg.get("manifest_path", str(Path(data_root) / "manifest.csv"))
     splits_path = cfg["splits_path"]
     seed = int(cfg.get("sampling_seed", 0))
-    cap = cfg.get("max_cells_per_sample")
-    crop = cfg.get("crop", {})
-    common = {
-        "data_root": data_root,
-        "manifest_path": manifest_path,
-        "splits_path": splits_path,
-        "transform": transform,
-        "max_cells_per_sample": cap,
-        "seed": seed,
-        "terra_key": cfg.get("terra_key", "cell_emb"),
-        "target_size": int(crop.get("target_size", TARGET_PATCH_SIZE)),
-        "target_pixel_size_um": float(
-            crop.get("target_pixel_size_um", DST_PIXEL_SIZE_UM)
-        ),
-        "max_open_wsis": int(cfg.get("max_open_wsis", 64)),
-    }
+    common = dataset_kwargs(cfg, transform)
 
     mode = cfg.get("objective", {}).get("mode", "contrastive")
     if mode not in {"contrastive", "contrastive_gex"}:

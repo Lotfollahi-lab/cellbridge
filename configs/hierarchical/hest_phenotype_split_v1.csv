@@ -1,0 +1,16 @@
+sample_id,organ,patient_id,role
+TENX191,breast,patient_1,breast_train
+TENX192,breast,patient_1,breast_train
+TENX193,breast,patient_1,breast_train
+TENX194,breast,patient_2,breast_train
+TENX195,breast,patient_2,breast_train
+TENX196,breast,patient_2,breast_train
+TENX197,breast,patient_3,breast_val
+TENX198,breast,patient_3,breast_val
+TENX199,breast,patient_3,breast_val
+TENX200,breast,patient_4,breast_test
+TENX201,breast,patient_4,breast_test
+TENX202,breast,patient_4,breast_test
+TENX116,pancreas,,cross_organ_test
+TENX143,lymph_node,,cross_organ_test
+TENX187,ovary,,cross_organ_test

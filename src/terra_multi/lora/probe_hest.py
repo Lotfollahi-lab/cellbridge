@@ -19,7 +19,7 @@ from terra_multi.evaluation.classification import (
 )
 from terra_multi.evaluation.hest import prepare_labeled_hest_features
 from terra_multi.lora.features import FEATURE_ARMS, FORMAT_VERSION, PCA_ARMS
-from terra_multi.lora.hest import label_test_fast_samples, manifest_row, sample_dir
+from terra_multi.lora.hest import evaluation_samples, manifest_row, sample_dir
 
 
 def _load_feature(path, arm, expected_signature):
@@ -80,17 +80,17 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear
     return metrics, predictions
 
 
-def probe_hest(cfg, output_dir, samples=None):
+def probe_hest(cfg, output_dir, samples=None, cohort="label_test_fast"):
     output_dir = Path(output_dir)
     manifest = pd.read_csv(output_dir / "features" / "manifest.csv")
-    expected = label_test_fast_samples(cfg)
+    expected = evaluation_samples(cfg, cohort)
     if manifest["sample_id"].astype(str).tolist() != expected:
-        raise ValueError("HEST feature manifest is not the configured label_test_fast set")
+        raise ValueError(f"HEST feature manifest is not the configured {cohort} set")
     if samples is not None:
         requested = {str(sample_id) for sample_id in samples}
         unknown = sorted(requested - set(expected))
         if unknown:
-            raise ValueError(f"not label_test_fast samples: {unknown}")
+            raise ValueError(f"not {cohort} samples: {unknown}")
         manifest = manifest[manifest["sample_id"].astype(str).isin(requested)]
     methods = resolve_methods(cfg["eval"])
     rows = {method: [] for method in methods}
@@ -129,6 +129,7 @@ def probe_hest(cfg, output_dir, samples=None):
                 metrics, predictions = evaluate_hest_sample(
                     features, cell_ids, str(record.sample_id), arm, cfg, method
                 )
+                metrics["cohort"] = cohort
                 metrics = write_probe_result(result_dir, metrics, predictions, signature)
                 rows[method].append(metrics)
                 print(

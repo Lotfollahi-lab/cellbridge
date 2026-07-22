@@ -6,6 +6,7 @@ import pandas as pd
 
 from terra_multi.cohorts import cohort_in_split
 from terra_multi.evaluation.artifacts import file_identity
+from terra_multi.hierarchical.splits import load_phenotype_split
 
 
 def label_test_fast_samples(cfg):
@@ -16,6 +17,27 @@ def label_test_fast_samples(cfg):
         "label_test",
         expected_count=int(settings.get("label_test_fast_n", 5)),
     )
+
+
+def evaluation_cohorts(cfg) -> dict[str, list[str]]:
+    """Return named HEST cohorts, preserving the legacy five-sample default."""
+
+    hierarchy = cfg.get("hierarchy", {})
+    if not hierarchy.get("enabled", False):
+        return {"label_test_fast": label_test_fast_samples(cfg)}
+    split = load_phenotype_split(
+        hierarchy["split_manifest"],
+        cfg["splits_path"],
+        expected_counts=hierarchy.get("expected_counts"),
+    )
+    return split.evaluation_cohorts()
+
+
+def evaluation_samples(cfg, cohort="label_test_fast") -> list[str]:
+    cohorts = evaluation_cohorts(cfg)
+    if cohort not in cohorts:
+        raise ValueError(f"unknown HEST evaluation cohort {cohort!r}")
+    return cohorts[cohort]
 
 
 def manifest_row(cfg, sample_id):
@@ -51,11 +73,12 @@ def source_identity(cfg, sample_id):
 
 
 def dataset(cfg, sample_id, transform):
-    from terra_multi.lora.data import build_label_test_dataset
+    from terra_multi.lora.data import HESTCellDataset, dataset_kwargs
 
-    return build_label_test_dataset(
-        cfg,
-        transform,
-        max_cells_per_sample=None,
+    settings = dataset_kwargs(cfg, transform)
+    settings["max_cells_per_sample"] = None
+    return HESTCellDataset(
+        split="label_test",
         sample_ids=[sample_id],
+        **settings,
     )

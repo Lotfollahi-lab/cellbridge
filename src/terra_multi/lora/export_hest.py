@@ -14,13 +14,20 @@ from terra_multi.lora.features import (
     infer_loader,
     write_feature_file,
 )
-from terra_multi.lora.hest import dataset, label_test_fast_samples, source_identity
+from terra_multi.lora.hest import dataset, evaluation_samples, source_identity
 
 
 def export_hest(
-    cfg, model, device, output_dir, checkpoint_identity, overwrite=False, samples=None
+    cfg,
+    model,
+    device,
+    output_dir,
+    checkpoint_identity,
+    overwrite=False,
+    samples=None,
+    cohort="label_test_fast",
 ):
-    """Export all requested arms for the fixed held-out HEST cohort."""
+    """Export all requested arms for one configured HEST cohort."""
     import torch
 
     output_dir = Path(output_dir)
@@ -34,12 +41,12 @@ def export_hest(
         "lora_projected": model.terra_dim,
         "gex_penultimate": model.gex_hidden_dim,
     }
-    wanted = label_test_fast_samples(cfg)
+    wanted = evaluation_samples(cfg, cohort)
     if samples is not None:
         requested = {str(sample_id) for sample_id in samples}
         unknown = sorted(requested - set(wanted))
         if unknown:
-            raise ValueError(f"not label_test_fast samples: {unknown}")
+            raise ValueError(f"not {cohort} samples: {unknown}")
         wanted = [sample_id for sample_id in wanted if sample_id in requested]
 
     for sample_id in wanted:
@@ -47,7 +54,7 @@ def export_hest(
         with np.load(source["terra"]["path"], allow_pickle=True) as terra:
             expected_cells = len(terra["cell_ids"])
         signature = feature_signature(
-            "hest/label_test_fast",
+            f"hest/{cohort}",
             checkpoint_identity,
             source,
             {
@@ -92,6 +99,7 @@ def export_hest(
         rows.append(
             {
                 "sample_id": sample_id,
+                "cohort": cohort,
                 "n_cells": count,
                 "path": str(destination.resolve()),
                 "signature": signature,

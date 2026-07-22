@@ -22,7 +22,7 @@ from terra_multi.lora.features import (
     load_model,
     write_feature_file,
 )
-from terra_multi.lora.hest import label_test_fast_samples
+from terra_multi.lora.hest import evaluation_cohorts
 from terra_multi.lora.probe_hest import evaluate_hest_sample, probe_hest
 from terra_multi.lora.probe_phenocell import (
     evaluate_phenocell_arm,
@@ -82,20 +82,53 @@ def _checkpoint_identity(cfg, path):
     }
 
 
+def _hest_directory(root, cohort):
+    return Path(root) / f"hest_{cohort}"
+
+
+def _selected_hest_cohorts(cfg, selected=None):
+    hierarchy_enabled = cfg.get("hierarchy", {}).get("enabled", False)
+    if selected is None and not hierarchy_enabled:
+        return {"label_test_fast": None}
+    cohorts = evaluation_cohorts(cfg)
+    if selected is None:
+        return {cohort: None for cohort in cohorts}
+    requested = {str(sample_id) for sample_id in selected}
+    configured = {sample for samples in cohorts.values() for sample in samples}
+    unknown = sorted(requested - configured)
+    if unknown:
+        raise ValueError(f"not configured HEST evaluation samples: {unknown}")
+    return {
+        cohort: [sample for sample in cohort_samples if sample in requested]
+        for cohort, cohort_samples in cohorts.items()
+        if requested.intersection(cohort_samples)
+    }
+
+
+def _run_hest_probe(cfg, directory, samples, cohort):
+    if cohort == "label_test_fast":
+        return probe_hest(cfg, directory, samples=samples)
+    return probe_hest(cfg, directory, samples=samples, cohort=cohort)
+
+
 def _write_other_method_summaries(cfg, root, phenocell_cfg, args):
     methods = set(resolve_methods(cfg["eval"]))
     if phenocell_cfg is not None:
         methods.update(resolve_methods(phenocell_cfg.get("probe", {})))
     for method in sorted(methods - {"linear"}):
-        hest_path = root / "hest_label_test_fast" / f"probe_metrics_{method}.csv"
+        hest = {}
+        if not args.skip_hest:
+            for cohort in evaluation_cohorts(cfg):
+                path = _hest_directory(root, cohort) / f"probe_metrics_{method}.csv"
+                if path.exists():
+                    hest[cohort] = pd.read_csv(path)
         phenocell_path = root / "phenocell" / f"probe_summary_{method}.csv"
-        hest = pd.read_csv(hest_path) if not args.skip_hest and hest_path.exists() else None
         phenocell = (
             pd.read_csv(phenocell_path)
             if not args.skip_phenocell and phenocell_path.exists()
             else None
         )
-        write_evaluation_summary(cfg, root, hest, phenocell, method)
+        write_evaluation_summary(cfg, root, hest or None, phenocell, method)
 
 
 def main(argv=None):
@@ -106,7 +139,8 @@ def main(argv=None):
         or cfg.get("eval", {}).get("output_dir", Path(cfg["output_dir"]) / "evaluation")
     )
     if args.probe_only or probe_samples is not None:
-        probe_hest(cfg, root / "hest_label_test_fast", samples=probe_samples)
+        for cohort, selected in _selected_hest_cohorts(cfg, probe_samples).items():
+            _run_hest_probe(cfg, _hest_directory(root, cohort), selected, cohort)
         return
 
     checkpoint = _checkpoint_path(cfg, args.checkpoint)
@@ -115,12 +149,30 @@ def main(argv=None):
 
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
     model = load_model(checkpoint, device, cfg.get("model", {}).get("weights_path"))
-    hest_metrics = phenocell_metrics = phenocell_cfg = None
+    hest_metrics = {}
+    phenocell_metrics = phenocell_cfg = None
     if not args.skip_hest:
-        directory = root / "hest_label_test_fast"
-        export_hest(cfg, model, device, directory, identity, args.overwrite, samples)
-        if not args.skip_probes:
-            hest_metrics, _ = probe_hest(cfg, directory)
+        for cohort, selected in _selected_hest_cohorts(cfg, samples).items():
+            directory = _hest_directory(root, cohort)
+            if cohort == "label_test_fast":
+                export_hest(
+                    cfg, model, device, directory, identity, args.overwrite, selected
+                )
+            else:
+                export_hest(
+                    cfg,
+                    model,
+                    device,
+                    directory,
+                    identity,
+                    args.overwrite,
+                    selected,
+                    cohort,
+                )
+            if not args.skip_probes:
+                hest_metrics[cohort], _ = _run_hest_probe(
+                    cfg, directory, None, cohort
+                )
     if not args.skip_phenocell:
         phenocell_cfg = load_phenocell_config(cfg)
         directory = root / "phenocell"
@@ -130,7 +182,9 @@ def main(argv=None):
         if not args.skip_probes:
             phenocell_metrics = probe_phenocell(phenocell_cfg, directory)
     if not args.skip_probes:
-        write_evaluation_summary(cfg, root, hest_metrics, phenocell_metrics)
+        write_evaluation_summary(
+            cfg, root, hest_metrics or None, phenocell_metrics
+        )
         _write_other_method_summaries(cfg, root, phenocell_cfg, args)
 
 
