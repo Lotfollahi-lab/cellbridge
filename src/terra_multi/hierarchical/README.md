@@ -43,8 +43,9 @@ failure until someone makes an explicit biological decision.
 ## Phenotype-aware LoRA protocol
 
 The fixed development split is
-`configs/hierarchical/hest_phenotype_split_v1.csv`. It preserves all 59
-original `distill_train` and six original `distill_val` sections, then
+`${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest_phenotype_split_v1.csv`.
+It preserves all 59 original `distill_train` and six original `distill_val`
+sections, then
 partitions the 12 annotated breast sections by patient:
 
 | Role | Samples | Patients | Purpose |

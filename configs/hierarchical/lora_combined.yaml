@@ -49,7 +49,7 @@ training:
 
 hierarchy:
   enabled: true
-  split_manifest: ${TERRA_MULTI_ROOT}/configs/hierarchical/hest_phenotype_split_v1.csv
+  split_manifest: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest_phenotype_split_v1.csv
   labels_dir: ${TERRA_MULTI_ROOT}/outputs/hierarchical/hest_label_test/cells
   expected_counts:
     breast_train: 6
