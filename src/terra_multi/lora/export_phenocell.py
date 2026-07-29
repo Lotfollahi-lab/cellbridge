@@ -1,4 +1,4 @@
-"""Export LoRA feature arms directly from PhenoCell image crops."""
+"""Export LoRA feature arms directly from OOD image crops (PhenoCell, PanNuke)."""
 
 from pathlib import Path
 
@@ -25,10 +25,10 @@ from terra_multi.lora.features import (
 _METADATA = ("row_id", "sample_id", "tile_id", "cell_id", "label", "class_id", "split")
 
 
-def _signature(cfg, checkpoint_identity, sample_name):
+def _signature(cfg, checkpoint_identity, sample_name, dataset):
     data = cfg["data"]
     return feature_signature(
-        "phenocell",
+        dataset,
         checkpoint_identity,
         {"lmdb": path_identity(data["lmdb"]), "metadata": file_identity(data["metadata"])},
         {
@@ -75,9 +75,21 @@ def phenocell_cell_ids(locations):
 
 
 def export_phenocell(
-    cfg, model, device, output_dir, checkpoint_identity, overwrite=False
+    cfg,
+    model,
+    device,
+    output_dir,
+    checkpoint_identity,
+    overwrite=False,
+    dataset="phenocell",
+    shard=None,
+    num_shards=1,
 ):
-    """Export adapted features from raw PhenoCell crops, never cached UNI."""
+    """Export adapted features from raw OOD crops, never cached UNI.
+
+    With ``shard``/``num_shards`` set, samples are split round-robin across
+    parallel jobs and each writes its own manifest slice.
+    """
     output_dir = Path(output_dir)
     data = cfg["data"]
     metadata = pd.read_csv(data["metadata"])
@@ -87,42 +99,40 @@ def export_phenocell(
     allow_unlabeled = bool(data.get("allow_unlabeled_samples", False))
     crop_size = int(cfg.get("embedding", {}).get("crop_size", 96))
     batch_size = int(cfg.get("embedding", {}).get("batch_size", 128))
-    required_arms = FEATURE_ARMS if model.mode == "contrastive_gex" else FEATURE_ARMS[:-1]
     expected_dims = {
         "uni_original": model.image_dim,
-        "frozen_head_projected": model.terra_dim,
         "lora_adapted": model.image_dim,
-        "lora_projected": model.terra_dim,
-        "gex_penultimate": model.gex_hidden_dim,
     }
     rows, observed_samples = [], set()
-    for sample_name, entries in iter_lmdb_samples(data["lmdb"]):
+    for position, (sample_name, entries) in enumerate(iter_lmdb_samples(data["lmdb"])):
+        if shard is not None and position % num_shards != shard:
+            continue
         sample_metadata = metadata.loc[metadata["sample_id"].astype(str) == sample_name].copy()
         if sample_metadata.empty:
             if allow_unlabeled:
                 continue
             raise ValueError(f"{sample_name}: no metadata rows")
         observed_samples.add(sample_name)
-        signature = _signature(cfg, checkpoint_identity, sample_name)
+        signature = _signature(cfg, checkpoint_identity, sample_name, dataset)
         destination = output_dir / "features" / f"{sample_name.removesuffix('.hdf')}.npz"
         if not overwrite and feature_file_is_current(
             destination,
             signature,
-            required_arms,
+            FEATURE_ARMS,
             required_metadata=_METADATA,
             expected_cells=len(sample_metadata),
             expected_dims=expected_dims,
         ):
             with np.load(destination, allow_pickle=False) as cached:
                 count = len(cached["cell_ids"])
-            print(f"[PhenoCell/{sample_name}] current ({count:,} cells)")
+            print(f"[{dataset}/{sample_name}] current ({count:,} cells)")
         else:
             locations = locate_cells(
                 sample_metadata, entries, image_shape, tile_size,
                 skip_missing=allow_unlabeled,
             )
             if locations.empty:
-                print(f"[PhenoCell/{sample_name}] no locatable cells; skipped")
+                print(f"[{dataset}/{sample_name}] no locatable cells; skipped")
                 continue
             image = to_uint8_rgb(
                 reconstruct_image(
@@ -149,7 +159,7 @@ def export_phenocell(
                 },
             )
             count = len(locations)
-            print(f"[PhenoCell/{sample_name}] wrote {count:,} cells -> {destination}")
+            print(f"[{dataset}/{sample_name}] wrote {count:,} cells -> {destination}")
         rows.append(
             {
                 "sample_id": sample_name,
@@ -158,10 +168,16 @@ def export_phenocell(
                 "signature": signature,
             }
         )
-    expected = set(metadata["sample_id"].astype(str))
-    if observed_samples != expected:
-        missing = sorted(expected - observed_samples)
-        extra = sorted(observed_samples - expected)
-        raise ValueError(f"PhenoCell LMDB/metadata mismatch: missing={missing}, extra={extra}")
-    write_table(output_dir / "features" / "manifest.csv", rows)
+    if shard is None:
+        expected = set(metadata["sample_id"].astype(str))
+        if observed_samples != expected:
+            missing = sorted(expected - observed_samples)
+            extra = sorted(observed_samples - expected)
+            raise ValueError(
+                f"{dataset} LMDB/metadata mismatch: missing={missing}, extra={extra}"
+            )
+        name = "manifest.csv"
+    else:
+        name = f"manifest.shard{shard:03d}.csv"
+    write_table(output_dir / "features" / name, rows)
     return pd.DataFrame(rows)

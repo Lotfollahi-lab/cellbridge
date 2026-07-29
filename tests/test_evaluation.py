@@ -12,7 +12,6 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-
 from terra_multi.evaluation.classification import (
     evaluate_classification,
     method_directory,
@@ -23,6 +22,7 @@ from terra_multi.evaluation.ood import validate_official_split
 from terra_multi.evaluation.probe_ood import evaluate as evaluate_phenocell
 from terra_multi.lora import evaluate as lora_evaluate
 from terra_multi.lora.evaluate import evaluate_phenocell_arm
+from terra_multi.lora.evaluate_ood import merge_shard_manifests
 
 
 def classification_data():
@@ -268,3 +268,26 @@ def test_phenocell_split_requires_complete_official_cohort(tmp_path):
 
     with pytest.raises(ValueError, match="every official sample"):
         validate_official_split(observed, split_path)
+
+
+def test_shard_manifests_merge_into_one_probe_manifest(tmp_path):
+    for shard, samples in enumerate([["fold1_2", "fold1_0"], ["fold1_1"]]):
+        pd.DataFrame(
+            {"sample_id": samples, "n_cells": [1] * len(samples), "path": samples}
+        ).to_csv(tmp_path / f"manifest.shard{shard:03d}.csv", index=False)
+
+    merged = merge_shard_manifests(tmp_path, 2)
+
+    assert merged["sample_id"].tolist() == ["fold1_0", "fold1_1", "fold1_2"]
+    assert pd.read_csv(tmp_path / "manifest.csv")["sample_id"].tolist() == (
+        merged["sample_id"].tolist()
+    )
+
+
+def test_merging_rejects_a_missing_export_shard(tmp_path):
+    pd.DataFrame({"sample_id": ["fold1_0"], "n_cells": [1], "path": ["p"]}).to_csv(
+        tmp_path / "manifest.shard000.csv", index=False
+    )
+
+    with pytest.raises(ValueError, match="expected 2 shard manifests"):
+        merge_shard_manifests(tmp_path, 2)
