@@ -1,0 +1,111 @@
+distill_version: lora
+run_name: lora_phenotype_combined_lambda1
+
+data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+manifest_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/manifest.csv
+splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+max_cells_per_sample: 5000
+max_open_wsis: 64
+sampling_seed: 0
+terra_key: cell_emb
+
+crop:
+  target_size: 224
+  target_pixel_size_um: 0.5
+
+model:
+  trainable_blocks: last_4
+  lora_rank: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  image_dim: 1536
+  terra_dim: 384
+  gex_hidden_dim: 1024
+  gex_dropout: 0.1
+
+objective:
+  mode: contrastive
+  targets: exact
+  bidirectional: true
+  lambda_contrastive: 1.0
+  lambda_gex: 1.0
+  temperature: 0.07
+  gex_loss: smooth_l1
+
+training:
+  batch_size: 16
+  batches_per_sample_visit: 32
+  max_steps: 20000
+  eval_every: 1000
+  patience: 5
+  selection_metric: breast_val/loss_total
+  lr_lora: 1.0e-4
+  lr_heads: 3.0e-4
+  weight_decay: 1.0e-4
+  precision: bf16
+  num_workers: 8
+  seed: 0
+  log_every: 20
+
+hierarchy:
+  enabled: true
+  split_manifest: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest_phenotype_split_v1.csv
+  labels_dir: ${TERRA_MULTI_ROOT}/outputs/hierarchical/hest_label_test/cells
+  expected_counts:
+    breast_train: 6
+    breast_val: 3
+    breast_test: 3
+    cross_organ_test: 3
+  negative_downweighting:
+    enabled: true
+    weights:
+      identity: 0.25
+      lineage: 0.50
+      compartment: 0.75
+  ranking:
+    enabled: true
+    lambda_hier: 1.0
+    levels: [match, identity, lineage, compartment, unrelated]
+    margins:
+      match>identity: 0.05
+      identity>lineage: 0.05
+      lineage>compartment: 0.05
+      compartment>unrelated: 0.05
+    temperature: 1.0
+    cross_sample: prefer
+    min_triplets: 8
+    bidirectional: true
+  sampling:
+    strategy: balanced
+    relations: [identity, lineage, compartment, unrelated]
+    cross_sample: prefer
+
+output_dir: outputs/hierarchical/lora_combined_lambda1
+checkpoint_dir: checkpoints/hierarchical/lora_combined_lambda1
+phenocell_config: configs/evaluation/phenocell.yaml
+
+wandb:
+  enabled: true
+  project: terra-uni-distillation
+  group: phenotype_hierarchy_ablations
+  name: lora_phenotype_combined_lambda1
+  mode: online
+
+eval:
+  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_n: 5
+  batch_size: 64
+  num_workers: 8
+  test_frac: 0.2
+  split_axis: y
+  pca: true
+  uni_pca_components: 256
+  methods: [linear, knn]
+  Cs: [0.1, 1, 10]
+  knn_neighbors: 20
+  knn_metric: cosine
+  knn_weights: uniform
+  class_weight: balanced
+  label_column: group
+  label_id_column: cell_id
+  min_class_count: 25
