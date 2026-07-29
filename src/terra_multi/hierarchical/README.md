@@ -33,8 +33,17 @@ The output contains:
 - `sample_label_counts.csv`: source-label counts within each sample.
 - `canonical_usage.csv`: how source labels and cells collapse into identities.
 - `hierarchy_nodes.csv`: the task-specific tree and edges.
+- `hierarchy_tree.{dot,png}`: counted hierarchy visualization.
 - `cells/<sample_id>.parquet`: per-cell hierarchy, state, and audit columns.
 - `REPORT.md`: readable coverage and all 166 mapping decisions.
+
+Regenerate the tree after rebuilding the label summaries with:
+
+```bash
+PYTHONPATH=src ../../envs/terra-dev/bin/python \
+  -m terra_multi.hierarchical.plot_tree \
+  --artifact-dir outputs/hierarchical/hest_label_test
+```
 
 The mapping is pinned to Cell Ontology release `2026-03-26`. It is intentionally
 reviewed code rather than a live fuzzy matcher: a new source label causes a hard
