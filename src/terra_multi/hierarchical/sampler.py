@@ -29,7 +29,9 @@ class AnnotatedBatchSampler(Sampler[list[int]]):
         if len(dataset.sample_indices) < 2:
             raise ValueError("annotated batches require at least two samples")
         if strategy not in {"balanced", "hierarchy"}:
-            raise ValueError("annotated sampling strategy must be balanced or hierarchy")
+            raise ValueError(
+                "annotated sampling strategy must be balanced or hierarchy"
+            )
         if cross_sample not in {"any", "prefer", "only"}:
             raise ValueError("sampling cross_sample must be any, prefer, or only")
         if any(name not in RELATION_ORDER[1:] for name in relations):
@@ -58,7 +60,9 @@ class AnnotatedBatchSampler(Sampler[list[int]]):
         ):
             by_node = {}
             for index in np.flatnonzero(self.usable & (self.depth >= minimum)):
-                by_node.setdefault(int(self.levels[index, level]), set()).add(int(index))
+                by_node.setdefault(int(self.levels[index, level]), set()).add(
+                    int(index)
+                )
             pools[name] = by_node
         pools["usable"] = set(map(int, np.flatnonzero(self.usable)))
         return pools
@@ -84,7 +88,9 @@ class AnnotatedBatchSampler(Sampler[list[int]]):
             batch = []
             while len(batch) < self.batch_size:
                 active = [
-                    sample for sample, pool in pools.items() if positions[sample] < len(pool)
+                    sample
+                    for sample, pool in pools.items()
+                    if positions[sample] < len(pool)
                 ]
                 order = rng.permutation(active) if self.shuffle else active
                 for sample in order:
@@ -99,9 +105,7 @@ class AnnotatedBatchSampler(Sampler[list[int]]):
             return set()
         identity = self._pools["identity"].get(int(self.levels[anchor, 3]), set())
         lineage = self._pools["lineage"].get(int(self.levels[anchor, 2]), set())
-        compartment = self._pools["compartment"].get(
-            int(self.levels[anchor, 1]), set()
-        )
+        compartment = self._pools["compartment"].get(int(self.levels[anchor, 1]), set())
         if relation == "identity":
             options = identity if self.depth[anchor] >= 3 else set()
         elif relation == "lineage":
@@ -111,7 +115,9 @@ class AnnotatedBatchSampler(Sampler[list[int]]):
         else:
             options = self._pools["usable"] - compartment
         options = options & available
-        cross = {index for index in options if self.samples[index] != self.samples[anchor]}
+        cross = {
+            index for index in options if self.samples[index] != self.samples[anchor]
+        }
         if self.cross_sample == "only":
             return cross
         if self.cross_sample == "prefer" and cross:
@@ -129,6 +135,8 @@ class AnnotatedBatchSampler(Sampler[list[int]]):
                     break
                 available.remove(anchor)
                 batch.append(anchor)
+                if len(batch) == self.batch_size:
+                    break
                 for relation in self.relations:
                     options = self._options(anchor, relation, available)
                     if options:
@@ -143,18 +151,32 @@ class AnnotatedBatchSampler(Sampler[list[int]]):
 
     def __iter__(self):
         rng = np.random.default_rng([self.seed, self.epoch])
-        iterator = self._balanced(rng) if self.strategy == "balanced" else self._hierarchy(rng)
+        iterator = (
+            self._balanced(rng) if self.strategy == "balanced" else self._hierarchy(rng)
+        )
         yield from iterator
 
 
 class InterleavedBatchSampler(Sampler[list[int]]):
-    """Interleave base and annotated batches without changing either sampler."""
+    """Interleave base and annotated batches with an optional fixed source share."""
 
-    def __init__(self, base, annotated, annotated_offset: int, seed: int = 0):
+    def __init__(
+        self,
+        base,
+        annotated,
+        annotated_offset: int,
+        seed: int = 0,
+        annotated_fraction: float | None = None,
+    ):
         self.base = base
         self.annotated = annotated
         self.offset = int(annotated_offset)
         self.seed = int(seed)
+        if annotated_fraction is not None and not 0 < float(annotated_fraction) < 1:
+            raise ValueError("annotated_fraction must be strictly between 0 and 1")
+        self.annotated_fraction = (
+            None if annotated_fraction is None else float(annotated_fraction)
+        )
         self.epoch = 0
 
     def set_epoch(self, epoch: int):
@@ -166,15 +188,65 @@ class InterleavedBatchSampler(Sampler[list[int]]):
     def __len__(self):
         return len(self.base) + len(self.annotated)
 
+    @property
+    def source_counts(self) -> tuple[int, int]:
+        total = len(self)
+        if self.annotated_fraction is None:
+            return len(self.base), len(self.annotated)
+        annotated = round(total * self.annotated_fraction)
+        annotated = min(total - 1, max(1, annotated))
+        return total - annotated, annotated
+
+    def _fixed_fraction_schedule(self):
+        """Spread the requested annotated count as evenly as integer steps allow."""
+
+        base_count, annotated_count = self.source_counts
+        total = base_count + annotated_count
+        steps = np.arange(total, dtype=np.int64)
+        return (
+            ((steps + 1) * annotated_count) // total
+            - (steps * annotated_count) // total
+        ).astype(np.int8)
+
     def __iter__(self):
         rng = np.random.default_rng([self.seed, self.epoch])
-        schedule = np.concatenate(
-            (np.zeros(len(self.base), dtype=np.int8), np.ones(len(self.annotated), dtype=np.int8))
-        )
-        schedule = rng.permutation(schedule)
-        iterators = iter(self.base), iter(self.annotated)
+        if self.annotated_fraction is None:
+            schedule = np.concatenate(
+                (
+                    np.zeros(len(self.base), dtype=np.int8),
+                    np.ones(len(self.annotated), dtype=np.int8),
+                )
+            )
+            schedule = rng.permutation(schedule)
+        else:
+            schedule = self._fixed_fraction_schedule()
+
+        samplers = self.base, self.annotated
+        epoch_base = self.epoch
+        if self.annotated_fraction is not None:
+            epoch_base = self.epoch * (len(self) + 1)
+            for sampler in samplers:
+                if hasattr(sampler, "set_epoch"):
+                    sampler.set_epoch(epoch_base)
+        iterators = [iter(sampler) for sampler in samplers]
+        cycles = [0, 0]
         for source in schedule:
-            batch = next(iterators[int(source)])
+            source = int(source)
+            try:
+                batch = next(iterators[source])
+            except StopIteration:
+                cycles[source] += 1
+                sampler = samplers[source]
+                if hasattr(sampler, "set_epoch"):
+                    sampler.set_epoch(epoch_base + cycles[source])
+                iterators[source] = iter(sampler)
+                try:
+                    batch = next(iterators[source])
+                except StopIteration as error:
+                    raise RuntimeError(
+                        "an interleaved source sampler yielded fewer batches than "
+                        "its reported nonzero length"
+                    ) from error
             if source:
                 batch = [self.offset + index for index in batch]
             yield batch

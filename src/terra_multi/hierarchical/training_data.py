@@ -40,9 +40,7 @@ def build_hierarchy_data(cfg, transform, selected_genes_path=None) -> HierarchyD
         cfg["splits_path"],
         expected_counts=settings.get("expected_counts"),
     )
-    base_train, base_val, genes = build_datasets(
-        cfg, transform, selected_genes_path
-    )
+    base_train, base_val, genes = build_datasets(cfg, transform, selected_genes_path)
     if tuple(base_train.sample_ids) != split.base_train:
         raise ValueError("base training dataset differs from the phenotype split")
     if tuple(base_val.sample_ids) != split.base_val:
@@ -101,7 +99,17 @@ def make_hierarchy_loaders(data: HierarchyData, cfg):
         cross_sample=sampling["cross_sample"],
     )
     combined = InterleavedBatchSampler(
-        base_train, annotated_train, len(data.base_train), seed
+        base_train,
+        annotated_train,
+        len(data.base_train),
+        seed,
+        annotated_fraction=sampling["annotated_batch_fraction"],
+    )
+    base_batches, annotated_batches = combined.source_counts
+    print(
+        "training batch schedule | "
+        f"base={base_batches} annotated={annotated_batches} "
+        f"annotated_fraction={annotated_batches / len(combined):.6f}"
     )
     train_loader = _loader(data.train, combined, workers, seed)
 
@@ -113,7 +121,7 @@ def make_hierarchy_loaders(data: HierarchyData, cfg):
         batch_size,
         seed=seed,
         shuffle=False,
-        strategy=sampling["strategy"],
+        strategy=sampling["validation_strategy"],
         relations=sampling["relations"],
         cross_sample=sampling["cross_sample"],
     )

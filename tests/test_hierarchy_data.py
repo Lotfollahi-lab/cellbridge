@@ -4,7 +4,10 @@ import torch
 from torch.utils.data import Dataset
 
 from terra_multi.hierarchical.dataset import HierarchyDataset
-from terra_multi.hierarchical.sampler import AnnotatedBatchSampler
+from terra_multi.hierarchical.sampler import (
+    AnnotatedBatchSampler,
+    InterleavedBatchSampler,
+)
 
 
 class TinyCells(Dataset):
@@ -80,9 +83,7 @@ def test_balanced_sampler_is_deterministic_cross_sample_and_without_replacement(
     _write_labels(tmp_path, "A")
     _write_labels(tmp_path, "B")
     dataset = HierarchyDataset(TinyCells(), tmp_path)
-    sampler = AnnotatedBatchSampler(
-        dataset, batch_size=4, seed=7, strategy="balanced"
-    )
+    sampler = AnnotatedBatchSampler(dataset, batch_size=4, seed=7, strategy="balanced")
 
     first = list(sampler)
     second = list(sampler)
@@ -108,3 +109,61 @@ def test_hierarchy_sampler_draws_cross_sample_relations_without_replacement(tmp_
 
     assert len(batches) == 2
     assert len({index for batch in batches for index in batch}) == 8
+
+
+def test_hierarchy_sampler_never_overfills_a_nearly_complete_batch(tmp_path):
+    _write_labels(tmp_path, "A")
+    _write_labels(tmp_path, "B")
+    dataset = HierarchyDataset(TinyCells(), tmp_path)
+
+    for seed in range(20):
+        sampler = AnnotatedBatchSampler(
+            dataset,
+            batch_size=5,
+            seed=seed,
+            strategy="hierarchy",
+            relations=["identity", "lineage", "unrelated"],
+        )
+        batches = list(sampler)
+
+        assert len(batches) == len(sampler) == 1
+        assert len(batches[0]) == 5
+        assert len(set(batches[0])) == 5
+
+
+def test_interleaved_sampler_enforces_even_fifty_percent_annotated_batches():
+    base = [[index] for index in range(8)]
+    annotated = [[index] for index in range(2)]
+    sampler = InterleavedBatchSampler(
+        base,
+        annotated,
+        annotated_offset=100,
+        seed=7,
+        annotated_fraction=0.5,
+    )
+
+    first = list(sampler)
+    second = list(sampler)
+    sources = [batch[0] >= 100 for batch in first]
+
+    assert first == second
+    assert sampler.source_counts == (5, 5)
+    assert sources == [False, True] * 5
+    assert [batch[0] for batch in first if batch[0] >= 100] == [
+        100,
+        101,
+        100,
+        101,
+        100,
+    ]
+
+
+def test_interleaved_sampler_default_uses_each_source_batch_once():
+    base = [[0], [1], [2]]
+    annotated = [[0]]
+    sampler = InterleavedBatchSampler(base, annotated, annotated_offset=100, seed=4)
+
+    batches = list(sampler)
+
+    assert sampler.source_counts == (3, 1)
+    assert sorted(batch[0] for batch in batches) == [0, 1, 2, 100]

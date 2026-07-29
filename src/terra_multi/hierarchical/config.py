@@ -46,8 +46,14 @@ def configure_hierarchy(cfg: dict) -> dict:
     if float(ranking["lambda_hier"]) < 0 or float(ranking["temperature"]) <= 0:
         raise ValueError("hierarchy ranking weight/temperature is invalid")
     levels = ranking["levels"]
-    positions = [RELATION_ORDER.index(level) for level in levels if level in RELATION_ORDER]
-    if len(levels) < 2 or len(positions) != len(levels) or positions != sorted(set(positions)):
+    positions = [
+        RELATION_ORDER.index(level) for level in levels if level in RELATION_ORDER
+    ]
+    if (
+        len(levels) < 2
+        or len(positions) != len(levels)
+        or positions != sorted(set(positions))
+    ):
         raise ValueError("hierarchy ranking levels must be unique and fine-to-coarse")
     for closer, farther in zip(levels, levels[1:]):
         key = f"{closer}>{farther}"
@@ -62,13 +68,24 @@ def configure_hierarchy(cfg: dict) -> dict:
 
     sampling = hierarchy.setdefault("sampling", {})
     sampling.setdefault("strategy", "balanced")
+    sampling.setdefault("validation_strategy", "balanced")
     sampling.setdefault("relations", ["identity", "lineage", "unrelated"])
     sampling.setdefault("cross_sample", "prefer")
+    sampling.setdefault("annotated_batch_fraction", None)
     if sampling["strategy"] not in {"balanced", "hierarchy"}:
         raise ValueError("hierarchy.sampling.strategy must be balanced or hierarchy")
+    if sampling["validation_strategy"] not in {"balanced", "hierarchy"}:
+        raise ValueError(
+            "hierarchy.sampling.validation_strategy must be balanced or hierarchy"
+        )
     if any(name not in RELATION_ORDER[1:] for name in sampling["relations"]):
         raise ValueError("hierarchy.sampling.relations contains an unknown relation")
     if sampling["cross_sample"] not in {"any", "prefer", "only"}:
         raise ValueError("hierarchy.sampling.cross_sample is invalid")
+    annotated_fraction = sampling["annotated_batch_fraction"]
+    if annotated_fraction is not None and not 0 < float(annotated_fraction) < 1:
+        raise ValueError(
+            "hierarchy.sampling.annotated_batch_fraction must be between 0 and 1"
+        )
     cfg["training"].setdefault("selection_metric", "breast_val/loss_total")
     return cfg

@@ -19,6 +19,7 @@ from .losses import (
 def _empty_metrics(reference: torch.Tensor) -> dict[str, torch.Tensor]:
     zero = reference.sum() * 0
     return {
+        "hierarchy_annotated_batch": zero.detach(),
         "loss_hier": zero,
         "hierarchy_triplets": zero.detach(),
         "hierarchy_active_transitions": zero.detach(),
@@ -57,6 +58,7 @@ def compute_hierarchy_objective(
         metrics["loss_pair"] = metrics["loss_contrastive"]
         return metrics
 
+    auxiliary["hierarchy_annotated_batch"] = projected.new_ones(()).detach()
     levels = batch["hierarchy_levels"].to(projected.device)
     depth = batch["hierarchy_depth"].to(projected.device)
     usable = batch["hierarchy_usable"].to(projected.device).bool()
@@ -68,9 +70,7 @@ def compute_hierarchy_objective(
         weights = negative_weight_matrix(
             relations, downweight["weights"], dtype=projected.dtype
         )
-        off_diagonal = ~torch.eye(
-            len(weights), dtype=torch.bool, device=weights.device
-        )
+        off_diagonal = ~torch.eye(len(weights), dtype=torch.bool, device=weights.device)
         softened = weights[off_diagonal] < 1
         auxiliary["negative_downweighted_fraction"] = softened.float().mean()
         if bool(softened.any()):
@@ -102,9 +102,9 @@ def compute_hierarchy_objective(
             bidirectional=bool(ranking["bidirectional"]),
         )
         auxiliary.update(ranked)
-        metrics["loss_total"] = metrics["loss_total"] + float(
-            ranking["lambda_hier"]
-        ) * ranked["loss_hier"]
+        metrics["loss_total"] = (
+            metrics["loss_total"] + float(ranking["lambda_hier"]) * ranked["loss_hier"]
+        )
 
     metrics.update(auxiliary)
     metrics["loss_pair"] = metrics["loss_contrastive"]
