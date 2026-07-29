@@ -6,17 +6,12 @@ import numpy as np
 
 from terra_multi.evaluation.artifacts import (
     artifact_row_count,
+    file_identity,
     stable_signature,
     write_array_artifact,
 )
 
-FEATURE_ARMS = (
-    "uni_original",
-    "frozen_head_projected",
-    "lora_adapted",
-    "lora_projected",
-    "gex_penultimate",
-)
+FEATURE_ARMS = ("uni_original", "lora_adapted")
 PCA_ARMS = {"uni_original", "lora_adapted"}
 FORMAT_VERSION = "terra_multi.lora.features/1"
 
@@ -42,7 +37,7 @@ def feature_file_is_current(
     expected_cells=None,
     expected_dims=None,
 ):
-    keys = tuple(required_keys or FEATURE_ARMS[:-1])
+    keys = tuple(required_keys or FEATURE_ARMS)
     dimensions = expected_dims or {}
     return artifact_row_count(
         path,
@@ -65,17 +60,6 @@ def write_feature_file(path, cell_ids, features, signature, metadata=None):
     )
 
 
-def _select_outputs(outputs, *, adapted):
-    prefix = "lora" if adapted else "frozen_head"
-    selected = {
-        "lora_adapted" if adapted else "uni_original": outputs["image_feature"],
-        f"{prefix}_projected": outputs["projected"],
-    }
-    if adapted and "gex_penultimate" in outputs:
-        selected["gex_penultimate"] = outputs["gex_penultimate"]
-    return selected
-
-
 def infer_tensor(model, images, device):
     """Infer adapted and adapter-disabled representations for one image batch."""
     import torch
@@ -89,10 +73,10 @@ def infer_tensor(model, images, device):
         enabled=device_type == "cuda" and precision in {torch.float16, torch.bfloat16},
     )
     with torch.inference_mode(), autocast:
-        adapted = _select_outputs(model(images), adapted=True)
-        with model.adapters_disabled():
-            frozen = _select_outputs(model(images), adapted=False)
-    return {**adapted, **frozen}
+        return {
+            "lora_adapted": model.encode_images(images, use_lora=True),
+            "uni_original": model.encode_base(images),
+        }
 
 
 def infer_loader(model, loader, device, storage_dir=None):
@@ -141,6 +125,19 @@ def checkpoint_path(cfg, override=None):
     if cfg.get("checkpoint"):
         return Path(cfg["checkpoint"])
     return Path(cfg["checkpoint_dir"]) / "best.pt"
+
+
+def checkpoint_identity(cfg, path):
+    weights_path = cfg.get("model", {}).get("weights_path")
+    return {
+        "checkpoint": file_identity(path, checksum=True),
+        "encoder": "uni_v2",
+        "encoder_weights": (
+            file_identity(weights_path, checksum=True)
+            if weights_path
+            else "trident-default"
+        ),
+    }
 
 
 def load_model(path, device, weights_path=None):

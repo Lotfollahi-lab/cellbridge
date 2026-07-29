@@ -6,7 +6,6 @@ from pathlib import Path
 import pandas as pd
 
 from terra_multi.config import load_config
-from terra_multi.evaluation.artifacts import file_identity
 from terra_multi.evaluation.classification import resolve_methods
 from terra_multi.lora.export_hest import export_hest
 from terra_multi.lora.export_phenocell import export_phenocell, phenocell_cell_ids
@@ -14,6 +13,7 @@ from terra_multi.lora.features import (
     FEATURE_ARMS,
     FORMAT_VERSION,
     PCA_ARMS,
+    checkpoint_identity,
     checkpoint_path,
     feature_file_is_current,
     feature_signature,
@@ -67,19 +67,6 @@ def _arguments(argv):
     if (args.probe_only or probe_samples is not None) and samples is not None:
         parser.error("--samples exports; --probe-only probes. Use one or the other")
     return args, samples, probe_samples
-
-
-def _checkpoint_identity(cfg, path):
-    weights_path = cfg.get("model", {}).get("weights_path")
-    return {
-        "checkpoint": file_identity(path, checksum=True),
-        "encoder": "uni_v2",
-        "encoder_weights": (
-            file_identity(weights_path, checksum=True)
-            if weights_path
-            else "trident-default"
-        ),
-    }
 
 
 def _hest_directory(root, cohort):
@@ -144,7 +131,7 @@ def main(argv=None):
         return
 
     checkpoint = _checkpoint_path(cfg, args.checkpoint)
-    identity = _checkpoint_identity(cfg, checkpoint)
+    identity = checkpoint_identity(cfg, checkpoint)
     import torch
 
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")

@@ -33,13 +33,9 @@ def export_hest(
     output_dir = Path(output_dir)
     settings = cfg["eval"]
     rows = []
-    required_arms = FEATURE_ARMS if model.mode == "contrastive_gex" else FEATURE_ARMS[:-1]
     expected_dims = {
         "uni_original": model.image_dim,
-        "frozen_head_projected": model.terra_dim,
         "lora_adapted": model.image_dim,
-        "lora_projected": model.terra_dim,
-        "gex_penultimate": model.gex_hidden_dim,
     }
     wanted = evaluation_samples(cfg, cohort)
     if samples is not None:
@@ -67,7 +63,7 @@ def export_hest(
         if not overwrite and feature_file_is_current(
             destination,
             signature,
-            required_arms,
+            FEATURE_ARMS,
             expected_cells=expected_cells,
             expected_dims=expected_dims,
         ):
