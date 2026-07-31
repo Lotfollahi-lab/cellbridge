@@ -50,10 +50,28 @@ def _load_aligned(path: Path, cell_ids: np.ndarray, sample_id: str) -> pd.DataFr
     if table["cell_id"].duplicated().any():
         raise ValueError(f"{path}: duplicate hierarchy cell IDs")
     rows = pd.Index(table["cell_id"]).get_indexer(cell_ids)
-    if np.any(rows < 0):
-        missing = cell_ids[rows < 0]
-        raise KeyError(f"{path}: hierarchy is missing capped cell IDs {missing[:5].tolist()}")
-    return table.iloc[rows].reset_index(drop=True)
+    absent = rows < 0
+    # Index 0 is a placeholder for absent cells; every column is overwritten
+    # below. Avoiding -1 keeps pandas from silently wrapping to the last row.
+    aligned = table.iloc[np.where(absent, 0, rows)].reset_index(drop=True)
+    if absent.any():
+        # Cells the granular clustering dropped have no identity at any level.
+        # They are unusable for hierarchy terms in exactly the way an excluded
+        # label is, but they must not block training: the paired loss is
+        # label-free and needs every capped cell. Raising here would cap the
+        # usable dataset at whatever the label file happens to cover.
+        aligned.loc[absent, "mapping_status"] = "excluded"
+        aligned.loc[absent, "hierarchy_depth"] = 0
+        aligned.loc[absent, "use_in_hierarchy"] = False
+        for column in LEVEL_COLUMNS:
+            aligned.loc[absent, column] = ""
+        print(
+            f"{path.name}: {int(absent.sum()):,} of {len(cell_ids):,} capped cells "
+            "have no hierarchy label; marked unusable"
+        )
+    aligned["cell_id"] = cell_ids
+    aligned["sample_id"] = str(sample_id)
+    return aligned
 
 
 def _validate(table: pd.DataFrame, path: Path) -> None:

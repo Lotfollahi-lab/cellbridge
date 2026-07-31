@@ -167,3 +167,40 @@ def test_interleaved_sampler_default_uses_each_source_batch_once():
 
     assert sampler.source_counts == (3, 1)
     assert sorted(batch[0] for batch in batches) == [0, 1, 2, 100]
+
+
+def test_cells_absent_from_the_label_file_are_marked_unusable(tmp_path):
+    """A larger cell cap reaches cells the granular clustering dropped.
+
+    Those cells carry no identity at any level, so they must be unusable for
+    hierarchy terms without blocking training: the paired loss is label-free.
+    """
+    import numpy as np
+    import pandas as pd
+
+    from terra_multi.hierarchical.dataset import _load_aligned
+
+    path = tmp_path / "S1.parquet"
+    pd.DataFrame(
+        {
+            "sample_id": ["S1", "S1"],
+            "cell_id": ["a-1", "b-1"],
+            "mapping_status": ["full", "partial"],
+            "hierarchy_depth": [3, 1],
+            "use_in_hierarchy": [True, True],
+            "level_0": ["cell", "cell"],
+            "level_1_compartment": ["epithelial", "stromal"],
+            "level_2_lineage": ["neoplastic", ""],
+            "level_3_identity": ["neoplastic cell", ""],
+        }
+    ).to_parquet(path)
+
+    aligned = _load_aligned(path, np.array(["a-1", "zzz-1", "b-1"]), "S1")
+
+    assert aligned["cell_id"].tolist() == ["a-1", "zzz-1", "b-1"]
+    assert aligned["use_in_hierarchy"].tolist() == [True, False, True]
+    assert aligned["hierarchy_depth"].tolist() == [3, 0, 1]
+    assert aligned.loc[1, "mapping_status"] == "excluded"
+    assert aligned.loc[1, "level_3_identity"] == ""
+    # The labelled rows must be untouched.
+    assert aligned.loc[0, "level_3_identity"] == "neoplastic cell"
