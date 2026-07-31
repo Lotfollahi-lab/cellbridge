@@ -101,6 +101,33 @@ def export_hest(
                 "signature": signature,
             }
         )
-    if samples is None:
-        write_table(output_dir / "features" / "manifest.csv", rows)
+    write_manifest_if_complete(cfg, cohort, output_dir)
     return pd.DataFrame(rows)
+
+
+def write_manifest_if_complete(cfg, cohort, output_dir) -> bool:
+    """Write the feature manifest once every cohort sample is on disk.
+
+    A sharded export only knows its own subset, so each shard checks whether the
+    others have finished and the last one writes the complete manifest. Probing
+    requires the manifest to list the whole cohort in order.
+    """
+
+    features_dir = Path(output_dir) / "features"
+    rows = []
+    for sample_id in evaluation_samples(cfg, cohort):
+        path = features_dir / f"{sample_id}.npz"
+        if not path.exists():
+            return False
+        with np.load(path, allow_pickle=False) as data:
+            rows.append(
+                {
+                    "sample_id": sample_id,
+                    "cohort": cohort,
+                    "n_cells": len(data["cell_ids"]),
+                    "path": str(path.resolve()),
+                    "signature": str(data["signature"]),
+                }
+            )
+    write_table(features_dir / "manifest.csv", rows)
+    return True
