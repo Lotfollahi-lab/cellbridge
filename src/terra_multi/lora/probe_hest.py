@@ -80,6 +80,19 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear
     return metrics, predictions
 
 
+def probes_dir(output_dir, settings) -> Path:
+    """Keep each label granularity in its own directory.
+
+    Source-cluster probes stay at the historical ``probes/`` path; a collapsed
+    granularity gets its own, so re-probing at identity level does not overwrite
+    results the fine-grained probe already produced.
+    """
+
+    level = str(settings.get("label_level", "source"))
+    name = "probes" if level == "source" else f"probes_{level}"
+    return Path(output_dir) / name
+
+
 def probe_hest(cfg, output_dir, samples=None, cohort="label_test_fast"):
     output_dir = Path(output_dir)
     manifest = pd.read_csv(output_dir / "features" / "manifest.csv")
@@ -115,7 +128,8 @@ def probe_hest(cfg, output_dir, samples=None, cohort="label_test_fast"):
                     payload["method"] = method
                 signature = stable_signature(payload)
                 result_dir = method_directory(
-                    output_dir / "probes" / str(record.sample_id) / arm, method
+                    probes_dir(output_dir, cfg["eval"]) / str(record.sample_id) / arm,
+                    method,
                 )
                 cached = cached_probe_metrics(result_dir / "metrics.csv", signature)
                 if cached is not None:

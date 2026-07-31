@@ -10,6 +10,7 @@ from terra_multi.evaluation.classification import (
     evaluate_classification,
     method_directory,
 )
+from terra_multi.evaluation.hierarchy_metrics import LEVELS, load_hierarchy_mapping
 from terra_multi.evaluation.linear_probe import reduce_features
 from terra_multi.helpers.io import align_by_cell_id, load_coords, load_embeddings
 from terra_multi.helpers.splits import spatial_split
@@ -30,15 +31,47 @@ class HestData:
     pca_explained_variance: float | None
 
 
-def load_labels(path, keep_classes=None, id_column="cell_id", label_column="cell_type"):
+def collapse_to_level(labels, settings):
+    """Map raw source clusters onto a reviewed hierarchy level.
+
+    Collapsing must happen before the ``min_class_count`` filter: a cluster too
+    rare to score on its own is often perfectly viable once pooled into its
+    identity. Labels that do not reach the requested level become NA so their
+    cells can be dropped, because the truth is undefined there.
+    """
+
+    level = str(settings.get("label_level", "source"))
+    if level == "source":
+        return labels
+    mapping_path = settings.get("hierarchy_mapping")
+    if not mapping_path:
+        raise ValueError("eval.label_level requires eval.hierarchy_mapping")
+    if level not in LEVELS:
+        raise ValueError(f"unknown eval.label_level {level!r}")
+    depth, column = LEVELS[level]
+    mapping = load_hierarchy_mapping(mapping_path)
+    rows = mapping.reindex(pd.Index(labels.astype(str)))
+    node = rows[column].astype("string")
+    reached = (rows["hierarchy_depth"].fillna(0).to_numpy() >= depth) & node.notna().to_numpy()
+    return pd.Series(
+        np.where(reached, node.to_numpy(), None), index=labels.index, dtype="object"
+    )
+
+
+def load_labels(
+    path, keep_classes=None, id_column="cell_id", label_column="cell_type", table=None
+):
     """Load unique cell labels, optionally restricted to selected classes."""
-    suffix = Path(path).suffix.lower()
-    if suffix == ".csv":
-        table = pd.read_csv(path)
-    elif suffix in {".parquet", ".pq"}:
-        table = pd.read_parquet(path)
+    if table is not None:
+        table = table.copy()
     else:
-        raise ValueError(f"unsupported labels file type: {suffix}")
+        suffix = Path(path).suffix.lower()
+        if suffix == ".csv":
+            table = pd.read_csv(path)
+        elif suffix in {".parquet", ".pq"}:
+            table = pd.read_parquet(path)
+        else:
+            raise ValueError(f"unsupported labels file type: {suffix}")
 
     missing = [column for column in (id_column, label_column) if column not in table]
     if missing:
@@ -99,13 +132,21 @@ def prepare_labeled_hest_features(
     labels_table = pd.read_csv(labels_path)
     if label_column not in labels_table:
         raise KeyError(f"{labels_path}: missing label column {label_column!r}")
+    labels_table[label_column] = collapse_to_level(labels_table[label_column], settings)
+    labels_table = labels_table[labels_table[label_column].notna()].reset_index(drop=True)
+    if labels_table.empty:
+        raise ValueError(f"{labels_path}: no label reaches the requested level")
     counts = labels_table[label_column].astype(str).value_counts()
     minimum = int(settings.get("min_class_count", 25))
     keep_classes = set(counts.index[counts >= minimum])
     if not keep_classes:
         raise ValueError(f"{labels_path}: no class has at least {minimum} cells")
     label_map = load_labels(
-        labels_path, keep_classes, id_column=id_column, label_column=label_column
+        labels_path,
+        keep_classes,
+        id_column=id_column,
+        label_column=label_column,
+        table=labels_table,
     )
 
     coords, coord_ids = load_coords(adata_path)
