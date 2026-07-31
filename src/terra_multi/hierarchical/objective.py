@@ -50,6 +50,9 @@ def compute_hierarchy_objective(
         gex_mask,
         **objective,
     )
+    # Kept before any reweighting so one metric means the same thing in every
+    # arm; negative downweighting otherwise changes the scale of loss_pair.
+    metrics["loss_pair_plain"] = metrics["loss_contrastive"].detach()
     projected = outputs["projected"]
     auxiliary = _empty_metrics(projected)
     required = {"hierarchy_levels", "hierarchy_depth", "hierarchy_usable"}

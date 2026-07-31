@@ -329,6 +329,18 @@ class HESTCellDataset(Dataset):
 
         return {sample["sample_id"]: sample["cell_ids"] for sample in self._samples}
 
+    @property
+    def sample_centers(self) -> dict[str, np.ndarray]:
+        """Expose H&E centers in dataset order for spatial splits."""
+
+        return {sample["sample_id"]: sample["centers"] for sample in self._samples}
+
+    @property
+    def sample_terra(self) -> dict[str, np.ndarray]:
+        """Expose TERRA targets in dataset order; writable for target shrinkage."""
+
+        return {sample["sample_id"]: sample["terra"] for sample in self._samples}
+
     def _get_wsi(self, sample):
         sample_id = sample["sample_id"]
         if sample_id in self._wsi_cache:

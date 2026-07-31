@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import math
 import os
 import random
 from pathlib import Path
@@ -24,6 +23,8 @@ from terra_multi.lora.model import (
     compute_loss,
     make_checkpoint,
 )
+from terra_multi.lora.monitoring import CheckpointSelector, Criterion, MetricWindow
+from terra_multi.lora.val_probe import build_validation_probe
 
 
 def load_config(path):
@@ -98,6 +99,7 @@ def load_config(path):
     }
     for key, value in defaults.items():
         training.setdefault(key, value)
+    training.setdefault("selection", None)
     if int(training["batch_size"]) < 2:
         raise ValueError("training.batch_size must be at least 2 for InfoNCE")
     if int(training["batches_per_sample_visit"]) < 1:
@@ -113,6 +115,36 @@ def load_config(path):
 
     cfg.setdefault("wandb", {}).setdefault("enabled", False)
     return configure_hierarchy(cfg)
+
+
+def selection_criteria(cfg, checkpoint_dir) -> list[Criterion]:
+    """Resolve which validation metrics get their own best checkpoint.
+
+    Hierarchy runs track two: the unweighted paired loss, which keeps ``best.pt``
+    comparable across arms and with earlier runs, and the labelled validation
+    probe, which keeps improving after the paired loss has plateaued.
+    """
+
+    training = cfg["training"]
+    configured = training.get("selection")
+    if configured:
+        return [
+            Criterion(entry["metric"], entry["mode"], Path(checkpoint_dir) / entry["filename"])
+            for entry in configured
+        ]
+    primary = Criterion(
+        training.get("selection_metric", "loss_total"),
+        "min",
+        Path(checkpoint_dir) / "best.pt",
+    )
+    if not cfg.get("hierarchy", {}).get("enabled", False):
+        return [primary]
+    return [
+        primary,
+        Criterion(
+            "breast_val/probe_macro_f1", "max", Path(checkpoint_dir) / "best_probe.pt"
+        ),
+    ]
 
 
 def model_config(cfg, num_genes):
@@ -217,32 +249,44 @@ def _loss(model, batch, device, cfg, amp_enabled, amp_dtype):
                 gex_mask,
                 **cfg["objective"],
             )
-    return losses, len(images)
+    return losses, len(images), outputs
 
 
 @torch.inference_mode()
-def evaluate(model, loader, device, cfg, amp_enabled, amp_dtype):
+def evaluate(model, loader, device, cfg, amp_enabled, amp_dtype, probe=None):
     model.eval()
     totals = {}
     n_cells = 0
+    embeddings, cell_ids = [], []
     for batch in loader:
-        metrics, batch_size = _loss(model, batch, device, cfg, amp_enabled, amp_dtype)
+        metrics, batch_size, outputs = _loss(
+            model, batch, device, cfg, amp_enabled, amp_dtype
+        )
         for name, value in metrics.items():
             totals[name] = totals.get(name, 0.0) + float(value) * batch_size
         n_cells += batch_size
+        if probe is not None:
+            embeddings.append(outputs["projected"].float().cpu().numpy())
+            cell_ids.extend(batch["cell_id"])
     if n_cells == 0:
         raise ValueError("validation has no contrastive batches")
-    return {name: value / n_cells for name, value in totals.items()}
+    averaged = {name: value / n_cells for name, value in totals.items()}
+    if probe is not None:
+        averaged.update(probe.score(cell_ids, np.concatenate(embeddings)))
+    return averaged
 
 
-def evaluate_validation(model, loaders, device, cfg, amp_enabled, amp_dtype):
+def evaluate_validation(model, loaders, device, cfg, amp_enabled, amp_dtype, probes=None):
     """Evaluate one legacy loader or separately named validation cohorts."""
 
     if not isinstance(loaders, dict):
         return evaluate(model, loaders, device, cfg, amp_enabled, amp_dtype)
+    probes = probes or {}
     metrics = {}
     for cohort, loader in loaders.items():
-        cohort_metrics = evaluate(model, loader, device, cfg, amp_enabled, amp_dtype)
+        cohort_metrics = evaluate(
+            model, loader, device, cfg, amp_enabled, amp_dtype, probes.get(cohort)
+        )
         metrics.update(
             {f"{cohort}/{name}": value for name, value in cohort_metrics.items()}
         )
@@ -261,7 +305,7 @@ def atomic_torch_save(state, path):
 
 
 def train_loop(
-    model, train_loader, val_loader, optimizer, device, cfg, checkpoint, run
+    model, train_loader, val_loader, optimizer, device, cfg, selector, run, probes=None
 ):
     training = cfg["training"]
     amp_enabled, amp_dtype = _amp_settings(device, training["precision"])
@@ -270,38 +314,40 @@ def train_loop(
     )
     max_steps = int(training["max_steps"])
     eval_every = int(training["eval_every"])
-    patience_limit = int(training["patience"])
     log_every = int(training["log_every"])
-    selection_metric = training.get("selection_metric", "loss_total")
-    best_loss, best_step, stale_evals = math.inf, 0, 0
+    window = MetricWindow(
+        gate_key="hierarchy_annotated_batch",
+        gated_prefixes=("hierarchy_", "negative_"),
+    )
     train_rows, val_rows = [], []
     step = epoch = 0
+    stop = False
 
-    while step < max_steps and stale_evals < patience_limit:
+    while step < max_steps and not stop:
         sampler = train_loader.batch_sampler
         if hasattr(sampler, "set_epoch"):
             sampler.set_epoch(epoch)
         for batch in train_loader:
             model.train()
             optimizer.zero_grad(set_to_none=True)
-            losses, _ = _loss(model, batch, device, cfg, amp_enabled, amp_dtype)
+            losses, _, _ = _loss(model, batch, device, cfg, amp_enabled, amp_dtype)
             scaler.scale(losses["loss_total"]).backward()
             scaler.step(optimizer)
             scaler.update()
             step += 1
+            window.add({name: float(value.detach()) for name, value in losses.items()})
 
-            train_metrics = {
-                "step": step,
-                **{name: float(value.detach()) for name, value in losses.items()},
-                "lr": next(
-                    group["lr"]
-                    for group in optimizer.param_groups
-                    if group.get("name") == "lora"
-                )
-                if any(group.get("name") == "lora" for group in optimizer.param_groups)
-                else optimizer.param_groups[0]["lr"],
-            }
             if step % log_every == 0 or step == 1:
+                learning_rate = next(
+                    (
+                        group["lr"]
+                        for group in optimizer.param_groups
+                        if group.get("name") == "lora"
+                    ),
+                    optimizer.param_groups[0]["lr"],
+                )
+                train_metrics = {"step": step, **window.mean(), "lr": learning_rate}
+                window.reset()
                 train_rows.append(train_metrics)
                 printable = " ".join(
                     f"{name}={value:.4f}"
@@ -309,34 +355,31 @@ def train_loop(
                     if name.startswith("loss_")
                 )
                 print(f"step {step:6d} | {printable}")
-            if run is not None:
-                run.log(
-                    {
-                        "step": step,
-                        "lr": train_metrics["lr"],
-                        **{
-                            f"train/{name}": value
-                            for name, value in train_metrics.items()
-                            if name.startswith(("loss_", "hierarchy_", "negative_"))
-                        },
-                    }
-                )
+                if run is not None:
+                    run.log(
+                        {
+                            "step": step,
+                            "lr": learning_rate,
+                            **{
+                                f"train/{name}": value
+                                for name, value in train_metrics.items()
+                                if name.startswith(("loss_", "hierarchy_", "negative_"))
+                            },
+                        }
+                    )
 
             should_evaluate = step % eval_every == 0 or step == max_steps
             if should_evaluate:
                 val_metrics = evaluate_validation(
-                    model, val_loader, device, cfg, amp_enabled, amp_dtype
+                    model, val_loader, device, cfg, amp_enabled, amp_dtype, probes
                 )
-                if selection_metric not in val_metrics:
-                    raise KeyError(
-                        f"validation selection metric {selection_metric!r} is unavailable"
-                    )
-                val_row = {"step": step, **val_metrics}
-                val_rows.append(val_row)
-                print(
-                    f"validation {step:6d} | {selection_metric}="
-                    f"{val_metrics[selection_metric]:.4f}"
+                val_rows.append({"step": step, **val_metrics})
+                improved = selector.update(val_metrics, step)
+                reported = " ".join(
+                    f"{criterion.name}={val_metrics[criterion.name]:.4f}"
+                    for criterion in selector.criteria
                 )
+                print(f"validation {step:6d} | {reported}")
                 if run is not None:
                     run.log(
                         {
@@ -347,31 +390,32 @@ def train_loop(
                             },
                         }
                     )
-
-                val_loss = val_metrics[selection_metric]
-                if math.isfinite(val_loss) and val_loss < best_loss - 1e-6:
-                    best_loss, best_step, stale_evals = val_loss, step, 0
+                for criterion in improved:
                     atomic_torch_save(
                         make_checkpoint(
                             model,
                             step=step,
-                            val_loss=val_loss,
+                            val_loss=float(val_metrics[criterion.name]),
                             config=cfg,
                         ),
-                        checkpoint,
+                        criterion.path,
                     )
-                else:
-                    stale_evals += 1
-                    if stale_evals >= patience_limit:
-                        print(f"early stopping at step {step} (best step {best_step})")
-                        break
+                if selector.should_stop:
+                    print(f"early stopping at step {step}")
+                    stop = True
+                    break
             if step >= max_steps:
                 break
         epoch += 1
 
-    if best_step == 0 or not Path(checkpoint).exists():
-        raise RuntimeError("training produced no finite validation checkpoint")
-    return best_step, best_loss, train_rows, val_rows
+    missing = [
+        criterion.name
+        for criterion in selector.criteria
+        if not Path(criterion.path).exists()
+    ]
+    if missing:
+        raise RuntimeError(f"training produced no checkpoint for {missing}")
+    return train_rows, val_rows
 
 
 def main():
@@ -390,8 +434,8 @@ def main():
     checkpoint_dir = Path(cfg["checkpoint_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint = checkpoint_dir / "best.pt"
-    checkpoint.unlink(missing_ok=True)
+    for criterion in selection_criteria(cfg, checkpoint_dir):
+        criterion.path.unlink(missing_ok=True)
 
     num_genes = (
         int(cfg["gex"]["num_selected_genes"])
@@ -409,9 +453,12 @@ def main():
             make_hierarchy_loaders,
         )
 
+        from terra_multi.hierarchical.prototypes import configure_target_shrinkage
+
         hierarchy_data = build_hierarchy_data(
             cfg, transform, out_dir / "selected_genes.json"
         )
+        shrinkage = configure_target_shrinkage(cfg, hierarchy_data)
         train_dataset = hierarchy_data.train
         train_loader, val_loader = make_hierarchy_loaders(hierarchy_data, cfg)
         selected_genes = hierarchy_data.genes
@@ -423,6 +470,7 @@ def main():
         }
         train_cells = cohort_cells["base_train"] + cohort_cells["breast_train"]
         val_cells = cohort_cells["base_val"] + cohort_cells["breast_val"]
+        probes = {"breast_val": build_validation_probe(cfg, hierarchy_data.breast_val)}
         pd.read_csv(cfg["hierarchy"]["split_manifest"]).to_csv(
             out_dir / "split_manifest.csv", index=False
         )
@@ -436,6 +484,7 @@ def main():
         val_loader = make_loader(val_dataset, cfg, training=False)
         train_cells, val_cells = len(train_dataset), len(val_dataset)
         cohort_cells = {}
+        probes = shrinkage = None
     if len(selected_genes or []) != num_genes:
         raise ValueError(
             f"expected {num_genes} selected genes, got {len(selected_genes or [])}"
@@ -452,30 +501,37 @@ def main():
     )
 
     run = init_wandb(cfg)
-    best_step, best_loss, train_rows, val_rows = train_loop(
+    selector = CheckpointSelector(
+        selection_criteria(cfg, checkpoint_dir), int(cfg["training"]["patience"])
+    )
+    train_rows, val_rows = train_loop(
         model,
         train_loader,
         val_loader,
         optimizer,
         device,
         cfg,
-        checkpoint,
+        selector,
         run,
+        probes,
     )
     pd.DataFrame(train_rows).to_csv(out_dir / "train_metrics.csv", index=False)
     pd.DataFrame(val_rows).to_csv(out_dir / "val_metrics.csv", index=False)
+    selection = selector.summary()
+    primary = selection[selector.primary.name]
     summary = {
-        "best_step": best_step,
-        "best_val_loss": best_loss,
-        "validation_selection_metric": cfg["training"].get(
-            "selection_metric", "loss_total"
-        ),
+        "best_step": primary["best_step"],
+        "best_val_loss": primary["best_value"],
+        "validation_selection_metric": selector.primary.name,
+        "selection": selection,
         "train_cells": train_cells,
         "val_cells": val_cells,
         "trainable_parameters": parameter_counts,
     }
     if cohort_cells:
         summary["cohort_cells"] = cohort_cells
+    if shrinkage:
+        summary["target_shrinkage"] = shrinkage
     with open(out_dir / "train_summary.json", "w") as handle:
         json.dump(summary, handle, indent=2)
     print(json.dumps(summary, indent=2))

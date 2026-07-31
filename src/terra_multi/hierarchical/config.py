@@ -66,6 +66,23 @@ def configure_hierarchy(cfg: dict) -> dict:
     if not isinstance(ranking["bidirectional"], bool):
         raise ValueError("hierarchy.ranking.bidirectional must be boolean")
 
+    shrinkage = hierarchy.setdefault("target_shrinkage", {})
+    shrinkage.setdefault("enabled", False)
+    shrinkage.setdefault("prototypes", "identity")
+    shrinkage.setdefault("alpha", 0.0)
+    shrinkage.setdefault("num_prototypes", 256)
+    shrinkage.setdefault("seed", 0)
+    if not isinstance(shrinkage["enabled"], bool):
+        raise ValueError("hierarchy.target_shrinkage.enabled must be boolean")
+    if shrinkage["prototypes"] not in {"identity", "cluster"}:
+        raise ValueError("hierarchy.target_shrinkage.prototypes must be identity or cluster")
+    if not 0 <= float(shrinkage["alpha"]) < 1:
+        raise ValueError("hierarchy.target_shrinkage.alpha must be in [0, 1)")
+    if int(shrinkage["num_prototypes"]) < 2:
+        raise ValueError("hierarchy.target_shrinkage.num_prototypes must exceed 1")
+    if shrinkage["enabled"] and cfg["objective"]["targets"] != "exact":
+        raise ValueError("target shrinkage requires objective.targets: exact")
+
     sampling = hierarchy.setdefault("sampling", {})
     sampling.setdefault("strategy", "balanced")
     sampling.setdefault("validation_strategy", "balanced")
@@ -87,5 +104,7 @@ def configure_hierarchy(cfg: dict) -> dict:
         raise ValueError(
             "hierarchy.sampling.annotated_batch_fraction must be between 0 and 1"
         )
-    cfg["training"].setdefault("selection_metric", "breast_val/loss_total")
+    # loss_total absorbs the downweighted contrastive term, so its scale changes
+    # with the ablation; loss_pair_plain means the same thing in every arm.
+    cfg["training"].setdefault("selection_metric", "breast_val/loss_pair_plain")
     return cfg
