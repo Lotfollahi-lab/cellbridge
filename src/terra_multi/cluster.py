@@ -7,8 +7,10 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 
+from terra_multi import lsf
 from terra_multi.cohorts import cohort_in_split
 from terra_multi.config import config_value, load_config
 
@@ -83,7 +85,50 @@ def render_job(args):
     return "\n".join(body) + "\n"
 
 
+def resolve_queue(args):
+    """Replace ``--queue auto`` with a queue that fits and can start the job."""
+    if args.queue != "auto":
+        return args.queue
+    queue = lsf.choose_queue(memory_gb=args.memory, cores=args.cores, gpu=args.gpu)
+    if queue is None:
+        raise RuntimeError(
+            f"no configured queue can run {args.memory}G on {args.cores} cores"
+            f"{'' if args.gpu in (None, '-') else ' with a GPU'}; "
+            f"candidates were {lsf.GPU_QUEUES if args.gpu not in (None, '-') else lsf.CPU_QUEUES}"
+        )
+    if args.gpu is None and lsf.queue_capacity(queue).gpu_backed:
+        # Only a GPU queue had enough memory. Those queues reject a job with no
+        # GPU selector, so claim the smallest possible one rather than fail.
+        args.gpu = "-"
+        print(
+            f"auto-selected queue {queue}; it is GPU-backed and only reachable "
+            f"with a GPU reservation, so --gpu - was added",
+            file=sys.stderr,
+        )
+        return queue
+    print(f"auto-selected queue {queue}", file=sys.stderr)
+    return queue
+
+
+def preflight(args):
+    """Refuse requests that LSF would silently pend or reject outright."""
+    capacity = lsf.queue_capacity(args.queue)
+    problems = lsf.request_problems(
+        capacity, memory_gb=args.memory, cores=args.cores, gpu=args.gpu
+    )
+    if problems:
+        raise RuntimeError("; ".join(problems))
+    if capacity.known and capacity.free_slots < args.cores:
+        print(
+            f"note: queue {args.queue} has {capacity.free_slots} free slots for a "
+            f"{args.cores}-core job, so it will pend until others finish",
+            file=sys.stderr,
+        )
+
+
 def submit(args):
+    args.queue = resolve_queue(args)
+    preflight(args)
     result = subprocess.run(
         ["bsub"],
         input=render_job(args),
@@ -116,7 +161,7 @@ def _parser():
     job.add_argument("--log-prefix", required=True)
     job.add_argument("--output-key", default="output_dir")
     job.add_argument("--log-subdir", default="logs")
-    job.add_argument("--queue", required=True)
+    job.add_argument("--queue", required=True, help="queue name, or 'auto' to pick one")
     job.add_argument("--gpu")
     job.add_argument("--memory", required=True, type=int)
     job.add_argument("--cores", required=True, type=int)
