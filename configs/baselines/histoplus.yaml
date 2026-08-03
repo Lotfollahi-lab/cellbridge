@@ -1,0 +1,60 @@
+baseline:
+  name: histoplus
+  # The released checkpoints are gated. Accept the model terms and set HF_TOKEN.
+  hf_repo: Owkin-Bioptimus/histoplus
+  mixed_precision: true
+  inference_image_size: 784
+  inference_overlap: 64
+
+model:
+  repository: ${TERRA_MULTI_REPOS_ROOT}/histoplus
+
+output_dir: outputs/baselines/histoplus
+
+evaluation:
+  # Maximum-cardinality, minimum-distance one-to-one centroid matching.
+  match_radius_um: 5.0
+  save_matches: true
+
+hest:
+  data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+  manifest_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/manifest.csv
+  splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_n: 5
+  reviewed_cells_pattern: ${TERRA_MULTI_ROOT}/outputs/hierarchical/hest_label_test/cells/{sample_id}.parquet
+  model_mpp: 0.25
+  tile_size: 224
+  tissue_mpp: 8.0
+  matter_threshold: 0.2
+  batch_size: 4
+  num_workers: 8
+  buffer_batch_size: 10
+
+phenocell:
+  data:
+    lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_lmdb
+    metadata: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_info.csv
+    split: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/splits/phenocell_dataset_split.csv
+    image_shape: [1440, 1920]
+    tile_size: 224
+    value_scale: 250
+    # PhenoCell images are not at a released HistoPLUS resolution. This is the
+    # benchmark source resolution used for the explicit resize to the 20x model.
+    source_mpp: 0.377
+  model_mpp: 0.5
+  batch_size: 4
+
+pannuke:
+  data:
+    lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_lmdb
+    metadata: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+    split: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
+    image_shape: [256, 256]
+    tile_size: 224
+    value_scale: 1
+    source_mpp: 0.25
+    allow_unlabeled_samples: true
+  model_mpp: 0.25
+  batch_size: 8
+  panoptic_iou_threshold: 0.5
