@@ -145,7 +145,7 @@ def _integration_source_paths():
         package / "evaluation" / "provenance.py",
         package / "evaluation" / "storage.py",
         package / "lora" / "data.py",
-        package / "evaluation" / "phenocell_data.py",
+        package / "evaluation" / "ood_data.py",
     )
 
 
