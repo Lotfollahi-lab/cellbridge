@@ -20,3 +20,4 @@ Generated embeddings, checkpoints, caches, and metrics belong under
 Available integrations:
 
 - [SpatialWhisperer](spatialwhisperer/README.md)
+- [VOLTA](volta/README.md)

@@ -1,0 +1,76 @@
+baseline:
+  name: volta_ovarian
+  embedding_dim: 512
+  normalized: false
+  save_dtype: float16
+
+model:
+  repository: ${TERRA_MULTI_REPOS_ROOT}/VOLTA
+  checkpoint: ${TERRA_MULTI_REPOS_ROOT}/VOLTA/pretrained_weights/ovarian/checkpoint.pth.tar
+  checkpoint_domain: ovarian
+  checkpoint_size: 206806133
+  checkpoint_sha256: 1182b2c786c8676e79811eb6d868713f99e4660bc6340c62bb19ef3bd37eb2e6
+  normalization:
+    mean: [0.7079, 0.6259, 0.7568]
+    std: [0.1596, 0.1681, 0.1207]
+
+crop:
+  geometry: instance_bbox
+  scale: 2.0
+  padding: white
+
+output_dir: outputs/baselines/volta
+
+hest:
+  data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+  manifest_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/manifest.csv
+  splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_n: 5
+  extraction:
+    batch_size: 32
+    num_workers: 4
+  probe: &probe
+    methods: [linear, knn]
+    pca: false
+    Cs: [0.1, 1, 10]
+    knn_neighbors: 20
+    knn_metric: cosine
+    knn_weights: uniform
+    class_weight: balanced
+    max_iter: 2000
+    seed: 0
+    test_frac: 0.2
+    split_axis: y
+    label_column: group
+    label_id_column: cell_id
+    min_class_count: 25
+
+phenocell:
+  data:
+    lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_lmdb
+    metadata: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_info.csv
+    split: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/splits/phenocell_dataset_split.csv
+    image_shape: [1440, 1920]
+    tile_size: 224
+    value_scale: 250
+  extraction:
+    batch_size: 256
+  probe:
+    <<: *probe
+    tasks: [all, immune]
+
+pannuke:
+  data:
+    lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_lmdb
+    metadata: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+    split: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
+    image_shape: [256, 256]
+    tile_size: 224
+    value_scale: 1
+    allow_unlabeled_samples: true
+  extraction:
+    batch_size: 256
+  probe:
+    <<: *probe
+    tasks: [all]
