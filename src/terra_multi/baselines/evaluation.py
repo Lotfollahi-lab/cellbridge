@@ -262,7 +262,7 @@ def _probe_protocol_identity():
         Path(__file__),
         package / "evaluation" / "classification.py",
         package / "evaluation" / "linear_probe.py",
-        package / "evaluation" / "phenocell.py",
+        package / "evaluation" / "ood.py",
         package / "evaluation" / "zero_shot.py",
         package / "helpers" / "splits.py",
     )

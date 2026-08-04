@@ -12,6 +12,7 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+from terra_multi.baselines.evaluation import _probe_protocol_identity
 from terra_multi.evaluation.classification import (
     evaluate_classification,
     method_directory,
@@ -253,6 +254,15 @@ def test_lora_probe_only_does_not_require_checkpoint(tmp_path, monkeypatch):
     assert called == {
         "output_dir": tmp_path / "run" / "evaluation" / "hest_label_test_fast",
         "samples": None,
+    }
+
+
+def test_probe_protocol_identity_references_existing_files():
+    identities = _probe_protocol_identity()
+
+    assert {Path(item["path"]).name for item in identities} >= {
+        "evaluation.py",
+        "ood.py",
     }
 
 
