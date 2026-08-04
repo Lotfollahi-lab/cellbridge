@@ -44,3 +44,19 @@ fold metrics, the paired key delta, per-class F1, long-form confusion matrices,
 predictions, gene PCA diagnostics, coefficient-based gene importance, plots,
 the resolved config, and a detailed alignment/presence report.
 
+
+## Neighborhood-expression add-on
+
+The registered add-on replaces the focal-cell expression control with the
+mean selected-gene expression of TERRA's ten nearest spatial neighbors. It
+uses the same cells, token cache, folds, and three-arm evaluation, while
+writing to a separate output directory:
+
+```bash
+scripts/teacher_probe/submit_neighborhood_probe.sh full
+```
+
+The full-section neighborhood-expression matrix is cached before the 25,000-cell
+selection is applied, so the smoke and full runs share one cache file. The cache
+is keyed on the cells, coordinates, counts, gene order, and `n_neighbors`, and is
+silently rebuilt whenever any of them change.

@@ -1,0 +1,13 @@
+# Overlay for tenx116_gene_tokens.yaml: replace focal selected-gene expression
+# with the mean expression of TERRA's ten spatial neighbors.
+output_dir: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/tenx116_neighborhood/results
+
+smoke:
+  output_dir: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/tenx116_neighborhood_smoke/results
+
+eval:
+  expression_source: neighborhood
+
+neighborhood_expression:
+  n_neighbors: 10
+  cache_path: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/cache/TENX116_neighborhood_expression_k10.npz

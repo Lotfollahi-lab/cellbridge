@@ -45,6 +45,16 @@ def load_teacher_probe_config(path, *, smoke=False):
         spatial_block_size_um=block_size,
         gene_pca_components=n_components,
     )
+    expression_source = str(eval_cfg.get("expression_source", "focal"))
+    if expression_source not in {"focal", "neighborhood"}:
+        raise ValueError("eval.expression_source must be focal or neighborhood")
+    eval_cfg["expression_source"] = expression_source
+    if expression_source == "neighborhood":
+        neighborhood = cfg.setdefault("neighborhood_expression", {})
+        if int(neighborhood.get("n_neighbors", 0)) < 1:
+            raise ValueError("neighborhood_expression.n_neighbors must be positive")
+        if not neighborhood.get("cache_path"):
+            raise ValueError("neighborhood_expression.cache_path is required")
 
     mode = cfg.get("smoke", {}) if smoke else cfg.get("selection", {})
     max_cells = int(mode.get("max_cells", 0))

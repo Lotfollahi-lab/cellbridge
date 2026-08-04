@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
+from terra_multi.teacher_probe.neighborhood import neighborhood_expression
 from terra_multi.teacher_probe.store import read_token_store_header
 
 
@@ -131,6 +132,22 @@ def load_probe_data(cfg):
     if coords.shape != pooled_coords.shape:
         raise ValueError("AnnData and pooled TERRA coordinates differ in shape")
     raw_expression, expression = _selected_expression(adata, adata_rows, genes)
+    neighborhood_report = None
+    if cfg["eval"].get("expression_source", "focal") == "neighborhood":
+        universe_rows = _positions(adata_ids, terra_ids, "neighborhood universe")
+        _, universe_expression = _selected_expression(adata, universe_rows, genes)
+        universe_coords = np.asarray(
+            adata.obsm["spatial"][universe_rows], dtype=np.float64
+        )
+        expression, neighborhood_report = neighborhood_expression(
+            terra_ids,
+            universe_coords,
+            universe_expression,
+            genes,
+            cfg["neighborhood_expression"]["n_neighbors"],
+            cfg["neighborhood_expression"]["cache_path"],
+        )
+        expression = expression[terra_rows]
 
     eval_cfg = cfg["eval"]
     label_ids, label_values = _load_labels(
@@ -170,6 +187,8 @@ def load_probe_data(cfg):
         "n_evaluation_cells": int(keep.sum()),
         "n_classes": int(len(keep_classes)),
         "dropped_rare_class_cells": int((~keep).sum()),
+        "expression_source": eval_cfg.get("expression_source", "focal"),
+        "neighborhood_expression": neighborhood_report,
         "token_presence_by_gene": {
             gene: int(presence[keep, column].sum()) for column, gene in enumerate(genes)
         },

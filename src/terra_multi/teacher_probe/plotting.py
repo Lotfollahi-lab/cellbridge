@@ -58,6 +58,7 @@ def plot_gene_comparisons(
     top_n=6,
     max_points=5000,
     seed=0,
+    expression_label="log-normalized expression",
 ):
     """Compare normalized expression with contextual PC1/PC2 for top genes."""
     output_dir = Path(output_dir)
@@ -81,8 +82,8 @@ def plot_gene_comparisons(
         colors = [palette(class_index[label]) for label in data.labels[rows]]
         figure, axes = plt.subplots(1, 3, figsize=(12, 3.5))
         panels = (
-            (expression, pcs[:, 0], "log-normalized expression", "contextual PC1"),
-            (expression, pcs[:, 1], "log-normalized expression", "contextual PC2"),
+            (expression, pcs[:, 0], expression_label, "contextual PC1"),
+            (expression, pcs[:, 1], expression_label, "contextual PC2"),
             (pcs[:, 0], pcs[:, 1], "contextual PC1", "contextual PC2"),
         )
         for axis, (x, y, x_label, y_label) in zip(axes, panels):

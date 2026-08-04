@@ -12,6 +12,7 @@ from terra_multi.teacher_probe.features import (
     build_fold_token_features,
     gene_feature_slice,
 )
+from terra_multi.teacher_probe.neighborhood import neighborhood_expression
 from terra_multi.teacher_probe.splits import spatial_block_folds
 from terra_multi.teacher_probe.store import write_token_store
 
@@ -55,6 +56,36 @@ def test_spatial_blocks_never_cross_folds_and_partition_cells():
         assert set(labels[fold.train]) == {"a", "b"}
         test_rows.extend(fold.test)
     np.testing.assert_array_equal(np.sort(test_rows), np.arange(100))
+
+
+def test_neighborhood_expression_excludes_focal_cell_and_reuses_cache(tmp_path):
+    cell_ids = np.asarray([f"cell-{index}" for index in range(8)])
+    coords = np.column_stack((np.arange(8, dtype=float), np.zeros(8)))
+    expression = np.column_stack(
+        (np.arange(8, dtype=np.float32) ** 2, np.arange(8, dtype=np.float32))
+    )
+    genes = np.asarray(["A", "B"])
+    cache = tmp_path / "neighborhood.npz"
+
+    observed, diagnostics = neighborhood_expression(
+        cell_ids, coords, expression, genes, 2, cache
+    )
+    np.testing.assert_allclose(observed[0], expression[[1, 2]].mean(axis=0))
+    np.testing.assert_allclose(observed[3], expression[[2, 4]].mean(axis=0))
+    assert diagnostics["n_neighbors"] == 2
+    assert not diagnostics["cache_reused"]
+
+    cached, cached_diagnostics = neighborhood_expression(
+        cell_ids, coords, expression, genes, 2, cache
+    )
+    np.testing.assert_array_equal(cached, observed)
+    assert cached_diagnostics["cache_reused"]
+
+    changed, changed_diagnostics = neighborhood_expression(
+        cell_ids, coords, expression + 1, genes, 2, cache
+    )
+    np.testing.assert_allclose(changed, observed + 1)
+    assert not changed_diagnostics["cache_reused"]
 
 
 def _token_store(path, cell_ids, genes, presence, seed=0):

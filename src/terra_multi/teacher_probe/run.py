@@ -32,7 +32,14 @@ from terra_multi.teacher_probe.plotting import (
 from terra_multi.teacher_probe.reporting import summarize_results, write_markdown
 from terra_multi.teacher_probe.splits import spatial_block_folds
 
-ARMS = ("cell_emb", "cell_emb_expression", "cell_emb_expression_gene_tokens")
+
+def _expression_arms(source):
+    if source == "neighborhood":
+        return (
+            "cell_emb_neighborhood_expression",
+            "cell_emb_neighborhood_expression_gene_tokens",
+        )
+    return "cell_emb_expression", "cell_emb_expression_gene_tokens"
 
 
 def _evaluate_arm(features, data, fold, cfg, classes, arm):
@@ -123,6 +130,15 @@ def _gene_importance(model, data, fold, n_components, base_width):
 def run(cfg, *, overwrite_features=False):
     output_dir, cache_dir = ensure_output_directories(cfg)
     data = load_probe_data(cfg)
+    expression_source = cfg["eval"].get("expression_source", "focal")
+    baseline_arm, token_arm = _expression_arms(expression_source)
+    arms_order = ("cell_emb", baseline_arm, token_arm)
+    expression_label = (
+        "neighborhood mean log-normalized expression"
+        if expression_source == "neighborhood"
+        else "log-normalized expression"
+    )
+
     folds, block_ids = spatial_block_folds(
         data.coords_um,
         cfg["eval"]["n_splits"],
@@ -161,12 +177,10 @@ def run(cfg, *, overwrite_features=False):
             fold_zero_features = token_features
         arms = {
             "cell_emb": data.cell_emb,
-            "cell_emb_expression": base_expression,
-            "cell_emb_expression_gene_tokens": np.concatenate(
-                [base_expression, token_features], axis=1
-            ),
+            baseline_arm: base_expression,
+            token_arm: np.concatenate([base_expression, token_features], axis=1),
         }
-        for arm in ARMS:
+        for arm in arms_order:
             model, metrics, per_class, confusion, prediction = _evaluate_arm(
                 arms[arm], data, fold, cfg["eval"], classes, arm
             )
@@ -174,7 +188,7 @@ def run(cfg, *, overwrite_features=False):
             class_rows.extend(per_class)
             confusion_rows.extend(confusion)
             predictions.append(prediction)
-            if arm == "cell_emb_expression_gene_tokens":
+            if arm == token_arm:
                 importance_rows.extend(
                     _gene_importance(
                         model,
@@ -189,7 +203,9 @@ def run(cfg, *, overwrite_features=False):
     per_class = pd.DataFrame(class_rows)
     confusion = pd.DataFrame(confusion_rows)
     importance = pd.DataFrame(importance_rows)
-    summary, class_summary, delta = summarize_results(metrics, per_class)
+    summary, class_summary, delta = summarize_results(
+        metrics, per_class, baseline_arm, token_arm
+    )
     metrics.to_csv(output_dir / "fold_metrics.csv", index=False)
     summary.to_csv(output_dir / "summary.csv", index=False)
     delta.to_csv(output_dir / "key_delta.csv", index=False)
@@ -203,7 +219,7 @@ def run(cfg, *, overwrite_features=False):
         output_dir / "gene_pca.json", orient="records", indent=2
     )
     importance.to_csv(output_dir / "gene_importance.csv", index=False)
-    write_markdown(output_dir / "REPORT.md", summary, delta)
+    write_markdown(output_dir / "REPORT.md", summary, delta, baseline_arm, token_arm)
     plot_confusion_matrices(confusion, classes, output_dir / "confusion_matrices.png")
     plot_gene_comparisons(
         data,
@@ -214,6 +230,7 @@ def run(cfg, *, overwrite_features=False):
         top_n=cfg["plots"].get("top_genes", 6),
         max_points=cfg["plots"].get("max_points", 5000),
         seed=cfg["eval"].get("seed", 0),
+        expression_label=expression_label,
     )
     print((output_dir / "REPORT.md").read_text())
     return summary, delta
