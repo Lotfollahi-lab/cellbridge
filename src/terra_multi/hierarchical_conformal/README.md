@@ -29,3 +29,36 @@ PYTHONPATH=src python -m terra_multi.hierarchical_conformal.run \
 
 Results are written as three compact tables: `summary.csv`,
 `per_class_coverage.csv`, and `calibration.csv`.
+
+## Annotated HEST breast cohort
+
+The HEST analysis uses the reviewed Cell Ontology release `2026-03-26` labels
+under `outputs/hierarchical/hest_label_test`. Only `full`, depth-three canonical
+identities are treated as classifier leaves; partial and excluded annotations
+are not promoted to fine-grained truth labels.
+
+The patient-disjoint split is:
+
+- `TENX191`–`TENX196` (patients 1–2): PCA and classifier fitting;
+- `TENX197`–`TENX199` (patient 3): conformal calibration only;
+- `TENX200`–`TENX202` (patient 4): final reporting only.
+
+Export the otherwise uncached breast-training feature arms from the same
+`lora_baseline` checkpoint used in the PhenoCell comparison:
+
+```bash
+PYTHONPATH=src python -m terra_multi.hierarchical_conformal.export_hest \
+  --config configs/hierarchical/lora_baseline.yaml
+```
+
+Then run:
+
+```bash
+PYTHONPATH=src python -m terra_multi.hierarchical_conformal.run_hest \
+  --config configs/hierarchical_conformal/hest_breast.yaml
+```
+
+The three cross-organ sections are not folded into this closed-class analysis:
+they contain 28 depth-three ontology identities absent from breast training.
+In addition to the PhenoCell tables, HEST writes `per_sample_coverage.csv` and
+records train-only PCA explained variance in `calibration.csv`.

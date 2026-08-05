@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 from terra_multi.lora import evaluate as lora_evaluate
-from terra_multi.lora.hest import evaluation_cohorts
+from terra_multi.lora.hest import evaluation_cohorts, evaluation_samples
 from terra_multi.lora.summary import write_evaluation_summary
 
 
@@ -58,6 +58,10 @@ def test_hierarchy_evaluation_cohorts_remain_separate(tmp_path):
         "breast_test": ["C"],
         "cross_organ": ["X"],
     }
+
+
+def test_breast_training_cohort_is_available_only_when_requested(tmp_path):
+    assert evaluation_samples(_config(tmp_path), "breast_train") == ["A"]
 
 
 def test_probe_only_routes_each_hierarchy_cohort_to_its_own_directory(

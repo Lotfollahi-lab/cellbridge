@@ -34,6 +34,16 @@ def evaluation_cohorts(cfg) -> dict[str, list[str]]:
 
 
 def evaluation_samples(cfg, cohort="label_test_fast") -> list[str]:
+    if cohort == "breast_train":
+        hierarchy = cfg.get("hierarchy", {})
+        if not hierarchy.get("enabled", False):
+            raise ValueError("breast_train requires a hierarchy-enabled HEST config")
+        split = load_phenotype_split(
+            hierarchy["split_manifest"],
+            cfg["splits_path"],
+            expected_counts=hierarchy.get("expected_counts"),
+        )
+        return list(split.breast_train)
     cohorts = evaluation_cohorts(cfg)
     if cohort not in cohorts:
         raise ValueError(f"unknown HEST evaluation cohort {cohort!r}")

@@ -1,0 +1,29 @@
+alpha: 0.1
+seed: 0
+pca_components: 256
+
+data:
+  base_split: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+  split_manifest: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest_phenotype_split_v1.csv
+  labels_dir: ${TERRA_MULTI_ROOT}/outputs/hierarchical/hest_label_test/cells
+  hierarchy_nodes: ${TERRA_MULTI_ROOT}/outputs/hierarchical/hest_label_test/hierarchy_nodes.csv
+  expected_counts:
+    breast_train: 6
+    breast_val: 3
+    breast_test: 3
+    cross_organ_test: 3
+  feature_manifests:
+    train: ${TERRA_MULTI_ROOT}/outputs/hierarchical/lora_baseline/evaluation/hest_breast_train/features/manifest.csv
+    calibration: ${TERRA_MULTI_ROOT}/outputs/hierarchical/lora_baseline/evaluation/hest_breast_val/features/manifest.csv
+    test: ${TERRA_MULTI_ROOT}/outputs/hierarchical/lora_baseline/evaluation/hest_breast_test/features/manifest.csv
+
+representations:
+  UNI: uni_original
+  CellBridge: lora_adapted
+
+classifier:
+  C: 1.0
+  class_weight: balanced
+  max_iter: 2000
+
+output_dir: outputs/hierarchical_conformal/hest_breast_alpha0.1

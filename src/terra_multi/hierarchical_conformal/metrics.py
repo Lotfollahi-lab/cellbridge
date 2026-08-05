@@ -78,7 +78,11 @@ def per_class_coverage(
                 "method": method,
                 "class": str(label),
                 "n_test": int(selected.sum()),
-                "coverage": float(covered[selected].mean()),
+                "coverage": (
+                    float(covered[selected].mean())
+                    if selected.any()
+                    else float("nan")
+                ),
             }
         )
     return rows
