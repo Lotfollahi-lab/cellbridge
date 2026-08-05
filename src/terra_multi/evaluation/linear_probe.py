@@ -77,6 +77,19 @@ def fit_linear_classifier(
     return model
 
 
+def fit_fixed_linear_classifier(
+    features,
+    labels,
+    C=1.0,
+    class_weight="balanced",
+    max_iter=2000,
+):
+    """Fit the shared standardized classifier without using a validation set."""
+    model = _classifier(C, class_weight, max_iter)
+    model.fit(features, labels)
+    return model
+
+
 def fit_validated_linear_classifier(
     features,
     labels,

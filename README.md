@@ -10,6 +10,7 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 - `src/terra_multi/lora/`: LoRA adaptation from H&E crops to TERRA features.
 - `src/terra_multi/jepa/`: spatial context-to-target JEPA alignment.
 - `src/terra_multi/evaluation/`: shared linear/kNN evaluation and OOD datasets (PhenoCell, PanNuke).
+- `src/terra_multi/hierarchical_conformal/`: calibrated phenotype sets on frozen embeddings.
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
 
