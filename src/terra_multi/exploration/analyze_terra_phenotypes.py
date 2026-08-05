@@ -45,7 +45,7 @@ COLORS = {
 }
 
 
-def _distribution_plot(pairs, path, seed):
+def _distribution_plot(pairs, path, seed, analysis_name="TERRA"):
     values = [
         pairs.loc[pairs["relation"] == relation, "cosine_similarity"].to_numpy()
         for relation in RELATIONS
@@ -76,13 +76,15 @@ def _distribution_plot(pairs, path, seed):
         body.set_alpha(0.75)
     axes[1].set_xticks(range(1, 4), [DISPLAY[r] for r in RELATIONS], rotation=15)
     axes[1].set_ylabel("Cosine similarity")
-    fig.suptitle("Frozen TERRA similarity by cross-sample phenotype relation")
+    fig.suptitle(
+        f"Frozen {analysis_name} similarity by cross-sample phenotype relation"
+    )
     fig.tight_layout()
     fig.savefig(path, dpi=180)
     plt.close(fig)
 
 
-def _ordering_plot(triplets, path):
+def _ordering_plot(triplets, path, analysis_name="TERRA"):
     margins = {
         "Same − related": triplets["same_minus_related"].to_numpy(),
         "Related − unrelated": triplets["related_minus_unrelated"].to_numpy(),
@@ -104,14 +106,14 @@ def _ordering_plot(triplets, path):
     ax.axvline(0, color="black", linestyle="--", linewidth=1)
     ax.set_xlabel("Anchor-matched cosine margin")
     ax.set_ylabel("Density")
-    ax.set_title("Cross-sample phenotype-ordering margins")
+    ax.set_title(f"{analysis_name} cross-sample phenotype-ordering margins")
     ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(path, dpi=180)
     plt.close(fig)
 
 
-def _heatmap_plot(pairs, cells, path):
+def _heatmap_plot(pairs, cells, path, analysis_name="TERRA"):
     order = (
         cells[["phenotype", "lineage"]]
         .drop_duplicates()
@@ -139,7 +141,7 @@ def _heatmap_plot(pairs, cells, path):
     )
     ax.set_xticks(range(len(order)), order, rotation=90, fontsize=7)
     ax.set_yticks(range(len(order)), order, fontsize=7)
-    ax.set_title("Mean cross-sample cosine by phenotype pair")
+    ax.set_title(f"Mean {analysis_name} cross-sample cosine by phenotype pair")
     fig.colorbar(image, ax=ax, label="Mean cosine similarity", shrink=0.8)
     fig.tight_layout()
     fig.savefig(path, dpi=180)
@@ -147,15 +149,19 @@ def _heatmap_plot(pairs, cells, path):
 
 
 def _write_summary(path, cfg, cells, distribution, ordering, correlation):
+    analysis_name = cfg.get("analysis_name", "TERRA")
+    embedding_name = cfg.get(
+        "embedding_description", cfg.get("embedding_key", "cell_emb")
+    )
     medians = distribution.set_index("relation")["median"]
     ordered = medians["same_type"] > medians["related_lineage"] > medians["unrelated"]
     lines = [
-        "# Frozen TERRA phenotype-structure analysis",
+        f"# Frozen {analysis_name} phenotype-structure analysis",
         "",
         (
             f"This descriptive analysis used {len(cells):,} sampled cells from "
             f"{cells['sample_id'].nunique()} annotated breast samples and the unchanged "
-            f"`{cfg.get('embedding_key', 'cell_emb')}` embeddings. All compared cell "
+            f"`{embedding_name}` embeddings. All compared cell "
             "pairs came from different samples."
         ),
         "",
@@ -191,10 +197,11 @@ def _write_summary(path, cfg, cells, distribution, ordering, correlation):
     path.write_text("\n".join(lines) + "\n")
 
 
-def run(cfg):
+def analyze_embeddings(cfg, embeddings, cells, audit):
+    """Run the shared phenotype-structure analysis on an aligned embedding matrix."""
     output = Path(cfg["output_dir"])
     output.mkdir(parents=True, exist_ok=True)
-    embeddings, cells, audit = load_sampled_embeddings(cfg)
+    analysis_name = cfg.get("analysis_name", "TERRA")
     sampling = cfg["sampling"]
     seed = int(sampling["seed"])
     pairs = sample_cross_sample_pairs(
@@ -207,6 +214,7 @@ def run(cfg):
     ordering = summarize_ordering(triplets)
     correlation = relatedness_correlation(pairs)
 
+    cells.to_csv(output / "sampled_cells.csv.gz", index=False)
     audit.to_csv(output / "label_mapping_audit.csv", index=False)
     cells.groupby(["sample_id", "lineage", "phenotype"]).size().rename(
         "n_sampled"
@@ -219,13 +227,22 @@ def run(cfg):
     (output / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
     (output / "resolved_config.yaml").write_text(yaml.safe_dump(cfg, sort_keys=False))
 
-    _distribution_plot(pairs, output / "similarity_distributions.png", seed)
-    _ordering_plot(triplets, output / "ordering_margins.png")
-    _heatmap_plot(pairs, cells, output / "phenotype_similarity_heatmap.png")
+    _distribution_plot(
+        pairs, output / "similarity_distributions.png", seed, analysis_name
+    )
+    _ordering_plot(triplets, output / "ordering_margins.png", analysis_name)
+    _heatmap_plot(
+        pairs, cells, output / "phenotype_similarity_heatmap.png", analysis_name
+    )
     _write_summary(output / "RESULTS.md", cfg, cells, distribution, ordering, correlation)
     print((output / "RESULTS.md").read_text())
     print(f"Artifacts written to {output}")
     return metrics
+
+
+def run(cfg):
+    embeddings, cells, audit = load_sampled_embeddings(cfg)
+    return analyze_embeddings(cfg, embeddings, cells, audit)
 
 
 def main():

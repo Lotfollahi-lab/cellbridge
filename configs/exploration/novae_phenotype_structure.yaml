@@ -1,0 +1,50 @@
+# Frozen count-based NOVAE analysis paired exactly to the existing TERRA cohort.
+data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+sample_ids:
+  - TENX191
+  - TENX192
+  - TENX193
+  - TENX194
+  - TENX195
+  - TENX196
+  - TENX197
+  - TENX198
+  - TENX199
+  - TENX200
+  - TENX201
+  - TENX202
+
+# These fields reconstruct the deterministic TERRA cohort; the analysis matrix
+# is replaced by aligned NOVAE rows before any similarities are sampled.
+embedding_key: cell_emb
+label_id_column: cell_id
+label_column: group
+analysis_name: NOVAE
+embedding_description: novae_latent
+
+sampling:
+  seed: 17
+  max_cells_per_phenotype_per_sample: 512
+  pairs_per_relation: 50000
+  ordering_triplets: 50000
+
+output_dir: ${TERRA_MULTI_ROOT}/outputs/exploration/novae_phenotype_structure
+terra_reference_dir: ${TERRA_MULTI_ROOT}/outputs/exploration/terra_phenotype_structure
+
+novae:
+  model_name: prism-oncology/novae-human-0
+  embedding_dir: ${TERRA_MULTI_ROOT}/outputs/exploration/novae_phenotype_structure/embeddings
+  embedding_pattern: "{sample_id}_novae.npz"
+  embedding_key: novae_latent
+  valid_key: neighborhood_valid
+  require_exact_cohort: false
+  seed: 0
+  scale_to_microns: 1.0
+  graph:
+    # Optional pruning used in the official human-model Xenium tutorial.
+    radius: 80
+    percentile: null
+  inference:
+    zero_shot: true
+    accelerator: gpu
+    num_workers: 1
