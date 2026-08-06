@@ -2,17 +2,17 @@
 sample_id: TENX116
 
 # Pipeline artifacts. TERRA and UNI contain the same 190,285 cells in the same order.
-terra_embeddings: ${TERRA_MULTI_DATA_ROOT}/train/hest/TENX116/TENX116_terra.npz
-uni_embeddings: ${TERRA_MULTI_DATA_ROOT}/train/hest/TENX116/TENX116_uni2.npz
+terra_embeddings: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116_terra.npz
+uni_embeddings: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116_uni2.npz
 terra_key: cell_emb
 terra_neighbor_key: neighborhood_emb
 uni_key: uni_emb
 
 # Native-micron coordinates for the spatial split.
-adata_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/TENX116/TENX116.h5ad
+adata_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116.h5ad
 
 # Fine-grained labels. All 16 classes are retained.
-labels_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/TENX116/TENX116_granular_cell_labels.csv
+labels_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116_granular_cell_labels.csv
 label_id_column: cell_id
 label_column: group
 

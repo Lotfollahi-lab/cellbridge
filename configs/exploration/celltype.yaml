@@ -2,18 +2,18 @@
 sample_id: TENX99
 
 # --- embeddings (same as the expression probe) ---
-terra_embeddings: ${TERRA_MULTI_DATA_ROOT}/embeddings/TENX99_terra.npz
-uni_embeddings: ${TERRA_MULTI_DATA_ROOT}/embeddings/TENX99_uni2.npz
+terra_embeddings: ${CELLBRIDGE_DATA_ROOT}/embeddings/TENX99_terra.npz
+uni_embeddings: ${CELLBRIDGE_DATA_ROOT}/embeddings/TENX99_uni2.npz
 terra_key: cell_emb
 uni_key: uni_emb
 
 # Native-micron centroids (obsm['spatial']) for the spatial split live here.
-adata_path: ${TERRA_MULTI_DATA_ROOT}/embeddings/TENX99_cell_expression.h5ad
+adata_path: ${CELLBRIDGE_DATA_ROOT}/embeddings/TENX99_cell_expression.h5ad
 
 # --- labels: CellViT class transferred onto Xenium cells (built by prepare_celltype_labels) ---
-labels_path: ${TERRA_MULTI_DATA_ROOT}/embeddings/TENX99_celltype_labels.parquet
-xenium_cell_seg: ${TERRA_MULTI_DATA_ROOT}/hest_samples/xenium_seg/TENX99_xenium_cell_seg.parquet
-cellvit_seg: ${TERRA_MULTI_DATA_ROOT}/hest_samples/cellvit_seg/TENX99_cellvit_seg.parquet
+labels_path: ${CELLBRIDGE_DATA_ROOT}/embeddings/TENX99_celltype_labels.parquet
+xenium_cell_seg: ${CELLBRIDGE_DATA_ROOT}/hest_samples/xenium_seg/TENX99_xenium_cell_seg.parquet
+cellvit_seg: ${CELLBRIDGE_DATA_ROOT}/hest_samples/cellvit_seg/TENX99_cellvit_seg.parquet
 # Cells whose nearest CellViT nucleus is farther than this (fallback only) are left Unassigned.
 fallback_max_um: 20
 # Classes to keep for the probe; drops Epithelial (3 cells) and Unassigned.

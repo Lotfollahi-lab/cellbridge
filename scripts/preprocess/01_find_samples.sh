@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 [ -f "$ROOT/scripts/cluster_env.sh" ] && . "$ROOT/scripts/cluster_env.sh"
 
-ENV_ROOT="${TERRA_MULTI_ENV_ROOT:-$ROOT/../../envs}"
+ENV_ROOT="${CELLBRIDGE_ENV_ROOT:-$ROOT/../../envs}"
 ENV_PATH="${ENV_PATH:-$ENV_ROOT/terra-dev}"
 CONFIG="${CONFIG:-$ROOT/configs/preprocess/preprocess.yaml}"
 

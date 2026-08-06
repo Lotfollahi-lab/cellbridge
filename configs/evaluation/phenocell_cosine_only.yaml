@@ -1,8 +1,8 @@
 # OOD cell-phenotyping probe. No spatial-transcriptomics data are used here.
 data:
-  lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_lmdb
-  metadata: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_info.csv
-  split: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/splits/phenocell_dataset_split.csv
+  lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/phenocell_lmdb
+  metadata: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/phenocell_info.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/splits/phenocell_dataset_split.csv
   image_shape: [1440, 1920]
   tile_size: 224
   value_scale: 250
@@ -11,7 +11,7 @@ embedding:
   encoder: uni_v2
   crop_size: 96
   batch_size: 128
-  output_dir: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/embeddings/uni_v2/crop_96px
+  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/embeddings/uni_v2/crop_96px
 
 projection:
   checkpoint: checkpoints/distill_v0_cosine_only/best.pt

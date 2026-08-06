@@ -1,9 +1,9 @@
 # PanNuke OOD probe for a LoRA checkpoint. Crops are re-encoded through the
 # adapted encoder, so no cached UNI embeddings and no projection head are used.
 data:
-  lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_lmdb
-  metadata: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_info.csv
-  split: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
+  lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_lmdb
+  metadata: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
   image_shape: [256, 256]
   tile_size: 224
   value_scale: 1

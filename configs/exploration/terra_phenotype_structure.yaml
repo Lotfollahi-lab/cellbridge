@@ -1,5 +1,5 @@
 # Descriptive analysis of existing frozen TERRA cell embeddings. No training.
-data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
 sample_ids:
   - TENX191
   - TENX192

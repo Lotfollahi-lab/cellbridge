@@ -2,8 +2,8 @@
 distill_version: v1
 run_name: distill_v1_prototype_k64
 
-data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
-splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+splits_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
 max_cells_per_sample: 50000
 sampling_seed: 0
 
@@ -48,7 +48,7 @@ wandb:
 
 eval:
   label_test_mode: fast  # choices: fast, full
-  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
   label_test_fast_n: 5
   label_test_fast_seed: 0
   test_frac: 0.2

@@ -1,6 +1,6 @@
 # Portable inputs for all 15 annotated HEST label-test samples.
-data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
-splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+splits_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
 split: label_test
 labels_pattern: "{data_root}/{sample_id}/{sample_id}_granular_cell_labels.csv"
 label_id_column: cell_id
@@ -13,4 +13,4 @@ expected_normalized_labels: 91
 expected_cells: 4610387
 
 materialize_cells: true
-output_dir: ${TERRA_MULTI_ROOT}/outputs/hierarchical/hest_label_test
+output_dir: ${CELLBRIDGE_ROOT}/outputs/hierarchical/hest_label_test

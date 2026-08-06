@@ -23,7 +23,7 @@ matching and scoring.
 
 Accept the gated checkpoint terms at `Owkin-Bioptimus/histoplus` and export
 `HF_TOKEN`. The runner creates/uses an isolated uv environment at
-`$TERRA_MULTI_ENV_ROOT/histoplus` (override with `HISTOPLUS_ENV`).
+`$CELLBRIDGE_ENV_ROOT/histoplus` (override with `HISTOPLUS_ENV`).
 
 ```bash
 scripts/baselines/histoplus/run_in_env.sh check \

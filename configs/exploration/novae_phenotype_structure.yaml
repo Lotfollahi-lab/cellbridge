@@ -1,5 +1,5 @@
 # Frozen count-based NOVAE analysis paired exactly to the existing TERRA cohort.
-data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
 sample_ids:
   - TENX191
   - TENX192
@@ -28,12 +28,12 @@ sampling:
   pairs_per_relation: 50000
   ordering_triplets: 50000
 
-output_dir: ${TERRA_MULTI_ROOT}/outputs/exploration/novae_phenotype_structure
-terra_reference_dir: ${TERRA_MULTI_ROOT}/outputs/exploration/terra_phenotype_structure
+output_dir: ${CELLBRIDGE_ROOT}/outputs/exploration/novae_phenotype_structure
+terra_reference_dir: ${CELLBRIDGE_ROOT}/outputs/exploration/terra_phenotype_structure
 
 novae:
   model_name: prism-oncology/novae-human-0
-  embedding_dir: ${TERRA_MULTI_ROOT}/outputs/exploration/novae_phenotype_structure/embeddings
+  embedding_dir: ${CELLBRIDGE_ROOT}/outputs/exploration/novae_phenotype_structure/embeddings
   embedding_pattern: "{sample_id}_novae.npz"
   embedding_key: novae_latent
   valid_key: neighborhood_valid

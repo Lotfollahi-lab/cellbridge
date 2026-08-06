@@ -1,13 +1,13 @@
 experiment: terra_gene_token_probe_v1
 sample_id: TENX116
 
-adata_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/TENX116/TENX116.h5ad
-labels_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/TENX116/TENX116_granular_cell_labels.csv
-terra_embeddings: ${TERRA_MULTI_DATA_ROOT}/train/hest/TENX116/TENX116_terra.npz
+adata_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116.h5ad
+labels_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116_granular_cell_labels.csv
+terra_embeddings: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116_terra.npz
 pixel_size_um: 0.136887203675011
 
-gene_tokens_path: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/tenx116/gene_tokens.h5
-output_dir: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/tenx116/results
+gene_tokens_path: ${CELLBRIDGE_ROOT}/outputs/teacher_probe/tenx116/gene_tokens.h5
+output_dir: ${CELLBRIDGE_ROOT}/outputs/teacher_probe/tenx116/results
 
 # Cells are selected without labels after full-sample harmonization/tokenization,
 # so their TERRA neighborhood context still comes from the complete section.
@@ -20,8 +20,8 @@ smoke:
   max_cells: 2048
   batch_size: 32
   min_class_count: 5
-  gene_tokens_path: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/tenx116_smoke/gene_tokens.h5
-  output_dir: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/tenx116_smoke/results
+  gene_tokens_path: ${CELLBRIDGE_ROOT}/outputs/teacher_probe/tenx116_smoke/gene_tokens.h5
+  output_dir: ${CELLBRIDGE_ROOT}/outputs/teacher_probe/tenx116_smoke/results
 
 extraction:
   model_name: Lotfollahi-lab/TERRA-112M
@@ -33,7 +33,7 @@ extraction:
   num_workers: 12
   nproc: 12
   pin_memory: true
-  tokenized_path: ${TERRA_MULTI_ROOT}/outputs/teacher_probe/cache/TENX116_tokenized
+  tokenized_path: ${CELLBRIDGE_ROOT}/outputs/teacher_probe/cache/TENX116_tokenized
   keep_tokenized: true
 
 eval:

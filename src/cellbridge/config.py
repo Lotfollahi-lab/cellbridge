@@ -14,11 +14,11 @@ def _defaults() -> dict[str, str]:
     root = Path(__file__).resolve().parents[2]
     workspace = root.parents[1]
     return {
-        "TERRA_MULTI_ROOT": str(root),
-        "TERRA_MULTI_WORKSPACE": str(workspace),
-        "TERRA_MULTI_DATA_ROOT": str(workspace / "data"),
-        "TERRA_MULTI_REPOS_ROOT": str(workspace / "repos"),
-        "TERRA_MULTI_ENV_ROOT": str(workspace / "envs"),
+        "CELLBRIDGE_ROOT": str(root),
+        "CELLBRIDGE_WORKSPACE": str(workspace),
+        "CELLBRIDGE_DATA_ROOT": str(workspace / "data"),
+        "CELLBRIDGE_REPOS_ROOT": str(workspace / "repos"),
+        "CELLBRIDGE_ENV_ROOT": str(workspace / "envs"),
     }
 
 
@@ -47,7 +47,7 @@ def _expand(value, environment):
 def load_config(path, *, overlay=None) -> dict:
     """Load YAML, merge a local overlay, and expand ``$VARS`` recursively.
 
-    ``TERRA_MULTI_CONFIG_OVERLAY`` supplies a machine-local overlay when the
+    ``CELLBRIDGE_CONFIG_OVERLAY`` supplies a machine-local overlay when the
     caller does not pass one explicitly. Repository/data/repo/env roots have
     portable defaults inferred from this checkout and can be overridden.
     """
@@ -57,7 +57,7 @@ def load_config(path, *, overlay=None) -> dict:
     if not isinstance(config, dict):
         raise ValueError(f"{path}: configuration must be a YAML mapping")
 
-    overlay = overlay or os.environ.get("TERRA_MULTI_CONFIG_OVERLAY")
+    overlay = overlay or os.environ.get("CELLBRIDGE_CONFIG_OVERLAY")
     if overlay:
         overlay_path = Path(overlay)
         with open(overlay_path) as handle:

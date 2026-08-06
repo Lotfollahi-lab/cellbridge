@@ -1,9 +1,9 @@
 jepa_version: spatial_block_v1
 run_name: jepa_spatial_block_v1
 
-data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
-manifest_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/manifest.csv
-splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+manifest_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/manifest.csv
+splits_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
 uni_key: uni_emb
 terra_key: cell_emb
 
@@ -51,7 +51,7 @@ wandb:
   mode: online
 
 eval:
-  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  label_test_fast_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
   batch_size: 128
   test_frac: 0.2
   split_axis: y

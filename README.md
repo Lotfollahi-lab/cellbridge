@@ -19,8 +19,8 @@ The HEST split is stored with the data at
 
 ## Configuration
 
-Checked-in YAML files are portable. Paths use `TERRA_MULTI_DATA_ROOT` and
-`TERRA_MULTI_REPOS_ROOT`, which default to the workspace `data/` and `repos/`
+Checked-in YAML files are portable. Paths use `CELLBRIDGE_DATA_ROOT` and
+`CELLBRIDGE_REPOS_ROOT`, which default to the workspace `data/` and `repos/`
 directories. Set them explicitly when your layout differs. Preprocessing also
 requires `HEST_ROOT` for the upstream HEST release.
 
@@ -28,7 +28,7 @@ For machine-specific overrides, copy `configs/local.example.yaml` to
 `configs/local.yaml` and export:
 
 ```bash
-export TERRA_MULTI_CONFIG_OVERLAY=configs/local.yaml
+export CELLBRIDGE_CONFIG_OVERLAY=configs/local.yaml
 ```
 
 The overlay is recursively merged before environment variables are expanded.

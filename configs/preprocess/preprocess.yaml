@@ -22,4 +22,4 @@ fallback_max_um: 20
 keep_tokenized: false
 
 # Per-sample outputs (manifest + embeddings + labels) live under here.
-output_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
+output_root: ${CELLBRIDGE_DATA_ROOT}/train/hest

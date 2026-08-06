@@ -25,10 +25,10 @@ training:
 output_dir: outputs/baselines/uni_selective_ft
 
 hest:
-  data_root: ${TERRA_MULTI_DATA_ROOT}/train/hest
-  manifest_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/manifest.csv
-  splits_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
-  label_test_fast_path: ${TERRA_MULTI_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+  manifest_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/manifest.csv
+  splits_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+  label_test_fast_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
   label_test_fast_n: 5
   labels_pattern: "{data_root}/{sample_id}/{sample_id}_granular_cell_labels.csv"
   crop:
@@ -45,23 +45,23 @@ hest:
 
 phenocell:
   data:
-    lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_lmdb
-    metadata: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/phenocell_info.csv
-    split: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/splits/phenocell_dataset_split.csv
+    lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/phenocell_lmdb
+    metadata: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/phenocell_info.csv
+    split: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/splits/phenocell_dataset_split.csv
     image_shape: [1440, 1920]
     tile_size: 224
     value_scale: 250
   crop:
     source_size: 96
     target_size: 224
-  cache_dir: ${TERRA_MULTI_DATA_ROOT}/eval/phenocell/crops/crop_96px
+  cache_dir: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/crops/crop_96px
   tasks: [all, immune]
 
 pannuke:
   data:
-    lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_lmdb
-    metadata: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_info.csv
-    split: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
+    lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_lmdb
+    metadata: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+    split: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
     image_shape: [256, 256]
     tile_size: 224
     value_scale: 1
@@ -69,5 +69,5 @@ pannuke:
   crop:
     source_size: 96
     target_size: 224
-  cache_dir: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/crops/crop_96px
+  cache_dir: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/crops/crop_96px
   tasks: [all]

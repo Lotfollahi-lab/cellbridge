@@ -1,8 +1,8 @@
 # OOD cell-phenotyping probe on PanNuke. No spatial-transcriptomics data are used here.
 data:
-  lmdb: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_lmdb
-  metadata: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/pannuke_info.csv
-  split: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
+  lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_lmdb
+  metadata: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
   image_shape: [256, 256]
   tile_size: 224
   value_scale: 1
@@ -13,7 +13,7 @@ embedding:
   encoder: uni_v2
   crop_size: 96
   batch_size: 128
-  output_dir: ${TERRA_MULTI_DATA_ROOT}/eval/pannuke/embeddings/uni_v2/crop_96px
+  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/embeddings/uni_v2/crop_96px
 
 projection:
   checkpoint: checkpoints/distill_v0/best.pt
