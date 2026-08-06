@@ -25,4 +25,4 @@ DEP_ARGS=()
   --queue "${DISTILL_EVAL_QUEUE:-training-normal}" \
   --gpu "${DISTILL_EVAL_GPU_SPEC:--}" --memory "$MEMORY" \
   --cores "${DISTILL_EVAL_NCORES:-4}" "${DEP_ARGS[@]}" -- \
-  python3 -m terra_multi.distill.evaluate_probes --config "$CONFIG" "${PY_ARGS[@]}"
+  python3 -m cellbridge.distill.evaluate_probes --config "$CONFIG" "${PY_ARGS[@]}"

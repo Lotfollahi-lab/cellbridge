@@ -15,7 +15,7 @@ submit() {
     --queue "${LORA_EVAL_QUEUE:-training-normal}" \
     --gpu "${LORA_EVAL_GPU_SPEC:-num=1:gmem=30000}" \
     --memory "$memory" --cores "$cores" --environment hest "${dep_args[@]}" -- \
-    python -m terra_multi.lora.evaluate --config "$CONFIG" "$@"
+    python -m cellbridge.lora.evaluate --config "$CONFIG" "$@"
 }
 
 IDS=()

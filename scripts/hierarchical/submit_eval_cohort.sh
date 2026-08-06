@@ -25,7 +25,7 @@ submit() {
     --queue "$QUEUE" "${gpu_args[@]}" \
     --memory "${LORA_EVAL_MEM_GB:-96}" --cores "${LORA_EVAL_NCORES:-8}" \
     --environment hest "${dep_args[@]}" "$CONFIG" -- \
-    python -m terra_multi.lora.evaluate --config "$CONFIG" "$@"
+    python -m cellbridge.lora.evaluate --config "$CONFIG" "$@"
 }
 
 DEP="${DEPENDENCY:-}"; [[ -z "$DEP" || "$DEP" == *"("* ]] || DEP="done($DEP)"

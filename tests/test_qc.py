@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 reconstruct_cells = importlib.import_module(
-    "terra_multi.preprocess.02_quality_check"
+    "cellbridge.preprocess.02_quality_check"
 ).reconstruct_cells
 
 # (cell_id, feature_name, x, y, he_x, he_y, qv). Cell 1 keeps GENEA x2 + GENEB;

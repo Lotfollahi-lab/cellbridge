@@ -2,13 +2,13 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from terra_multi.lora.model import (
+from cellbridge.lora.model import (
     compute_loss,
     soft_target_contrastive_loss,
     symmetric_contrastive_loss,
     terra_similarity_targets,
 )
-from terra_multi.lora.train import load_config
+from cellbridge.lora.train import load_config
 
 
 def test_terra_similarity_targets_are_normalized_and_keep_exact_match_highest():

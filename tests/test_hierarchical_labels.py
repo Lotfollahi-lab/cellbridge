@@ -1,7 +1,7 @@
 import pandas as pd
 
-from terra_multi.hierarchical.build_labels import run
-from terra_multi.hierarchical.mapping import RULES, map_label, split_source_label
+from cellbridge.hierarchical.build_labels import run
+from cellbridge.hierarchical.mapping import RULES, map_label, split_source_label
 
 
 def test_reviewed_rules_cover_the_normalized_inventory():

@@ -10,5 +10,5 @@ DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
   --queue "${UNI_QUEUE:-${GPU_QUEUE:-training-normal}}" \
   --gpu "${UNI_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=30000}}" \
   --memory "${UNI_MEM_GB:-16}" --cores "${UNI_NCORES:-12}" --environment hest \
-  "${DEP_ARGS[@]}" -- python3 src/terra_multi/preprocess/05_uni_embed.py \
+  "${DEP_ARGS[@]}" -- python3 src/cellbridge/preprocess/05_uni_embed.py \
   --config "$CONFIG" --sample-id "$SAMPLE" --batch-size "${UNI_BATCH_SIZE:-128}"

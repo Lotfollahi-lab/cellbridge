@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from terra_multi.evaluation.hierarchy_metrics import (
+from cellbridge.evaluation.hierarchy_metrics import (
     UNRESOLVED,
     load_hierarchy_mapping,
     score_level,

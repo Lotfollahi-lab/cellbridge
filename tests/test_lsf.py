@@ -1,6 +1,6 @@
 import pytest
 
-from terra_multi import lsf
+from cellbridge import lsf
 
 # Captured verbatim from the cluster this repository runs on.
 BQUEUES_OVERSUBSCRIBED = """

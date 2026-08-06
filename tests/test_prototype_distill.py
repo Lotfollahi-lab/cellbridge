@@ -6,12 +6,12 @@ import torch
 import yaml
 from torch.utils.data import DataLoader
 
-import terra_multi.distill.train_prototypes as prototype_train
-from terra_multi.distill.evaluate_probes import (
+import cellbridge.distill.train_prototypes as prototype_train
+from cellbridge.distill.evaluate_probes import (
     _arm_config,
     arms_for_config,
 )
-from terra_multi.distill.prototype import (
+from cellbridge.distill.prototype import (
     PrototypeDataset,
     PrototypeStudent,
     assign_prototypes,
@@ -21,7 +21,7 @@ from terra_multi.distill.prototype import (
     predict_student_features,
     sample_kmeans_rows,
 )
-from terra_multi.distill.train_prototypes import (
+from cellbridge.distill.train_prototypes import (
     export_label_features,
     fit_student,
     run_epoch,

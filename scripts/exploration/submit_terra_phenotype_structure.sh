@@ -9,4 +9,4 @@ CONFIG="${1:-$ROOT/configs/exploration/terra_phenotype_structure.yaml}"
   --queue "${PHENOTYPE_QUEUE:-${QUEUE:-oversubscribed}}" \
   --memory "${PHENOTYPE_MEM_GB:-${MEM_GB:-24}}" \
   --cores "${PHENOTYPE_NCORES:-${NCORES:-2}}" -- \
-  python3 -m terra_multi.exploration.analyze_terra_phenotypes --config "$CONFIG"
+  python3 -m cellbridge.exploration.analyze_terra_phenotypes --config "$CONFIG"

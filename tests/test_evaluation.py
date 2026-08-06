@@ -12,18 +12,18 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from terra_multi.baselines.evaluation import _probe_protocol_identity
-from terra_multi.evaluation.classification import (
+from cellbridge.baselines.evaluation import _probe_protocol_identity
+from cellbridge.evaluation.classification import (
     evaluate_classification,
     method_directory,
     resolve_methods,
 )
-from terra_multi.evaluation.hest import HestData, evaluate_hest_data
-from terra_multi.evaluation.ood import validate_official_split
-from terra_multi.evaluation.probe_ood import evaluate as evaluate_phenocell
-from terra_multi.lora import evaluate as lora_evaluate
-from terra_multi.lora.evaluate import evaluate_phenocell_arm
-from terra_multi.lora.evaluate_ood import merge_shard_manifests
+from cellbridge.evaluation.hest import HestData, evaluate_hest_data
+from cellbridge.evaluation.ood import validate_official_split
+from cellbridge.evaluation.probe_ood import evaluate as evaluate_phenocell
+from cellbridge.lora import evaluate as lora_evaluate
+from cellbridge.lora.evaluate import evaluate_phenocell_arm
+from cellbridge.lora.evaluate_ood import merge_shard_manifests
 
 
 def classification_data():

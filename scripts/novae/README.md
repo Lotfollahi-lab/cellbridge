@@ -41,7 +41,7 @@ Run only the final analysis after embeddings are present:
 
 ```bash
 PYTHONPATH=src ../../envs/terra-dev/bin/python -m \
-  terra_multi.exploration.analyze_novae_phenotypes \
+  cellbridge.exploration.analyze_novae_phenotypes \
   --config configs/exploration/novae_phenotype_structure.yaml
 ```
 

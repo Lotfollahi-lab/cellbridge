@@ -14,6 +14,6 @@ EXTRA=()
   --queue "${TERRA_QUEUE:-${GPU_QUEUE:-auto}}" \
   --gpu "${TERRA_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=12000}}" \
   --memory "${TERRA_TOKEN_MEM_GB:-16}" --cores "${TERRA_TOKEN_CORES:-8}" \
-  "$CONFIG" -- python3 -m terra_multi.teacher_probe.extract_gene_tokens \
+  "$CONFIG" -- python3 -m cellbridge.teacher_probe.extract_gene_tokens \
   --config "$CONFIG" "${EXTRA[@]}"
 

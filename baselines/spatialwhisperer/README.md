@@ -34,7 +34,7 @@ The expected checkout is:
 
 ```text
 /lustre/scratch126/cellgen/lotfollahi/so25/
-├── projects/terra-multi/
+├── projects/cellbridge/
 └── repos/spatialwhisperer/
 ```
 
@@ -67,11 +67,11 @@ gets the same environment:
 
 ```bash
 cd /lustre/scratch126/cellgen/lotfollahi/so25/repos/spatialwhisperer
-git switch -c terra-multi-baseline  # omit if this branch already exists
+git switch -c cellbridge-baseline  # omit if this branch already exists
 pixi add --pypi lmdb
 git add pixi.toml pixi.lock
-git commit -m "Add LMDB for terra-multi PhenoCell evaluation"
-git push -u origin terra-multi-baseline
+git commit -m "Add LMDB for cellbridge PhenoCell evaluation"
+git push -u origin cellbridge-baseline
 ```
 
 If you already made that change on a fork branch, switch to it instead of
@@ -100,11 +100,11 @@ cache.
 
 ## 3. Check paths and prepare weights
 
-All commands are run from `projects/terra-multi`. The wrapper selects the
-external Pixi environment and adds `terra-multi/src` to `PYTHONPATH`:
+All commands are run from `projects/cellbridge`. The wrapper selects the
+external Pixi environment and adds `cellbridge/src` to `PYTHONPATH`:
 
 ```bash
-cd /lustre/scratch126/cellgen/lotfollahi/so25/projects/terra-multi
+cd /lustre/scratch126/cellgen/lotfollahi/so25/projects/cellbridge
 CONFIG=configs/baselines/spatialwhisperer.yaml
 RUNNER=scripts/baselines/spatialwhisperer/run_in_env.sh
 

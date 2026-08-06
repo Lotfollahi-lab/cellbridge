@@ -9,4 +9,4 @@ module load cellgen/uv
 ENV_ROOT="${TERRA_MULTI_ENV_ROOT:-$ROOT/../../envs}"
 source "${ENV_PATH:-$ENV_ROOT/terra-dev}/bin/activate"
 cd "$ROOT"
-PYTHONPATH=src python3 -m terra_multi.exploration.compare_celltype --results_dir "$OUTPUT"
+PYTHONPATH=src python3 -m cellbridge.exploration.compare_celltype --results_dir "$OUTPUT"

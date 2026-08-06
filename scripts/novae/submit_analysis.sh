@@ -13,4 +13,4 @@ DEPENDENCIES=()
   --memory "${NOVAE_ANALYSIS_MEM_GB:-6}" \
   --cores "${NOVAE_ANALYSIS_NCORES:-1}" \
   "${DEPENDENCIES[@]}" "$CONFIG" -- python3 -m \
-  terra_multi.exploration.analyze_novae_phenotypes --config "$CONFIG"
+  cellbridge.exploration.analyze_novae_phenotypes --config "$CONFIG"

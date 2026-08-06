@@ -44,4 +44,4 @@ dependency="$(printf 'done(%s)&&' "${IDS[@]}")"
   --memory "${SPATIALWHISPERER_PROBE_MEM_GB:-128}" \
   --cores "${SPATIALWHISPERER_PROBE_NCORES:-16}" \
   --dependency "${dependency%&&}" -- python -m \
-  terra_multi.baselines.spatialwhisperer probe --config "$CONFIG" --dataset all
+  cellbridge.baselines.spatialwhisperer probe --config "$CONFIG" --dataset all

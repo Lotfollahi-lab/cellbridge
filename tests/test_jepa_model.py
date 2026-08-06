@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from terra_multi.jepa.model import (
+from cellbridge.jepa.model import (
     CHECKPOINT_FORMAT,
     SpatialJEPA,
     TargetNormalizer,

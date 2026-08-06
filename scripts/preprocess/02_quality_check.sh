@@ -14,4 +14,4 @@ DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
   --log-prefix "qc_${SAMPLE}" --output-key output_root --log-subdir "$SAMPLE/logs" \
   --queue "$QUEUE" "${GPU_ARGS[@]}" --memory "${QC_MEM_GB:-8}" \
   --cores "${QC_NCORES:-4}" "${DEP_ARGS[@]}" -- python3 \
-  src/terra_multi/preprocess/02_quality_check.py --config "$CONFIG" --sample-id "$SAMPLE"
+  src/cellbridge/preprocess/02_quality_check.py --config "$CONFIG" --sample-id "$SAMPLE"

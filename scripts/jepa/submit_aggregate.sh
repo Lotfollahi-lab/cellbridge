@@ -10,5 +10,5 @@ DEP_ARGS=(); [ -z "${DEPENDENCY:-}" ] || DEP_ARGS=(--dependency "$DEPENDENCY")
 "$SUBMIT" submit "$CONFIG" --job "${RUN_NAME}_aggregate" --log-prefix aggregate \
   --queue "${JEPA_AGG_QUEUE:-training-normal}" --gpu "${JEPA_AGG_GPU_SPEC:--}" \
   --memory "${JEPA_AGG_MEM_GB:-8}" --cores "${JEPA_AGG_NCORES:-2}" \
-  "${DEP_ARGS[@]}" -- python3 -m terra_multi.jepa.evaluate \
+  "${DEP_ARGS[@]}" -- python3 -m cellbridge.jepa.evaluate \
   --config "$CONFIG" --aggregate-only

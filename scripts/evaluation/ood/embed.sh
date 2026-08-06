@@ -13,4 +13,4 @@ DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
   --gpu "${OOD_GPU_SPEC:-num=1:gmem=30000}" \
   --memory "${OOD_EMBED_MEM_GB:-64}" --cores "${OOD_EMBED_NCORES:-8}" \
   --environment hest "${DEP_ARGS[@]}" "$CONFIG" -- python \
-  -m terra_multi.evaluation.embed_ood --config "$CONFIG"
+  -m cellbridge.evaluation.embed_ood --config "$CONFIG"

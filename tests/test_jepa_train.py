@@ -6,8 +6,8 @@ import torch
 import yaml
 from torch.utils.data import Dataset
 
-from terra_multi.jepa.model import SpatialJEPA, TargetNormalizer, load_model_state
-from terra_multi.jepa.train import _batch_metrics, fit, load_config
+from cellbridge.jepa.model import SpatialJEPA, TargetNormalizer, load_model_state
+from cellbridge.jepa.train import _batch_metrics, fit, load_config
 
 
 def minimal_config(tmp_path):

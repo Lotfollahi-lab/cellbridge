@@ -15,5 +15,5 @@ DEPENDENCIES=()
   --memory "${NOVAE_MEM_GB:-48}" --cores "${NOVAE_NCORES:-1}" \
   --environment none "${DEPENDENCIES[@]}" "$CONFIG" -- \
   "$SCRIPT_DIR/run_in_env.sh" python -m \
-  terra_multi.exploration.extract_novae_embeddings \
+  cellbridge.exploration.extract_novae_embeddings \
   --config "$CONFIG" --sample-id "$SAMPLE" --accelerator gpu

@@ -14,4 +14,4 @@ DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
   --log-prefix "labels_${SAMPLE}" --output-key output_root --log-subdir "$SAMPLE/logs" \
   --queue "$QUEUE" "${GPU_ARGS[@]}" --memory "${LABEL_MEM_GB:-8}" \
   --cores "${LABEL_NCORES:-4}" "${DEP_ARGS[@]}" -- python3 \
-  src/terra_multi/preprocess/03_cell_labels.py --config "$CONFIG" --sample-id "$SAMPLE"
+  src/cellbridge/preprocess/03_cell_labels.py --config "$CONFIG" --sample-id "$SAMPLE"

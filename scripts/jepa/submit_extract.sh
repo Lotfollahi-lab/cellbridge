@@ -12,5 +12,5 @@ DEP_ARGS=(); [ -z "${DEPENDENCY:-}" ] || DEP_ARGS=(--dependency "$DEPENDENCY")
   --log-prefix "extract_${SAMPLE}" --queue "${JEPA_EXTRACT_QUEUE:-training-normal}" \
   --gpu "${JEPA_EVAL_GPU_SPEC:-num=1:gmem=30000}" \
   --memory "${JEPA_EVAL_MEM_GB:-64}" --cores "${JEPA_EVAL_NCORES:-12}" \
-  "${DEP_ARGS[@]}" -- python3 -m terra_multi.jepa.extract \
+  "${DEP_ARGS[@]}" -- python3 -m cellbridge.jepa.extract \
   --config "$CONFIG" --samples "$SAMPLE"

@@ -6,7 +6,7 @@ order.
 
 import numpy as np
 
-from terra_multi.helpers.io import align_by_cell_id
+from cellbridge.helpers.io import align_by_cell_id
 
 # A distinct, ID-tied marker value for each shared cell (identical across arrays).
 MARKER = {"c1": 1.0, "c2": 2.0, "c3": 3.0, "c4": 4.0}

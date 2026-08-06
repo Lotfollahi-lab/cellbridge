@@ -1,14 +1,14 @@
 import numpy as np
 import pytest
 
-from terra_multi.hierarchical_conformal.conformal import (
+from cellbridge.hierarchical_conformal.conformal import (
     calibrate_graph,
     calibrate_split,
     graph_sets,
     split_sets,
 )
-from terra_multi.hierarchical_conformal.hierarchy import Hierarchy
-from terra_multi.hierarchical_conformal.metrics import (
+from cellbridge.hierarchical_conformal.hierarchy import Hierarchy
+from cellbridge.hierarchical_conformal.metrics import (
     coverage_indicator,
     per_class_coverage,
 )

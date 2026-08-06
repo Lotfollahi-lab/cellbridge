@@ -7,4 +7,4 @@ CONFIG="${CONFIG:-$ROOT/configs/exploration/probe.yaml}"
 "$ROOT/scripts/submit_job.sh" submit "$CONFIG" --job "probe_${MODEL}" \
   --log-prefix "probe_${MODEL}" --queue "${QUEUE:-oversubscribed}" \
   --memory "${MEM_GB:-4}" --cores "${NCORES:-2}" -- \
-  python3 -m terra_multi.exploration.run_linear_probe --config "$CONFIG" --model "$MODEL"
+  python3 -m cellbridge.exploration.run_linear_probe --config "$CONFIG" --model "$MODEL"

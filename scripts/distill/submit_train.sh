@@ -9,8 +9,8 @@ case "$CONFIG" in /*) ;; *) CONFIG="$ROOT/$CONFIG" ;; esac
 
 VERSION="$($SUBMIT value "$CONFIG" distill_version)"
 case "$VERSION" in
-  v0) MODULE="terra_multi.distill.train" ;;
-  v1) MODULE="terra_multi.distill.train_prototypes" ;;
+  v0) MODULE="cellbridge.distill.train" ;;
+  v1) MODULE="cellbridge.distill.train_prototypes" ;;
   *) echo "unknown distill_version: $VERSION" >&2; exit 1 ;;
 esac
 RUN_NAME="$($SUBMIT value "$CONFIG" run_name)"

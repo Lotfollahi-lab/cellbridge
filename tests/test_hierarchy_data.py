@@ -3,8 +3,8 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from terra_multi.hierarchical.dataset import HierarchyDataset
-from terra_multi.hierarchical.sampler import (
+from cellbridge.hierarchical.dataset import HierarchyDataset
+from cellbridge.hierarchical.sampler import (
     AnnotatedBatchSampler,
     InterleavedBatchSampler,
 )
@@ -178,7 +178,7 @@ def test_cells_absent_from_the_label_file_are_marked_unusable(tmp_path):
     import numpy as np
     import pandas as pd
 
-    from terra_multi.hierarchical.dataset import _load_aligned
+    from cellbridge.hierarchical.dataset import _load_aligned
 
     path = tmp_path / "S1.parquet"
     pd.DataFrame(

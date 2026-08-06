@@ -11,5 +11,5 @@ DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
   --log-prefix project --queue "${OOD_PROJECT_QUEUE:-training-normal}" \
   --gpu "${OOD_PROJECT_GPU_SPEC:-num=1:gmem=10000}" \
   --memory "${OOD_PROJECT_MEM_GB:-32}" --cores "${OOD_PROJECT_NCORES:-4}" \
-  "${DEP_ARGS[@]}" "$CONFIG" -- python3 -m terra_multi.evaluation.project_ood \
+  "${DEP_ARGS[@]}" "$CONFIG" -- python3 -m cellbridge.evaluation.project_ood \
   --config "$CONFIG"

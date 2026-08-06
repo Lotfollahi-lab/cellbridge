@@ -14,5 +14,5 @@ DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
   --log-prefix "qcstream_${SAMPLE}" --output-key output_root \
   --log-subdir "$SAMPLE/logs" --queue "$QUEUE" "${GPU_ARGS[@]}" \
   --memory "${QC_MEM_GB:-64}" --cores "${QC_NCORES:-4}" "${DEP_ARGS[@]}" -- \
-  python3 src/terra_multi/preprocess/02_quality_check_streaming.py \
+  python3 src/cellbridge/preprocess/02_quality_check_streaming.py \
   --config "$CONFIG" --sample-id "$SAMPLE" --batch-rows "${QC_BATCH_ROWS:-5000000}"

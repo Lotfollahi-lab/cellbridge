@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 from PIL import Image
 
-from terra_multi.baselines import histoplus as hp
-from terra_multi.baselines.histoplus_metrics import aggregate_metrics
+from cellbridge.baselines import histoplus as hp
+from cellbridge.baselines.histoplus_metrics import aggregate_metrics
 
 ROOT = Path(__file__).resolve().parents[1]
 

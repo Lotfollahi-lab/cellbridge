@@ -12,4 +12,4 @@ DEP_ARGS=(); [ -z "${DEPENDENCY:-}" ] || DEP_ARGS=(--dependency "$DEPENDENCY")
   --log-prefix "probe_${SAMPLE}" --queue "${JEPA_PROBE_QUEUE:-training-normal}" \
   --gpu "${JEPA_PROBE_GPU_SPEC:--}" --memory "${JEPA_PROBE_MEM_GB:-64}" \
   --cores "${JEPA_PROBE_NCORES:-12}" "${DEP_ARGS[@]}" -- \
-  python3 -m terra_multi.jepa.evaluate --config "$CONFIG" --samples "$SAMPLE"
+  python3 -m cellbridge.jepa.evaluate --config "$CONFIG" --samples "$SAMPLE"

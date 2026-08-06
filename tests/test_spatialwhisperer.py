@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-import terra_multi.evaluation.artifacts as artifact_utils
-from terra_multi.baselines import spatialwhisperer as sw
+import cellbridge.evaluation.artifacts as artifact_utils
+from cellbridge.baselines import spatialwhisperer as sw
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,7 +55,7 @@ def test_launchers_use_isolated_pixi_and_shared_submission_environment():
     scripts = ROOT / "scripts" / "baselines" / "spatialwhisperer"
     runner = (scripts / "run_in_env.sh").read_text()
     submitter = (scripts / "submit_parallel.sh").read_text()
-    helper = (ROOT / "src/terra_multi/cluster.py").read_text()
+    helper = (ROOT / "src/cellbridge/cluster.py").read_text()
 
     assert "export PYTHONNOUSERSITE=1" in runner
     assert "scripts/submit_job.sh" in submitter

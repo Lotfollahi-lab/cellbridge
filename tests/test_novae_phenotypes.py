@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from terra_multi.exploration.novae_embeddings import (
+from cellbridge.exploration.novae_embeddings import (
     load_aligned_novae_embeddings,
     write_model_comparison,
 )

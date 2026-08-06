@@ -10,7 +10,7 @@ usage() {
   cat >&2 <<EOF
 Usage: $(basename "$0") <subcommand> [arguments]
 
-Runs the terra-multi SpatialWhisperer adapter in the external repository's
+Runs the cellbridge SpatialWhisperer adapter in the external repository's
 Pixi environment. Example:
 
   $(basename "$0") check --config $ROOT/configs/baselines/spatialwhisperer.yaml
@@ -37,4 +37,4 @@ export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 export PYTHONNOUSERSITE=1
 exec "$PIXI_BIN" run \
   --manifest-path "$SPATIALWHISPERER_REPO/pixi.toml" \
-  python -m terra_multi.baselines.spatialwhisperer "$@"
+  python -m cellbridge.baselines.spatialwhisperer "$@"

@@ -14,7 +14,7 @@ for sample in "${SAMPLES[@]}"; do
     --log-prefix "probe_${sample}" --queue "${LORA_PROBE_QUEUE:-training-normal}" \
     --gpu "${LORA_PROBE_GPU_SPEC:--}" --memory "${LORA_PROBE_MEM_GB:-64}" \
     --cores "${LORA_PROBE_NCORES:-12}" --environment hest -- \
-    python -m terra_multi.lora.evaluate --config "$CONFIG" --probe-samples "$sample")"
+    python -m cellbridge.lora.evaluate --config "$CONFIG" --probe-samples "$sample")"
   echo "  PROBE $sample -> job $id" >&2; IDS+=("$id")
 done
 dependency="$(printf 'done(%s)&&' "${IDS[@]}")"
@@ -23,4 +23,4 @@ dependency="$(printf 'done(%s)&&' "${IDS[@]}")"
   --gpu "${LORA_EVAL_GPU_SPEC:-num=1:gmem=30000}" \
   --memory "${LORA_AGG_MEM_GB:-128}" --cores "${LORA_AGG_NCORES:-16}" \
   --environment hest --dependency "${dependency%&&}" -- \
-  python -m terra_multi.lora.evaluate --config "$CONFIG"
+  python -m cellbridge.lora.evaluate --config "$CONFIG"

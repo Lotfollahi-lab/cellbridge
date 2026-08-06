@@ -16,5 +16,5 @@ DEP_ARGS=()
   --output-key output_dir --log-subdir logs \
   --queue "${QUEUE:-auto}" --memory "${TEACHER_PROBE_MEM_GB:-6}" \
   --cores "${TEACHER_PROBE_CORES:-4}" \
-  "${DEP_ARGS[@]}" "$CONFIG" -- python3 -m terra_multi.teacher_probe.run --config "$CONFIG" "${EXTRA[@]}"
+  "${DEP_ARGS[@]}" "$CONFIG" -- python3 -m cellbridge.teacher_probe.run --config "$CONFIG" "${EXTRA[@]}"
 

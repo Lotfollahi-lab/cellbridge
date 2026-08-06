@@ -9,4 +9,4 @@ CONFIG="${1:-$ROOT/configs/hierarchical/hest_label_test.yaml}"
   --queue "${HIERARCHY_QUEUE:-${QUEUE:-oversubscribed}}" \
   --memory "${HIERARCHY_MEM_GB:-${MEM_GB:-32}}" \
   --cores "${HIERARCHY_NCORES:-${NCORES:-2}}" "$CONFIG" -- \
-  python3 -m terra_multi.hierarchical.build_labels --config "$CONFIG"
+  python3 -m cellbridge.hierarchical.build_labels --config "$CONFIG"

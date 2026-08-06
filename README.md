@@ -1,16 +1,16 @@
-# terra-multi
+# cellbridge
 
 Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 
 ## Layout
 
-- `src/terra_multi/preprocess/`: numbered HEST preprocessing steps.
-- `src/terra_multi/exploration/`: expression and cell-type probes.
-- `src/terra_multi/distill/`: UNI-to-TERRA distillation.
-- `src/terra_multi/lora/`: LoRA adaptation from H&E crops to TERRA features.
-- `src/terra_multi/jepa/`: spatial context-to-target JEPA alignment.
-- `src/terra_multi/evaluation/`: shared linear/kNN evaluation and OOD datasets (PhenoCell, PanNuke).
-- `src/terra_multi/hierarchical_conformal/`: calibrated phenotype sets on frozen embeddings.
+- `src/cellbridge/preprocess/`: numbered HEST preprocessing steps.
+- `src/cellbridge/exploration/`: expression and cell-type probes.
+- `src/cellbridge/distill/`: UNI-to-TERRA distillation.
+- `src/cellbridge/lora/`: LoRA adaptation from H&E crops to TERRA features.
+- `src/cellbridge/jepa/`: spatial context-to-target JEPA alignment.
+- `src/cellbridge/evaluation/`: shared linear/kNN evaluation and OOD datasets (PhenoCell, PanNuke).
+- `src/cellbridge/hierarchical_conformal/`: calibrated phenotype sets on frozen embeddings.
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
 
@@ -51,7 +51,7 @@ scripts/preprocess/run_sample_preprocess.sh TENX116
 
 ## Shared evaluation
 
-Cell-type evaluation has one implementation under `src/terra_multi/evaluation/`:
+Cell-type evaluation has one implementation under `src/cellbridge/evaluation/`:
 
 - `linear_probe.py`: the existing standardized logistic-regression protocol.
 - `zero_shot.py`: cosine kNN with no fitted model parameters.
@@ -67,7 +67,7 @@ Run every configured HEST feature arm and both evaluators locally with one
 command:
 
 ```bash
-PYTHONPATH=src python -m terra_multi.evaluation.run \
+PYTHONPATH=src python -m cellbridge.evaluation.run \
   --config configs/exploration/celltype_tenx116.yaml
 ```
 

@@ -4,9 +4,9 @@ from pathlib import Path
 import pytest
 import torch
 
-from terra_multi.hierarchical.objective import compute_hierarchy_objective
-from terra_multi.lora.model import compute_loss
-from terra_multi.lora.train import load_config
+from cellbridge.hierarchical.objective import compute_hierarchy_objective
+from cellbridge.lora.model import compute_loss
+from cellbridge.lora.train import load_config
 
 
 def _objective():

@@ -3,7 +3,7 @@ import pandas as pd
 import pytest
 import torch
 
-from terra_multi.jepa.data import (
+from cellbridge.jepa.data import (
     ContextSection,
     SectionEmbeddings,
     SpatialJEPADataset,

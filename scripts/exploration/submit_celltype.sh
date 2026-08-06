@@ -12,4 +12,4 @@ GPU_ARGS=(); [ -z "$GPU" ] || GPU_ARGS=(--gpu "$GPU")
   --log-prefix "celltype_${MODEL}" --queue "$QUEUE" "${GPU_ARGS[@]}" \
   --memory "${CELLTYPE_MEM_GB:-${MEM_GB:-8}}" \
   --cores "${CELLTYPE_NCORES:-${NCORES:-1}}" -- \
-  python3 -m terra_multi.evaluation.run --config "$CONFIG" --model "$MODEL"
+  python3 -m cellbridge.evaluation.run --config "$CONFIG" --model "$MODEL"

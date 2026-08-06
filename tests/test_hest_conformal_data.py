@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from terra_multi.hierarchical_conformal.hest_data import load_pruned_ontology_hierarchy
+from cellbridge.hierarchical_conformal.hest_data import load_pruned_ontology_hierarchy
 
 
 def test_ontology_hierarchy_disambiguates_equal_compartment_and_lineage(tmp_path):

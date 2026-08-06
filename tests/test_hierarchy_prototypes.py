@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from terra_multi.hierarchical.prototypes import (
+from cellbridge.hierarchical.prototypes import (
     UNASSIGNED,
     fit_identity_prototypes,
     shrink_targets,

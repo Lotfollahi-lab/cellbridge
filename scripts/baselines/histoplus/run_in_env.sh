@@ -24,4 +24,4 @@ export PYTHONNOUSERSITE=1
 export UV_PROJECT_ENVIRONMENT="$HISTOPLUS_ENV"
 exec uv run --frozen --python "$HISTOPLUS_PYTHON" --project "$HISTOPLUS_REPO" \
   --with lmdb --with pyarrow --with pyyaml \
-  python -m terra_multi.baselines.histoplus "$@"
+  python -m cellbridge.baselines.histoplus "$@"

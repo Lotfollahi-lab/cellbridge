@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from terra_multi.lora import evaluate as lora_evaluate
-from terra_multi.lora.hest import evaluation_cohorts, evaluation_samples
-from terra_multi.lora.summary import write_evaluation_summary
+from cellbridge.lora import evaluate as lora_evaluate
+from cellbridge.lora.hest import evaluation_cohorts, evaluation_samples
+from cellbridge.lora.summary import write_evaluation_summary
 
 
 def _split_files(tmp_path):

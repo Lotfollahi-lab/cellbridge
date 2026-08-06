@@ -1,6 +1,6 @@
 import pandas as pd
 
-from terra_multi.hierarchical.plot_tree import aggregate_node_counts, build_dot
+from cellbridge.hierarchical.plot_tree import aggregate_node_counts, build_dot
 
 
 def test_node_counts_aggregate_states_and_stop_partial_paths():

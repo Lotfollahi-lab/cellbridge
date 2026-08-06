@@ -3,18 +3,18 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 
-from terra_multi.teacher_probe.data import ProbeData, load_probe_data
-from terra_multi.teacher_probe.extract_gene_tokens import (
+from cellbridge.teacher_probe.data import ProbeData, load_probe_data
+from cellbridge.teacher_probe.extract_gene_tokens import (
     stable_cell_subset,
     token_presence,
 )
-from terra_multi.teacher_probe.features import (
+from cellbridge.teacher_probe.features import (
     build_fold_token_features,
     gene_feature_slice,
 )
-from terra_multi.teacher_probe.neighborhood import neighborhood_expression
-from terra_multi.teacher_probe.splits import spatial_block_folds
-from terra_multi.teacher_probe.store import write_token_store
+from cellbridge.teacher_probe.neighborhood import neighborhood_expression
+from cellbridge.teacher_probe.splits import spatial_block_folds
+from cellbridge.teacher_probe.store import write_token_store
 
 
 class FakeTokenizedDataset:

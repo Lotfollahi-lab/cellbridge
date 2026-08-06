@@ -22,4 +22,4 @@ source "$ENVIRONMENT/bin/activate"
 cd "$ROOT"
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
 exec uv run --active --no-project --with lmdb --with opencv-python-headless \
-  python -m terra_multi.baselines.volta "$@"
+  python -m cellbridge.baselines.volta "$@"

@@ -8,5 +8,5 @@ CONFIG="${1:-$ROOT/configs/baselines/uni_selective_ft.yaml}"
 module load ISG/conda
 conda activate hest
 cd "$ROOT"
-PYTHONPATH=src python -m terra_multi.baselines.uni_selective_ft \
+PYTHONPATH=src python -m cellbridge.baselines.uni_selective_ft \
   --config "$CONFIG" check

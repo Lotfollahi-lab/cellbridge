@@ -10,4 +10,4 @@ RUN_NAME="$($SUBMIT value "$CONFIG" run_name)"
   --queue "${JEPA_QUEUE:-training-normal}" \
   --gpu "${JEPA_GPU_SPEC:-num=1:gmem=30000}" \
   --memory "${JEPA_TRAIN_MEM_GB:-128}" --cores "${JEPA_TRAIN_NCORES:-12}" -- \
-  python3 -m terra_multi.jepa.train --config "$CONFIG"
+  python3 -m cellbridge.jepa.train --config "$CONFIG"

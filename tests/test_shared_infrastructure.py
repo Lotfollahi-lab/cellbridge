@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from terra_multi.cluster import render_job
-from terra_multi.cohorts import cohort_in_split, samples_in_split
-from terra_multi.config import load_config
-from terra_multi.lora.features import feature_file_is_current, write_feature_file
+from cellbridge.cluster import render_job
+from cellbridge.cohorts import cohort_in_split, samples_in_split
+from cellbridge.config import load_config
+from cellbridge.lora.features import feature_file_is_current, write_feature_file
 
 
 def test_config_expands_environment_and_merges_overlay(tmp_path, monkeypatch):
@@ -75,7 +75,7 @@ def test_lsf_render_uses_resolved_config_and_one_environment(tmp_path):
         memory=16,
         dependency="done(7)",
         environment="none",
-        command=["python3", "-m", "terra_multi.jepa.train", "--config", str(config)],
+        command=["python3", "-m", "cellbridge.jepa.train", "--config", str(config)],
     )
 
     job = render_job(args)
@@ -83,4 +83,4 @@ def test_lsf_render_uses_resolved_config_and_one_environment(tmp_path):
     assert '#BSUB -gpu "-"' in job
     assert '#BSUB -w "done(7)"' in job
     assert f"#BSUB -o {tmp_path / 'output/logs/train_%J.out'}" in job
-    assert "PYTHONPATH=src python3 -m terra_multi.jepa.train" in job
+    assert "PYTHONPATH=src python3 -m cellbridge.jepa.train" in job

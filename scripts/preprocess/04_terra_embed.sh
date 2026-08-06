@@ -11,5 +11,5 @@ DEP_ARGS=(); [ -z "$DEP" ] || DEP_ARGS=(--dependency "$DEP")
   --queue "${TERRA_QUEUE:-${GPU_QUEUE:-training-normal}}" \
   --gpu "${TERRA_GPU_SPEC:-${GPU_SPEC:-num=1:gmem=20000}}" \
   --memory "${TERRA_MEM_GB:-16}" --cores "${TERRA_NCORES:-12}" \
-  "${DEP_ARGS[@]}" -- python3 src/terra_multi/preprocess/04_terra_embed.py \
+  "${DEP_ARGS[@]}" -- python3 src/cellbridge/preprocess/04_terra_embed.py \
   --config "$CONFIG" --sample-id "$SAMPLE" --batch-size "${TERRA_BATCH_SIZE:-128}"

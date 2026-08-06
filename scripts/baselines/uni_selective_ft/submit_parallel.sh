@@ -19,7 +19,7 @@ submit_job() {
   "$SUBMIT" submit --job "uft_${suffix}" --log-prefix "$suffix" \
     --queue "$queue" --gpu "$gpu" --memory "$memory" --cores "$cores" \
     --environment hest "${dependency_args[@]}" "$CONFIG" -- \
-    python -m terra_multi.baselines.uni_selective_ft --config "$CONFIG" "$@"
+    python -m cellbridge.baselines.uni_selective_ft --config "$CONFIG" "$@"
 }
 
 PREP_QUEUE="${UNI_FT_PREP_QUEUE:-inference}"
@@ -60,4 +60,4 @@ dependency="$(printf 'done(%s)&&' "${IDS[@]}")"
 "$SUBMIT" submit --job uft_aggregate --log-prefix aggregate \
   --queue "${UNI_FT_SUMMARY_QUEUE:-inference}" --gpu - --memory 8 --cores 1 \
   --environment hest --dependency "${dependency%&&}" "$CONFIG" -- \
-  python -m terra_multi.baselines.uni_selective_ft --config "$CONFIG" aggregate
+  python -m cellbridge.baselines.uni_selective_ft --config "$CONFIG" aggregate

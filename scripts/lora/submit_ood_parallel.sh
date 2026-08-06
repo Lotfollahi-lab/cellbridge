@@ -11,7 +11,7 @@ case "$OOD_CONFIG" in /*) ;; *) OOD_CONFIG="$ROOT/$OOD_CONFIG" ;; esac
 SUBMIT="$ROOT/scripts/submit_job.sh"
 SHARDS="${OOD_SHARDS:-16}"
 
-COMMON=(python -m terra_multi.lora.evaluate_ood --config "$CONFIG"
+COMMON=(python -m cellbridge.lora.evaluate_ood --config "$CONFIG"
         --ood-config "$OOD_CONFIG" --dataset "$DATASET" --num-shards "$SHARDS")
 
 IDS=()

@@ -6,29 +6,29 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-import terra_multi.distill.data as distill_data
-from terra_multi.distill.data import (
+import cellbridge.distill.data as distill_data
+from cellbridge.distill.data import (
     CellEmbeddingDataset,
     SplitCache,
     build_split_cache,
     select_indices,
 )
-from terra_multi.distill.inference import (
+from cellbridge.distill.inference import (
     cosine_and_nmse,
     embedding_variance,
     nmse_from_cosine_loss,
 )
-from terra_multi.distill.make_splits import (
+from cellbridge.distill.make_splits import (
     partition_samples,
     select_label_test_samples,
 )
-from terra_multi.distill.model import (
+from cellbridge.distill.model import (
     TerraProjector,
     cosine_distill_loss,
     covariance_loss,
     variance_loss,
 )
-from terra_multi.distill.train import fit, make_loader, run_epoch
+from cellbridge.distill.train import fit, make_loader, run_epoch
 
 LOSS_CFG = {
     "lambda_cos": 1.0,

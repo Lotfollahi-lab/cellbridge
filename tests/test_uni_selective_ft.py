@@ -6,13 +6,13 @@ import pytest
 import torch
 from torch import nn
 
-from terra_multi.baselines.uni_selective_ft import validate_config
-from terra_multi.baselines.uni_selective_ft_data import (
+from cellbridge.baselines.uni_selective_ft import validate_config
+from cellbridge.baselines.uni_selective_ft_data import (
     CachedOodCropDataset,
     GroupedBatchSampler,
     stratified_validation_split,
 )
-from terra_multi.baselines.uni_selective_ft_model import (
+from cellbridge.baselines.uni_selective_ft_model import (
     SelectiveUNIClassifier,
     make_checkpoint,
 )

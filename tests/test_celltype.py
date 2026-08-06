@@ -6,7 +6,7 @@ import geopandas as gpd
 import numpy as np
 from shapely.geometry import Point, box
 
-from terra_multi.helpers.labels import load_cell_polygons, transfer_labels
+from cellbridge.helpers.labels import load_cell_polygons, transfer_labels
 
 # Three Xenium cells: A holds nuclei, B is empty but near A, C is empty and far.
 CELLS = gpd.GeoDataFrame(

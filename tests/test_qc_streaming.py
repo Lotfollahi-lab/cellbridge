@@ -5,8 +5,8 @@ import importlib
 import numpy as np
 import pandas as pd
 
-_qc = importlib.import_module("terra_multi.preprocess.02_quality_check")
-_stream = importlib.import_module("terra_multi.preprocess.02_quality_check_streaming")
+_qc = importlib.import_module("cellbridge.preprocess.02_quality_check")
+_stream = importlib.import_module("cellbridge.preprocess.02_quality_check_streaming")
 
 _COLS = ["cell_id", "feature_name", "x_location", "y_location", "he_x", "he_y", "qv"]
 

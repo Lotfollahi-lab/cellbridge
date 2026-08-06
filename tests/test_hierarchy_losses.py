@@ -3,14 +3,14 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from terra_multi.hierarchical.losses import (
+from cellbridge.hierarchical.losses import (
     negative_weight_matrix,
     relation_masks,
     symmetric_hierarchy_ranking_loss,
     weighted_symmetric_pair_loss,
 )
-from terra_multi.hierarchical.splits import load_phenotype_split
-from terra_multi.lora.model import symmetric_contrastive_loss
+from cellbridge.hierarchical.splits import load_phenotype_split
+from cellbridge.lora.model import symmetric_contrastive_loss
 
 
 def _hierarchy_batch():

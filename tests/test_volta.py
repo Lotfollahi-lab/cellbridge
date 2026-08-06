@@ -4,15 +4,15 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from terra_multi.baselines import volta
-from terra_multi.baselines.volta_crops import (
+from cellbridge.baselines import volta
+from cellbridge.baselines.volta_crops import (
     crop_box,
     instance_bounds,
     locate_instance_boxes,
     square_bounds,
 )
-from terra_multi.baselines.volta_hest import _merge_bounds
-from terra_multi.baselines.volta_model import _teacher_state_dict
+from cellbridge.baselines.volta_hest import _merge_bounds
+from cellbridge.baselines.volta_model import _teacher_state_dict
 
 ROOT = Path(__file__).resolve().parents[1]
 

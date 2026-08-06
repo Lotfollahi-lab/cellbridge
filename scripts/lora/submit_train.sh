@@ -10,4 +10,4 @@ RUN_NAME="$($SUBMIT value "$CONFIG" run_name)"
   --queue "${LORA_QUEUE:-training-normal}" \
   --gpu "${LORA_GPU_SPEC:-num=1:gmem=40000}" \
   --memory "${LORA_TRAIN_MEM_GB:-96}" --cores "${LORA_TRAIN_NCORES:-12}" \
-  --environment hest "$CONFIG" -- python -m terra_multi.lora.train --config "$CONFIG"
+  --environment hest "$CONFIG" -- python -m cellbridge.lora.train --config "$CONFIG"

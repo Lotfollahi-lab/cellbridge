@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from terra_multi.evaluation.hest import result_directory
-from terra_multi.jepa.evaluate import ARMS, aggregate, arm_config, fast_samples
+from cellbridge.evaluation.hest import result_directory
+from cellbridge.jepa.evaluate import ARMS, aggregate, arm_config, fast_samples
 
 
 def make_config(tmp_path):

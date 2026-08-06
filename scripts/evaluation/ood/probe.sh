@@ -13,5 +13,5 @@ ARM_ARGS=(); [ -z "$ARM" ] || ARM_ARGS=(--arm "$ARM")
   --job "${DS}_probe${ARM:+_$ARM}" --log-prefix "probe${ARM:+_$ARM}" \
   --queue "${OOD_PROBE_QUEUE:-training-normal}" --gpu - \
   --memory "${OOD_PROBE_MEM_GB:-64}" --cores "${OOD_PROBE_NCORES:-8}" \
-  "${DEP_ARGS[@]}" "$CONFIG" -- python3 -m terra_multi.evaluation.probe_ood \
+  "${DEP_ARGS[@]}" "$CONFIG" -- python3 -m cellbridge.evaluation.probe_ood \
   --config "$CONFIG" "${ARM_ARGS[@]}"

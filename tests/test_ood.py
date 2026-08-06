@@ -1,20 +1,20 @@
 import numpy as np
 import pandas as pd
 
-from terra_multi.evaluation.embed_ood import (
+from cellbridge.evaluation.embed_ood import (
     complete_manifest,
     embedding_signature,
     validate_existing_signature,
 )
-from terra_multi.evaluation.ood import validate_official_split
-from terra_multi.evaluation.ood_data import (
+from cellbridge.evaluation.ood import validate_official_split
+from cellbridge.evaluation.ood_data import (
     centered_crop,
     instance_centroids,
     locate_cells,
     reconstruct_image,
     tile_geometries,
 )
-from terra_multi.evaluation.probe_ood import load_distilled
+from cellbridge.evaluation.probe_ood import load_distilled
 
 
 def split_into_tiles(image, tile_size):

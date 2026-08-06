@@ -15,4 +15,4 @@ fi
 source "$ENV_PATH/bin/activate"
 
 cd "$ROOT"
-PYTHONPATH=src python3 src/terra_multi/preprocess/01_find_samples.py --config "$CONFIG"
+PYTHONPATH=src python3 src/cellbridge/preprocess/01_find_samples.py --config "$CONFIG"

@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from terra_multi.lora.monitoring import CheckpointSelector, Criterion, MetricWindow
+from cellbridge.lora.monitoring import CheckpointSelector, Criterion, MetricWindow
 
 
 def _window():
