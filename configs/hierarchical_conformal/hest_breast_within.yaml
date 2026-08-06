@@ -1,0 +1,27 @@
+alpha: 0.1
+seed: 0
+pca_components: 256
+
+data:
+  feature_manifest: ${CELLBRIDGE_ROOT}/outputs/hierarchical/lora_baseline/evaluation/hest_breast_test/features/manifest.csv
+  labels_dir: ${CELLBRIDGE_ROOT}/outputs/hierarchical/hest_label_test/cells
+  hierarchy_nodes: ${CELLBRIDGE_ROOT}/outputs/hierarchical/hest_label_test/hierarchy_nodes.csv
+  data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+  samples: [TENX200, TENX201, TENX202]
+  min_class_count: 25
+
+split:
+  axis: y
+  test_fraction: 0.2
+  calibration_fraction_within_fit: 0.2
+
+representations:
+  UNI: uni_original
+  CellBridge: lora_adapted
+
+classifier:
+  Cs: [0.1, 1.0, 10.0]
+  class_weight: balanced
+  max_iter: 2000
+
+output_dir: outputs/hierarchical_conformal/hest_breast_within_alpha0.1
