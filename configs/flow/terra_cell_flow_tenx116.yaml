@@ -1,0 +1,85 @@
+flow_version: terra_cell_flow_v1
+sample_id: TENX116
+
+data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+manifest_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/manifest.csv
+adata_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116.h5ad
+labels_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116_granular_cell_labels.csv
+uni_key: uni_emb
+terra_key: cell_emb
+device: auto
+
+data:
+  test_fraction: 0.2
+  split_axis: y
+  label_id_column: cell_id
+  label_column: group
+  min_class_count: 25
+  max_train_cells: 12000
+  max_test_cells: 4096
+  sampling_seed: 0
+  neighbours: 32
+  coordinate_scale_um: 50.0
+
+model:
+  image_dim: 1536
+  target_dim: 384
+  model_dim: 128
+  num_heads: 4
+  context_depth: 2
+  predictor_depth: 4
+  dropout: 0.1
+
+base_training:
+  batch_size: 128
+  epochs: 8
+  learning_rate: 3.0e-4
+  weight_decay: 1.0e-4
+  precision: bf16
+  seed: 0
+
+diagnostic:
+  batch_size: 32
+  max_batches: 16
+  candidate_chunk: 8
+  precision: bf16
+  seed: 0
+  gate:
+    min_error_reduction: 0.05
+    min_chance_multiple: 2.0
+
+softrepa:
+  prompt_tokens: 4
+  time_dependent: false
+  time_bins: 100
+  batch_size: 24
+  max_steps: 300
+  candidate_chunk: 6
+  learning_rate: 1.0e-3
+  weight_decay: 1.0e-4
+  precision: bf16
+  scale: 4.0
+  temperature: 0.07
+  log_every: 25
+  seed: 0
+  false_negative_exclusion:
+    enabled: true
+    nearest_terra: 8
+    spatial_radius_um: 50.0
+    chunk_size: 512
+
+generation:
+  batch_size: 128
+  steps: 8
+  precision: bf16
+  seed: 0
+
+evaluation:
+  uni_pca_components: 256
+  Cs: [0.1, 1.0, 10.0]
+  class_weight: balanced
+  max_iter: 2000
+  seed: 0
+
+output_dir: outputs/flow/terra_cell_flow_tenx116
+checkpoint_dir: checkpoints/flow/terra_cell_flow_tenx116
