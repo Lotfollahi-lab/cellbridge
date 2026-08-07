@@ -22,7 +22,7 @@ class PilotArrays:
     image: np.ndarray
     terra: np.ndarray
     neighbourhood_coordinates_um: np.ndarray
-    split_coordinates_um: np.ndarray
+    split_coordinates: np.ndarray
     cell_ids: np.ndarray
     labels: np.ndarray
     train_rows: np.ndarray
@@ -56,7 +56,10 @@ def load_pilot_arrays(cfg: dict) -> PilotArrays:
         str(cell_id): row for row, cell_id in enumerate(coordinate_ids.astype(str))
     }
     keep = np.asarray(
-        [str(cell_id) in label_map and str(cell_id) in coordinate_row for cell_id in section.cell_ids]
+        [
+            str(cell_id) in label_map and str(cell_id) in coordinate_row
+            for cell_id in section.cell_ids
+        ]
     )
     rows = np.flatnonzero(keep)
     ids = section.cell_ids[rows].astype(str)
@@ -73,7 +76,7 @@ def load_pilot_arrays(cfg: dict) -> PilotArrays:
         image=np.asarray(section.image[rows]),
         terra=np.asarray(section.terra[rows]),
         neighbourhood_coordinates_um=np.asarray(section.coordinates_um[rows]),
-        split_coordinates_um=np.asarray(native_coordinates),
+        split_coordinates=np.asarray(native_coordinates),
         cell_ids=ids,
         labels=np.asarray([label_map[cell_id] for cell_id in ids]),
         train_rows=train,
@@ -171,7 +174,11 @@ class CellNeighbourhoodDataset(Dataset):
         return self.arrays.neighbourhood_coordinates_um[self.anchor_rows]
 
 
-def build_pilot_datasets(cfg: dict) -> tuple[PilotArrays, CellNeighbourhoodDataset, CellNeighbourhoodDataset]:
+def build_pilot_datasets(
+    cfg: dict,
+) -> tuple[
+    PilotArrays, CellNeighbourhoodDataset, CellNeighbourhoodDataset
+]:
     arrays = load_pilot_arrays(cfg)
     settings = cfg["data"]
     seed = int(settings.get("sampling_seed", 0))

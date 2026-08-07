@@ -11,11 +11,10 @@ from torch.utils.data import DataLoader
 
 from cellbridge.flow.compatibility import (
     endpoint_error_matrix,
-    false_negative_mask,
-    nearest_terra_indices,
     softrepa_loss,
     summarize_error_matrices,
 )
+from cellbridge.flow.exclusions import batch_negative_mask, build_exclusion_index
 from cellbridge.flow.path import linear_path
 
 
@@ -107,7 +106,17 @@ def train_base(model, normalizer, dataset, settings, device) -> list[dict]:
 
 
 @torch.no_grad()
-def diagnose(model, normalizer, dataset, settings, device, *, prompts=None) -> dict:
+def diagnose(
+    model,
+    normalizer,
+    dataset,
+    settings,
+    device,
+    *,
+    prompts=None,
+    exclusion_settings=None,
+    score_settings=None,
+) -> dict:
     """Measure matched/shuffled native endpoint error on held-out cells."""
 
     model.eval()
@@ -123,7 +132,8 @@ def diagnose(model, normalizer, dataset, settings, device, *, prompts=None) -> d
     )
     generator = _cuda_generator(device, seed + 211)
     amp_enabled, amp_dtype = amp_settings(device, settings["precision"])
-    matrices = []
+    nearest = build_exclusion_index(dataset, exclusion_settings, device)
+    matrices, masks, times = [], [], []
     for batch_number, raw_batch in enumerate(loader):
         if batch_number >= int(settings["max_batches"]):
             break
@@ -144,7 +154,27 @@ def diagnose(model, normalizer, dataset, settings, device, *, prompts=None) -> d
                 candidate_chunk=int(settings["candidate_chunk"]),
             )
         matrices.append(errors.float().cpu().numpy())
-    return summarize_error_matrices(matrices)
+        times.append(time.float().cpu().numpy())
+        valid = batch_negative_mask(batch, nearest, exclusion_settings)
+        if valid is not None:
+            masks.append(valid.cpu().numpy())
+    score_args = {}
+    if score_settings is not None:
+        score_args = {
+            "scale": float(score_settings["scale"]),
+            "temperature": float(score_settings["temperature"]),
+        }
+    metrics = summarize_error_matrices(
+        matrices,
+        valid_masks=masks or None,
+        times=times,
+        **score_args,
+    )
+    if masks:
+        metrics["unmasked"] = summarize_error_matrices(
+            matrices, times=times, **score_args
+        )
+    return metrics
 
 
 def train_prompts(model, prompts, normalizer, dataset, settings, device) -> list[dict]:
@@ -159,17 +189,14 @@ def train_prompts(model, prompts, normalizer, dataset, settings, device) -> list
         lr=float(settings["learning_rate"]),
         weight_decay=float(settings["weight_decay"]),
     )
-    loader = _loader(dataset, settings["batch_size"], shuffle=True, seed=seed, drop_last=True)
+    loader = _loader(
+        dataset, settings["batch_size"], shuffle=True, seed=seed, drop_last=True
+    )
     iterator = iter(loader)
     generator = _cuda_generator(device, seed + 307)
     amp_enabled, amp_dtype = amp_settings(device, settings["precision"])
     exclusion = settings["false_negative_exclusion"]
-    nearest = nearest_terra_indices(
-        dataset.anchor_terra,
-        int(exclusion["nearest_terra"]),
-        device,
-        chunk_size=int(exclusion.get("chunk_size", 512)),
-    ) if exclusion.get("enabled", True) else None
+    nearest = build_exclusion_index(dataset, exclusion, device)
     records, running = [], 0.0
     log_every = int(settings.get("log_every", 50))
     for step in range(1, int(settings["max_steps"]) + 1):
@@ -181,14 +208,7 @@ def train_prompts(model, prompts, normalizer, dataset, settings, device) -> list
         batch = _to_device(raw_batch, device)
         target = normalizer.normalize(batch["target"])
         state, time, _ = linear_path(target, generator=generator)
-        valid = None
-        if exclusion.get("enabled", True):
-            valid = false_negative_mask(
-                batch["anchor_position"],
-                batch["center_coordinates"],
-                nearest,
-                spatial_radius_um=float(exclusion["spatial_radius_um"]),
-            )
+        valid = batch_negative_mask(batch, nearest, exclusion)
         optimizer.zero_grad(set_to_none=True)
         with torch.autocast(
             device_type=device.type, dtype=amp_dtype, enabled=amp_enabled
@@ -207,6 +227,7 @@ def train_prompts(model, prompts, normalizer, dataset, settings, device) -> list
                 errors.float(),
                 scale=float(settings["scale"]),
                 temperature=float(settings["temperature"]),
+                diagonal_weight=float(settings.get("diagonal_weight", 0.0)),
                 valid_negatives=valid,
             )
         loss.backward()

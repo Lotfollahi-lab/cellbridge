@@ -24,6 +24,12 @@ def aggregate(output_dir, seeds) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
                 "prompt_error_separation": prompt["relative_error_reduction"],
                 "base_retrieval_top1": base["retrieval_top1"],
                 "prompt_retrieval_top1": prompt["retrieval_top1"],
+                "base_retrieval_top1_ci95_high": base.get(
+                    "retrieval_top1_ci95_high", float("inf")
+                ),
+                "prompt_retrieval_top1_ci95_low": prompt.get(
+                    "retrieval_top1_ci95_low", float("-inf")
+                ),
                 "real_terra_macro_f1": phenotype.loc["real_terra", "macro_f1"],
                 "direct_he_macro_f1": phenotype.loc["direct_he", "macro_f1"],
                 "flow_macro_f1": phenotype.loc["flow", "macro_f1"],
@@ -49,14 +55,21 @@ def aggregate(output_dir, seeds) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     table = pd.DataFrame(rows)
     class_table = (
         pd.concat(per_class)
-        .groupby(["arm", "class"], as_index=False)["f1"]
+        .groupby(["arm", "class"])["f1"]
         .agg(["mean", "std"])
         .reset_index()
     )
     means = table.mean(numeric_only=True)
+    retrieval_robust = bool(
+        (
+            table["prompt_retrieval_top1_ci95_low"]
+            > table["base_retrieval_top1_ci95_high"]
+        ).all()
+    )
     compatibility = (
         means["prompt_error_separation"] > means["base_error_separation"]
         and means["prompt_retrieval_top1"] > means["base_retrieval_top1"]
+        and retrieval_robust
     )
     phenotype = (
         means["prompt_macro_f1"] > means["flow_macro_f1"]
@@ -64,6 +77,7 @@ def aggregate(output_dir, seeds) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     )
     gate = {
         "seeds": list(map(int, seeds)),
+        "retrieval_robustly_improved": retrieval_robust,
         "compatibility_improved": bool(compatibility),
         "phenotype_improved": bool(phenotype),
         "scale_up": bool(compatibility and phenotype),

@@ -11,6 +11,7 @@ import torch
 import yaml
 
 from cellbridge.config import load_config
+from cellbridge.flow.checkpoints import load_base, save_base, save_prompts
 from cellbridge.flow.data import build_pilot_datasets
 from cellbridge.flow.evaluation import (
     evaluate_phenotypes,
@@ -28,12 +29,18 @@ from cellbridge.flow.training import (
 )
 from cellbridge.jepa.model import TargetNormalizer
 
-FORMAT = "cellbridge.terra_cell_flow/1"
-
 
 def _write_json(path: Path, values: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(values, indent=2, sort_keys=True) + "\n")
+
+
+def _set_run_seed(cfg: dict, seed: int, *, override_sampling: bool = True) -> None:
+    if override_sampling:
+        cfg["data"]["sampling_seed"] = seed
+    sections = ("base_training", "diagnostic", "softrepa", "generation", "evaluation")
+    for section in sections:
+        cfg[section]["seed"] = seed
 
 
 def _validate(cfg: dict) -> None:
@@ -61,6 +68,8 @@ def _validate(cfg: dict) -> None:
         raise ValueError("data.neighbours must be positive")
     if int(cfg["model"]["target_dim"]) != 384:
         raise ValueError("the real TERRA cell embedding dimension must be 384")
+    if float(cfg["softrepa"].get("diagonal_weight", 0.0)) < 0:
+        raise ValueError("softrepa.diagonal_weight must be non-negative")
 
 
 def _device(cfg: dict) -> torch.device:
@@ -72,29 +81,6 @@ def _device(cfg: dict) -> torch.device:
         raise RuntimeError("CUDA was requested but is unavailable")
     return device
 
-
-def _save_base(path, model, normalizer) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "format": FORMAT,
-            "model_config": model.config,
-            "model_state": model.state_dict(),
-            "normalizer_state": normalizer.state_dict(),
-        },
-        path,
-    )
-
-
-def _load_base(path, device):
-    checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-    if checkpoint.get("format") != FORMAT:
-        raise ValueError(f"{path}: unsupported checkpoint format")
-    model = CellFlow(**checkpoint["model_config"])
-    model.load_state_dict(checkpoint["model_state"])
-    state = checkpoint["normalizer_state"]
-    normalizer = TargetNormalizer(state["mean"], state["scale"])
-    return model.to(device), normalizer.to(device)
 
 
 def _new_prompts(cfg, model, device):
@@ -114,9 +100,15 @@ def _diagnostic_stage(cfg, train_dataset, test_dataset, device, run_dir, ckpt_di
     normalizer = TargetNormalizer.fit(train_dataset.anchor_terra).to(device)
     records = train_base(model, normalizer, train_dataset, settings, device)
     pd.DataFrame(records).to_csv(run_dir / "base_training.csv", index=False)
-    _save_base(ckpt_dir / "base.pt", model, normalizer)
+    save_base(ckpt_dir / "base.pt", model, normalizer)
     metrics = diagnose(
-        model, normalizer, test_dataset, cfg["diagnostic"], device
+        model,
+        normalizer,
+        test_dataset,
+        cfg["diagnostic"],
+        device,
+        exclusion_settings=cfg["softrepa"]["false_negative_exclusion"],
+        score_settings=cfg["softrepa"],
     )
     metrics["gate_passed"] = diagnostic_passes(
         metrics, cfg["diagnostic"]["gate"]
@@ -137,9 +129,21 @@ def _full_stage(
     base_metrics=None,
 ):
     if model is None:
-        model, normalizer = _load_base(ckpt_dir / "base.pt", device)
+        base_path = ckpt_dir / "base.pt"
+        if not base_path.exists():
+            raise RuntimeError("--stage full requires a completed diagnostic checkpoint")
+        model, normalizer = load_base(base_path, device)
     if base_metrics is None:
-        base_metrics = json.loads((run_dir / "base_diagnostic.json").read_text())
+        diagnostic_path = run_dir / "base_diagnostic.json"
+        if not diagnostic_path.exists():
+            raise RuntimeError(
+                "--stage full requires base_diagnostic.json; run --stage diagnostic first"
+            )
+        base_metrics = json.loads(diagnostic_path.read_text())
+    if "retrieval_top1_ci95_high" not in base_metrics:
+        raise RuntimeError(
+            "base diagnostic predates the corrected metrics; rerun --stage diagnostic"
+        )
     if not base_metrics["gate_passed"]:
         _write_json(run_dir / "status.json", {"stopped_after_diagnostic": True})
         print("base diagnostic did not pass; stopping before SoftREPA", flush=True)
@@ -155,7 +159,7 @@ def _full_stage(
         device,
     )
     pd.DataFrame(prompt_records).to_csv(run_dir / "prompt_training.csv", index=False)
-    torch.save(prompts.state_dict(), ckpt_dir / "prompts.pt")
+    save_prompts(ckpt_dir / "prompts.pt", prompts)
     prompt_metrics = diagnose(
         model,
         normalizer,
@@ -163,6 +167,8 @@ def _full_stage(
         cfg["diagnostic"],
         device,
         prompts=prompts,
+        exclusion_settings=cfg["softrepa"]["false_negative_exclusion"],
+        score_settings=cfg["softrepa"],
     )
     _write_json(run_dir / "prompt_diagnostic.json", prompt_metrics)
 
@@ -213,8 +219,7 @@ def main() -> None:
     cfg = load_config(args.config)
     _validate(cfg)
     seed = int(cfg["base_training"]["seed"] if args.seed is None else args.seed)
-    for section in ("data", "base_training", "diagnostic", "softrepa", "generation", "evaluation"):
-        cfg[section]["seed"] = seed
+    _set_run_seed(cfg, seed, override_sampling=args.seed is not None)
     set_seed(seed)
     run_dir = Path(cfg["output_dir"]) / f"seed{seed}"
     ckpt_dir = Path(cfg["checkpoint_dir"]) / f"seed{seed}"

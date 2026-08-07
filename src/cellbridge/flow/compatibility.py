@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from cellbridge.flow.diagnostics import summarize_error_matrices
+
 
 def endpoint_error_matrix(
     model,
@@ -64,15 +66,21 @@ def softrepa_loss(
     *,
     scale: float,
     temperature: float,
+    diagonal_weight: float = 0.0,
     valid_negatives: torch.Tensor | None = None,
 ) -> torch.Tensor:
+    """Combine SoftREPA compatibility CE and its optional diagonal anchor."""
+
+    if diagonal_weight < 0:
+        raise ValueError("diagonal_weight must be non-negative")
     logits = softrepa_logits(errors, scale=scale, temperature=temperature)
     if valid_negatives is not None:
         if valid_negatives.shape != errors.shape or valid_negatives.dtype != torch.bool:
             raise ValueError("valid_negatives must be a boolean error-matrix mask")
         logits = logits.masked_fill(~valid_negatives, torch.finfo(logits.dtype).min)
     labels = torch.arange(len(errors), device=errors.device)
-    return F.cross_entropy(logits, labels)
+    contrastive = F.cross_entropy(logits, labels)
+    return contrastive + float(diagonal_weight) * errors.diag().mean()
 
 
 def false_negative_mask(
@@ -88,7 +96,8 @@ def false_negative_mask(
     valid = torch.ones((batch, batch), dtype=torch.bool, device=positions.device)
     if nearest_terra is not None:
         neighbours = nearest_terra[positions]
-        valid &= ~(positions[None, :, None] == neighbours[:, None, :]).any(dim=-1)
+        near = (positions[None, :, None] == neighbours[:, None, :]).any(dim=-1)
+        valid &= ~(near | near.T)
     if spatial_radius_um is not None:
         if spatial_radius_um <= 0:
             raise ValueError("spatial_radius_um must be positive or None")
@@ -124,39 +133,3 @@ def nearest_terra_indices(
         similarities[torch.arange(len(local), device=device), local] = -torch.inf
         rows.append(similarities.topk(neighbours, dim=1).indices.cpu())
     return torch.cat(rows).to(device)
-
-
-def summarize_error_matrices(matrices: list[np.ndarray]) -> dict[str, float]:
-    """Summarize matched/shuffled separation and within-batch retrieval."""
-
-    if not matrices:
-        raise ValueError("at least one error matrix is required")
-    matched, mismatched, top1, top5, better = [], [], [], [], []
-    for errors in matrices:
-        if errors.ndim != 2 or errors.shape[0] != errors.shape[1]:
-            raise ValueError("diagnostic matrices must be square")
-        size = len(errors)
-        diagonal = np.diag(errors)
-        off_diagonal = errors[~np.eye(size, dtype=bool)]
-        ranks = np.argsort(errors, axis=1)
-        expected = np.arange(size)
-        matched.append(diagonal)
-        mismatched.append(off_diagonal)
-        top1.append(ranks[:, 0] == expected)
-        top5.append((ranks[:, : min(5, size)] == expected[:, None]).any(axis=1))
-        row_mismatch = (errors.sum(axis=1) - diagonal) / (size - 1)
-        better.append(diagonal < row_mismatch)
-    match = np.concatenate(matched)
-    mismatch = np.concatenate(mismatched)
-    mismatch_mean = float(mismatch.mean())
-    return {
-        "matched_error_mean": float(match.mean()),
-        "mismatched_error_mean": mismatch_mean,
-        "relative_error_reduction": float((mismatch_mean - match.mean()) / mismatch_mean),
-        "matched_better_fraction": float(np.concatenate(better).mean()),
-        "retrieval_top1": float(np.concatenate(top1).mean()),
-        "retrieval_top5": float(np.concatenate(top5).mean()),
-        "retrieval_candidates": int(matrices[0].shape[0]),
-        "chance_top1": float(1.0 / matrices[0].shape[0]),
-        "n_states": int(sum(len(matrix) for matrix in matrices)),
-    }

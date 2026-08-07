@@ -60,6 +60,7 @@ softrepa:
   precision: bf16
   scale: 4.0
   temperature: 0.07
+  diagonal_weight: 0.0
   log_every: 25
   seed: 0
   false_negative_exclusion:

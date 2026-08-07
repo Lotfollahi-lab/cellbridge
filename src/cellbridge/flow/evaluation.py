@@ -155,10 +155,15 @@ def evaluate_phenotypes(
 
 def scale_up_gate(base_diagnostic, prompt_diagnostic, phenotype_metrics) -> dict:
     by_arm = {row["arm"]: row for row in phenotype_metrics}
+    retrieval_robustly_improved = (
+        prompt_diagnostic.get("retrieval_top1_ci95_low", -np.inf)
+        > base_diagnostic.get("retrieval_top1_ci95_high", np.inf)
+    )
     compatibility_improved = (
         prompt_diagnostic["relative_error_reduction"]
         > base_diagnostic["relative_error_reduction"]
         and prompt_diagnostic["retrieval_top1"] > base_diagnostic["retrieval_top1"]
+        and retrieval_robustly_improved
     )
     phenotype_improved = (
         by_arm["flow_softrepa"]["macro_f1"] > by_arm["flow"]["macro_f1"]
@@ -166,6 +171,7 @@ def scale_up_gate(base_diagnostic, prompt_diagnostic, phenotype_metrics) -> dict
         > by_arm["flow"]["balanced_accuracy"]
     )
     return {
+        "retrieval_robustly_improved": bool(retrieval_robustly_improved),
         "compatibility_improved": bool(compatibility_improved),
         "phenotype_improved": bool(phenotype_improved),
         "scale_up": bool(compatibility_improved and phenotype_improved),

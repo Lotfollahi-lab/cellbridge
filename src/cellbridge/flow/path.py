@@ -40,21 +40,19 @@ def sample_endpoint(
 ) -> torch.Tensor:
     """Integrate STFlow's endpoint-derived velocity and return ``x_1``."""
 
-    if steps < 2:
-        raise ValueError("steps must be at least two")
+    if steps < 1:
+        raise ValueError("steps must be positive")
     state = torch.randn(
         (len(condition), target_dim),
         device=condition.device,
         dtype=condition.dtype,
         generator=generator,
     )
-    times = torch.linspace(0.01, 1.0, steps, device=state.device, dtype=state.dtype)
-    for index, time_value in enumerate(times):
+    times = torch.linspace(0.0, 1.0, steps + 1, device=state.device, dtype=state.dtype)
+    for index, time_value in enumerate(times[:-1]):
         time = time_value.expand(len(state))
         endpoint = model(state, time, condition, coordinates, prompts=prompts)
-        if index == len(times) - 1:
-            return endpoint
         delta = times[index + 1] - time_value
         velocity = (endpoint - state) / (1.0 - time_value)
         state = state + delta * velocity
-    raise RuntimeError("unreachable")
+    return state
