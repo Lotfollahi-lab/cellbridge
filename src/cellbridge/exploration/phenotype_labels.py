@@ -49,9 +49,7 @@ LABELS = {
     "Ductal_Epithelial_Cells": _s(
         "ductal epithelial cell", "epithelial", malignancy="non_malignant"
     ),
-    "Myoepithelial": _s(
-        "myoepithelial cell", "epithelial", malignancy="non_malignant"
-    ),
+    "Myoepithelial": _s("myoepithelial cell", "epithelial", malignancy="non_malignant"),
     "Myoepithelial_Cells": _s(
         "myoepithelial cell", "epithelial", malignancy="non_malignant"
     ),
@@ -117,8 +115,10 @@ def _annotate_table(labels, label_column):
     }
     fields = next(iter(annotations.values())).keys()
     for field in fields:
-        labels[field] = labels[label_column].astype(str).map(
-            {raw: values[field] for raw, values in annotations.items()}
+        labels[field] = (
+            labels[label_column]
+            .astype(str)
+            .map({raw: values[field] for raw, values in annotations.items()})
         )
     return labels
 
@@ -132,8 +132,12 @@ def _sample_rows(table, limit, rng):
     return table.loc[rows].sort_values("_embedding_row").reset_index(drop=True)
 
 
-def load_sampled_embeddings(cfg):
-    """Load balanced frozen cell embeddings, metadata, and a label audit."""
+def load_sampled_embeddings(cfg, embedding_loader=None, *, normalize=True):
+    """Load the exact balanced phenotype cohort used by the ordering metric.
+
+    ``embedding_loader(sample_id)`` may supply ``(cell_ids, matrix)`` from a
+    model artifact. The default remains the original frozen-TERRA NPZ path.
+    """
     root = Path(cfg["data_root"])
     key = cfg.get("embedding_key", "cell_emb")
     label_id = cfg.get("label_id_column", "cell_id")
@@ -153,43 +157,54 @@ def load_sampled_embeddings(cfg):
         labels["raw_label"] = labels[label_column].astype(str)
         labels = _annotate_table(labels, label_column)
 
-        with np.load(directory / f"{sample_id}_terra.npz", allow_pickle=True) as data:
-            if key not in data:
-                raise KeyError(f"{sample_id}: missing embedding key {key!r}")
-            embedding_ids = data["cell_ids"].astype(str)
-            labels["_embedding_row"] = pd.Index(embedding_ids).get_indexer(
-                labels[label_id]
-            )
-            labels["embedding_matched"] = labels["_embedding_row"] >= 0
-            eligible = labels[
-                (labels["decision"] == "included") & labels["embedding_matched"]
-            ].copy()
-            numeric_id = int(re.search(r"\d+$", sample_id).group())
-            chosen = _sample_rows(
-                eligible,
-                limit,
-                np.random.default_rng(np.random.SeedSequence([seed, numeric_id])),
-            )
-            matrix = np.asarray(data[key][chosen["_embedding_row"]], dtype=np.float32)
+        if embedding_loader is None:
+            with np.load(
+                directory / f"{sample_id}_terra.npz", allow_pickle=True
+            ) as data:
+                if key not in data:
+                    raise KeyError(f"{sample_id}: missing embedding key {key!r}")
+                embedding_ids = data["cell_ids"].astype(str)
+                source_matrix = np.asarray(data[key], dtype=np.float32)
+        else:
+            embedding_ids, source_matrix = embedding_loader(str(sample_id))
+            embedding_ids = np.asarray(embedding_ids).astype(str)
+            source_matrix = np.asarray(source_matrix, dtype=np.float32)
+        if source_matrix.ndim != 2 or len(source_matrix) != len(embedding_ids):
+            raise ValueError(f"{sample_id}: embedding rows and cell IDs must align")
+
+        labels["_embedding_row"] = pd.Index(embedding_ids).get_indexer(labels[label_id])
+        labels["embedding_matched"] = labels["_embedding_row"] >= 0
+        eligible = labels[
+            (labels["decision"] == "included") & labels["embedding_matched"]
+        ].copy()
+        numeric_id = int(re.search(r"\d+$", sample_id).group())
+        chosen = _sample_rows(
+            eligible,
+            limit,
+            np.random.default_rng(np.random.SeedSequence([seed, numeric_id])),
+        )
+        matrix = source_matrix[chosen["_embedding_row"].to_numpy()]
 
         if matrix.ndim != 2 or not np.isfinite(matrix).all():
             raise ValueError(f"{sample_id}: embeddings must be a finite matrix")
         dimension = dimension or matrix.shape[1]
         if matrix.shape[1] != dimension:
             raise ValueError(f"{sample_id}: inconsistent embedding dimension")
-        norms = np.linalg.norm(matrix, axis=1)
-        if np.any(norms == 0):
-            raise ValueError(f"{sample_id}: zero-norm embeddings")
-        all_embeddings.append(matrix / norms[:, None])
+        if normalize:
+            norms = np.linalg.norm(matrix, axis=1)
+            if np.any(norms == 0):
+                raise ValueError(f"{sample_id}: zero-norm embeddings")
+            matrix = matrix / norms[:, None]
+        all_embeddings.append(matrix)
         chosen["sample_id"] = sample_id
         all_cells.append(chosen.drop(columns=[label_column, "_embedding_row"]))
 
         matched = labels[labels["embedding_matched"]].groupby("raw_label").size()
         sampled = chosen.groupby("raw_label").size()
         audit = labels.groupby("raw_label", sort=True).first().reset_index()
-        audit["n_labelled"] = labels.groupby("raw_label").size().reindex(
-            audit["raw_label"]
-        ).to_numpy()
+        audit["n_labelled"] = (
+            labels.groupby("raw_label").size().reindex(audit["raw_label"]).to_numpy()
+        )
         audit["n_embedding_matched"] = (
             audit["raw_label"].map(matched).fillna(0).astype(int)
         )

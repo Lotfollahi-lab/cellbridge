@@ -19,6 +19,56 @@ LEVEL_COLUMNS = (
 )
 
 
+def load_ontology_nodes(path: str | Path) -> pd.DataFrame:
+    """Load the reviewed tree and assign stable global node/parent indices."""
+
+    path = Path(path)
+    nodes = pd.read_csv(path, keep_default_na=False)
+    required = {"level", "parent", "node"}
+    if not required <= set(nodes):
+        raise ValueError(f"{path}: hierarchy nodes require {sorted(required)}")
+    nodes = nodes.copy()
+    nodes["level"] = pd.to_numeric(nodes["level"], errors="raise").astype(int)
+    nodes[["parent", "node"]] = nodes[["parent", "node"]].astype(str)
+    if nodes.empty or nodes[["level", "node"]].duplicated().any():
+        raise ValueError(f"{path}: hierarchy nodes must be non-empty and unique")
+    if (nodes["level"].to_numpy() < 0).any() or (nodes["level"].to_numpy() > 3).any():
+        raise ValueError(f"{path}: hierarchy node levels must lie in [0, 3]")
+    nodes.insert(0, "node_id", np.arange(len(nodes), dtype=np.int64))
+    lookup = {
+        (int(row.level), str(row.node)): int(row.node_id)
+        for row in nodes.itertuples(index=False)
+    }
+    parents = []
+    for row in nodes.itertuples(index=False):
+        if row.level == 0:
+            if row.parent:
+                raise ValueError(f"{path}: level-0 nodes cannot have parents")
+            parents.append(-1)
+            continue
+        parent = lookup.get((int(row.level) - 1, str(row.parent)))
+        if parent is None or parent >= int(row.node_id):
+            raise ValueError(f"{path}: invalid parent for node {row.node!r}")
+        parents.append(parent)
+    nodes["parent_id"] = np.asarray(parents, dtype=np.int64)
+    return nodes
+
+
+def encode_ontology_node_ids(metadata: pd.DataFrame, nodes: pd.DataFrame) -> np.ndarray:
+    """Encode each known path node with IDs from ``hierarchy_nodes.csv``."""
+
+    encoded = np.full((len(metadata), len(LEVEL_COLUMNS)), -1, dtype=np.int64)
+    for level, column in enumerate(LEVEL_COLUMNS):
+        level_nodes = nodes.loc[nodes["level"] == level, ["node", "node_id"]]
+        lookup = dict(zip(level_nodes["node"].astype(str), level_nodes["node_id"]))
+        values = metadata[column].astype(str)
+        unknown = sorted(set(values[values != ""]) - set(lookup))
+        if unknown:
+            raise ValueError(f"ontology table is missing level-{level} nodes {unknown}")
+        encoded[:, level] = values.map(lookup).fillna(-1).to_numpy(dtype=np.int64)
+    return encoded
+
+
 def _status_column(path: Path) -> str:
     import pyarrow.parquet as pq
 
@@ -82,7 +132,9 @@ def _validate(table: pd.DataFrame, path: Path) -> None:
     if unknown:
         raise ValueError(f"{path}: unknown mapping_status values {unknown}")
     depth = pd.to_numeric(table["hierarchy_depth"], errors="raise").to_numpy()
-    if not np.equal(depth, depth.astype(int)).all() or np.any((depth < 0) | (depth > 3)):
+    if not np.equal(depth, depth.astype(int)).all() or np.any(
+        (depth < 0) | (depth > 3)
+    ):
         raise ValueError(f"{path}: hierarchy_depth must be an integer in [0, 3]")
     if not pd.api.types.is_bool_dtype(table["use_in_hierarchy"]):
         raise ValueError(f"{path}: use_in_hierarchy must be boolean")
@@ -102,10 +154,25 @@ def _validate(table: pd.DataFrame, path: Path) -> None:
             raise ValueError(f"{path}: partial label has nodes beyond hierarchy_depth")
 
 
+def load_aligned_hierarchy(path, cell_ids, sample_id) -> pd.DataFrame:
+    """Load and validate reviewed hierarchy rows in a requested cell order."""
+
+    path = Path(path)
+    cell_ids = np.asarray([canonical_id(value) for value in cell_ids])
+    table = _load_aligned(path, cell_ids, str(sample_id))
+    _validate(table, path)
+    return table
+
+
 class HierarchyDataset(Dataset):
     """Add encoded hierarchy fields without altering the underlying cell data."""
 
-    def __init__(self, base, labels_dir: str | Path):
+    def __init__(
+        self,
+        base,
+        labels_dir: str | Path,
+        nodes_path: str | Path | None = None,
+    ):
         self.base = base
         labels_dir = Path(labels_dir)
         aligned = []
@@ -113,9 +180,7 @@ class HierarchyDataset(Dataset):
             path = labels_dir / f"{sample_id}.parquet"
             if not path.exists():
                 raise FileNotFoundError(f"missing hierarchy labels: {path}")
-            table = _load_aligned(path, cell_ids, sample_id)
-            _validate(table, path)
-            aligned.append(table)
+            aligned.append(load_aligned_hierarchy(path, cell_ids, sample_id))
         metadata = pd.concat(aligned, ignore_index=True)
         if len(metadata) != len(base):
             raise RuntimeError("hierarchy alignment changed dataset length")
@@ -137,6 +202,13 @@ class HierarchyDataset(Dataset):
         )
         self.mapping_status = tuple(status)
         self.sample_ids_by_index = metadata["sample_id"].to_numpy(dtype=str)
+        self.node_ids = None
+        self.ontology_depths = self.ontology_parents = None
+        if nodes_path is not None:
+            nodes = load_ontology_nodes(nodes_path)
+            self.node_ids = torch.from_numpy(encode_ontology_node_ids(metadata, nodes))
+            self.ontology_depths = nodes["level"].to_numpy(dtype=np.int64)
+            self.ontology_parents = nodes["parent_id"].to_numpy(dtype=np.int64)
 
     @property
     def sample_indices(self):
@@ -157,6 +229,8 @@ class HierarchyDataset(Dataset):
             hierarchy_usable=self.usable[index],
             mapping_status=self.mapping_status[index],
         )
+        if self.node_ids is not None:
+            item["hierarchy_node_ids"] = self.node_ids[index]
         return item
 
     def close(self):

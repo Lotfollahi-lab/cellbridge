@@ -129,6 +129,16 @@ class LoRAUNIDistiller(nn.Module):
         gex_hidden_dim: int = 1024,
         gex_dropout: float = 0.1,
         target_modules: Sequence[str] = ("qkv", "proj"),
+        geometry_mode: str = "euclidean",
+        alignment_dim: int | None = None,
+        curvature: float = 1.0,
+        learnable_curvature: bool = True,
+        min_curvature: float = 1e-3,
+        max_curvature: float = 10.0,
+        max_tangent_norm: float = 12.0,
+        ontology_depths: Sequence[int] | None = None,
+        ontology_parents: Sequence[int] | None = None,
+        ontology_init_radius: float = 0.5,
     ) -> None:
         super().__init__()
         if mode not in OBJECTIVE_MODES:
@@ -139,6 +149,12 @@ class LoRAUNIDistiller(nn.Module):
             raise ValueError("image_dim and terra_dim must be positive")
         if not target_modules:
             raise ValueError("target_modules cannot be empty")
+
+        if geometry_mode not in {"euclidean", "hyperbolic"}:
+            raise ValueError("geometry_mode must be 'euclidean' or 'hyperbolic'")
+        alignment_dim = int(terra_dim if alignment_dim is None else alignment_dim)
+        if alignment_dim < 1:
+            raise ValueError("alignment_dim must be positive")
 
         trainable_blocks = _parse_trainable_blocks(trainable_blocks)
         target_modules = tuple(dict.fromkeys(target_modules))
@@ -164,11 +180,59 @@ class LoRAUNIDistiller(nn.Module):
         self.gex_hidden_dim = int(gex_hidden_dim)
         self.gex_dropout = float(gex_dropout)
         self.target_modules = target_modules
+        self.geometry_mode = geometry_mode
+        self.alignment_dim = alignment_dim
+        self.initial_curvature = float(curvature)
+        self.learnable_curvature = bool(learnable_curvature)
+        self.min_curvature = float(min_curvature)
+        self.max_curvature = float(max_curvature)
+        self.max_tangent_norm = float(max_tangent_norm)
+        self.ontology_depths = (
+            tuple(map(int, ontology_depths)) if ontology_depths is not None else None
+        )
+        self.ontology_parents = (
+            tuple(map(int, ontology_parents)) if ontology_parents is not None else None
+        )
+        self.ontology_init_radius = float(ontology_init_radius)
 
         self.projection_head = nn.Sequential(
             nn.LayerNorm(self.image_dim),
-            nn.Linear(self.image_dim, self.terra_dim),
+            nn.Linear(self.image_dim, self.alignment_dim),
         )
+        needs_terra_head = self.geometry_mode == "hyperbolic" or (
+            self.alignment_dim != self.terra_dim
+        )
+        self.terra_projection_head = (
+            nn.Sequential(
+                nn.LayerNorm(self.terra_dim),
+                nn.Linear(self.terra_dim, self.alignment_dim),
+            )
+            if needs_terra_head
+            else nn.Identity()
+        )
+        self.lorentz = self.ontology = None
+        if self.geometry_mode == "hyperbolic":
+            from cellbridge.hyperbolic.manifold import LorentzOps, OntologyEmbedding
+
+            self.lorentz = LorentzOps(
+                self.alignment_dim,
+                self.initial_curvature,
+                learnable_curvature=self.learnable_curvature,
+                min_curvature=self.min_curvature,
+                max_curvature=self.max_curvature,
+                max_tangent_norm=self.max_tangent_norm,
+            )
+            if self.ontology_depths is not None:
+                if self.ontology_parents is None:
+                    raise ValueError("ontology_depths requires ontology_parents")
+                self.ontology = OntologyEmbedding(
+                    self.lorentz,
+                    self.ontology_depths,
+                    self.ontology_parents,
+                    init_radius=self.ontology_init_radius,
+                )
+        elif self.ontology_depths is not None or self.ontology_parents is not None:
+            raise ValueError("ontology points require hyperbolic geometry")
         if self.mode == "contrastive_gex":
             self.gex_norm = nn.LayerNorm(self.image_dim)
             self.gex_hidden = nn.Linear(self.image_dim, self.gex_hidden_dim)
@@ -204,7 +268,23 @@ class LoRAUNIDistiller(nn.Module):
             "gex_hidden_dim": self.gex_hidden_dim,
             "gex_dropout": self.gex_dropout,
             "target_modules": list(self.target_modules),
+            "geometry_mode": self.geometry_mode,
+            "alignment_dim": self.alignment_dim,
+            "curvature": self.current_curvature,
+            "learnable_curvature": self.learnable_curvature,
+            "min_curvature": self.min_curvature,
+            "max_curvature": self.max_curvature,
+            "max_tangent_norm": self.max_tangent_norm,
+            "ontology_depths": self.ontology_depths,
+            "ontology_parents": self.ontology_parents,
+            "ontology_init_radius": self.ontology_init_radius,
         }
+
+    @property
+    def current_curvature(self) -> float:
+        if self.lorentz is None:
+            return self.initial_curvature
+        return float(self.lorentz.curvature.detach())
 
     def lora_layers(self) -> Iterator[LoRALinear]:
         for module in self.modules():
@@ -222,10 +302,31 @@ class LoRAUNIDistiller(nn.Module):
         """Yield projection and GEX parameters for a dedicated optimizer group."""
 
         yield from self.projection_head.parameters()
+        yield from self.terra_projection_head.parameters()
         if self.mode == "contrastive_gex":
             yield from self.gex_norm.parameters()
             yield from self.gex_hidden.parameters()
             yield from self.gex_output.parameters()
+
+    def curvature_parameters(self) -> Iterator[nn.Parameter]:
+        if self.lorentz is not None:
+            parameter = self.lorentz.curvature_parameter
+            if parameter is not None:
+                yield parameter
+
+    def manifold_parameters(self) -> Iterator[nn.Parameter]:
+        if self.ontology is not None:
+            yield self.ontology.points
+
+    @property
+    def ontology_points(self) -> torch.Tensor | None:
+        return None if self.ontology is None else self.ontology.points
+
+    @torch.no_grad()
+    def clamp_geometry_(self) -> None:
+        if self.lorentz is not None:
+            points = () if self.ontology is None else (self.ontology.points,)
+            self.lorentz.clamp_(*points)
 
     @contextmanager
     def use_lora(self, enabled: bool) -> Iterator[None]:
@@ -271,6 +372,14 @@ class LoRAUNIDistiller(nn.Module):
 
         return self.encode_images(images, use_lora=False)
 
+    def _map_alignment(self, tangent: torch.Tensor) -> torch.Tensor:
+        if self.lorentz is None:
+            return F.normalize(tangent, dim=-1)
+        if tangent.dtype in {torch.float16, torch.bfloat16}:
+            tangent = tangent.float()
+        with torch.autocast(device_type=tangent.device.type, enabled=False):
+            return self.lorentz.expmap0(tangent)
+
     def apply_heads(self, image_feature: torch.Tensor) -> dict[str, torch.Tensor]:
         """Apply the projection and optional GEX heads to cached UNI features."""
 
@@ -279,7 +388,7 @@ class LoRAUNIDistiller(nn.Module):
 
         outputs = {
             "image_feature": image_feature,
-            "projected": F.normalize(self.projection_head(image_feature), dim=-1),
+            "projected": self._map_alignment(self.projection_head(image_feature)),
         }
         if self.mode == "contrastive_gex":
             hidden = self.gex_activation(self.gex_hidden(self.gex_norm(image_feature)))
@@ -287,6 +396,29 @@ class LoRAUNIDistiller(nn.Module):
             outputs["gex_penultimate"] = hidden
             outputs["gex_prediction"] = self.gex_output(hidden)
         return outputs
+
+    def project_terra(self, terra_feature: torch.Tensor) -> torch.Tensor:
+        if terra_feature.ndim != 2 or terra_feature.shape[1] != self.terra_dim:
+            raise ValueError(f"terra_feature must have shape [batch, {self.terra_dim}]")
+        return self._map_alignment(self.terra_projection_head(terra_feature))
+
+    def probe_projection(self, point: torch.Tensor) -> torch.Tensor:
+        """Return origin-tangent coordinates consumed by the existing probes."""
+
+        if self.lorentz is None:
+            return point
+        if point.dtype in {torch.float16, torch.bfloat16}:
+            point = point.float()
+        with torch.autocast(device_type=point.device.type, enabled=False):
+            return self.lorentz.logmap0(point)
+
+    def embedding_radius(self, point: torch.Tensor) -> torch.Tensor:
+        if self.lorentz is None:
+            return point.norm(dim=-1)
+        if point.dtype in {torch.float16, torch.bfloat16}:
+            point = point.float()
+        with torch.autocast(device_type=point.device.type, enabled=False):
+            return self.lorentz.radius(point)
 
     def forward(
         self, images: torch.Tensor, *, use_lora: bool | None = None
@@ -412,9 +544,7 @@ def terra_similarity_targets(
 
 
 def _distribution_kl(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-    return F.kl_div(
-        F.log_softmax(logits, dim=-1), targets, reduction="batchmean"
-    )
+    return F.kl_div(F.log_softmax(logits, dim=-1), targets, reduction="batchmean")
 
 
 def soft_target_contrastive_loss(
@@ -456,6 +586,7 @@ def compute_loss(
     teacher_temperature: float = 0.1,
     exact_match_boost: float = 0.05,
     bidirectional: bool = True,
+    manifold=None,
 ) -> dict[str, torch.Tensor]:
     """Compute the configured LoRA objective and retrieval metrics."""
 
@@ -466,17 +597,33 @@ def compute_loss(
     if "projected" not in outputs:
         raise ValueError("model outputs are missing 'projected'")
 
+    terra_z = outputs.get("terra_projected", terra_target)
     if targets == "exact":
-        metrics = symmetric_contrastive_loss(
-            outputs["projected"],
-            terra_target,
-            temperature,
-            bidirectional=bidirectional,
-        )
+        if manifold is None:
+            metrics = symmetric_contrastive_loss(
+                outputs["projected"],
+                terra_z,
+                temperature,
+                bidirectional=bidirectional,
+            )
+        else:
+            from cellbridge.hyperbolic.losses import (
+                hyperbolic_contrastive_loss,
+            )
+
+            metrics = hyperbolic_contrastive_loss(
+                outputs["projected"],
+                terra_z,
+                manifold,
+                temperature,
+                bidirectional=bidirectional,
+            )
     else:
+        if manifold is not None:
+            raise ValueError("hyperbolic alignment does not support soft targets")
         metrics = soft_target_contrastive_loss(
             outputs["projected"],
-            terra_target,
+            terra_z,
             temperature,
             teacher_temperature=teacher_temperature,
             exact_match_boost=exact_match_boost,

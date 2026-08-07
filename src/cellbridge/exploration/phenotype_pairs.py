@@ -11,6 +11,10 @@ RELATIONS = ("unrelated", "related_lineage", "same_type")
 RELATION_SCORE = {name: score for score, name in enumerate(RELATIONS)}
 
 
+def _paired_cosine(left, right):
+    return np.einsum("ij,ij->i", left, right)
+
+
 def _cell_pools(cells):
     pools = []
     for (sample, phenotype), group in cells.groupby(
@@ -88,12 +92,8 @@ def sample_cross_sample_pairs(embeddings, cells, pairs_per_relation, seed):
                     "cosine_similarity": similarities,
                     "sample_a": [pools[index]["sample"] for index in left_pool],
                     "sample_b": [pools[index]["sample"] for index in right_pool],
-                    "phenotype_a": [
-                        pools[index]["phenotype"] for index in left_pool
-                    ],
-                    "phenotype_b": [
-                        pools[index]["phenotype"] for index in right_pool
-                    ],
+                    "phenotype_a": [pools[index]["phenotype"] for index in left_pool],
+                    "phenotype_b": [pools[index]["phenotype"] for index in right_pool],
                     "lineage_a": [pools[index]["lineage"] for index in left_pool],
                     "lineage_b": [pools[index]["lineage"] for index in right_pool],
                 }
@@ -120,19 +120,15 @@ def _triplet_candidates(pools):
     return eligible
 
 
-def sample_ordering_triplets(embeddings, cells, count, seed):
+def sample_ordering_triplets(embeddings, cells, count, seed, similarity=None):
     """Sample anchor-matched same, related, and unrelated cross-sample pairs."""
     pools = _cell_pools(cells)
     eligible = _triplet_candidates(pools)
     rng = np.random.default_rng(seed)
     selected_anchors = rng.integers(len(eligible), size=count)
     anchor_rows = np.empty(count, dtype=np.int64)
-    target_rows = {
-        relation: np.empty(count, dtype=np.int64) for relation in RELATIONS
-    }
-    target_pools = {
-        relation: np.empty(count, dtype=np.int64) for relation in RELATIONS
-    }
+    target_rows = {relation: np.empty(count, dtype=np.int64) for relation in RELATIONS}
+    target_pools = {relation: np.empty(count, dtype=np.int64) for relation in RELATIONS}
 
     for eligible_id in np.unique(selected_anchors):
         positions = np.flatnonzero(selected_anchors == eligible_id)
@@ -147,10 +143,9 @@ def sample_ordering_triplets(embeddings, cells, count, seed):
                     pools[pool_id]["rows"], len(subset)
                 )
 
-    similarity = {
-        relation: np.einsum(
-            "ij,ij->i", embeddings[anchor_rows], embeddings[target_rows[relation]]
-        )
+    score = similarity or _paired_cosine
+    similarities = {
+        relation: score(embeddings[anchor_rows], embeddings[target_rows[relation]])
         for relation in RELATIONS
     }
     anchor_pool_ids = np.fromiter(
@@ -171,9 +166,9 @@ def sample_ordering_triplets(embeddings, cells, count, seed):
             "unrelated_sample": [
                 pools[index]["sample"] for index in target_pools["unrelated"]
             ],
-            "similarity_same": similarity["same_type"],
-            "similarity_related": similarity["related_lineage"],
-            "similarity_unrelated": similarity["unrelated"],
+            "similarity_same": similarities["same_type"],
+            "similarity_related": similarities["related_lineage"],
+            "similarity_unrelated": similarities["unrelated"],
         }
     )
     triplets["same_minus_related"] = (
@@ -183,9 +178,7 @@ def sample_ordering_triplets(embeddings, cells, count, seed):
         triplets["similarity_related"] - triplets["similarity_unrelated"]
     )
     triplets["same_not_above_related"] = triplets["same_minus_related"] <= 0
-    triplets["related_not_above_unrelated"] = (
-        triplets["related_minus_unrelated"] <= 0
-    )
+    triplets["related_not_above_unrelated"] = triplets["related_minus_unrelated"] <= 0
     triplets["any_ordering_violation"] = triplets[
         ["same_not_above_related", "related_not_above_unrelated"]
     ].any(axis=1)

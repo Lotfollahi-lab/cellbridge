@@ -24,11 +24,12 @@ def write_evaluation_summary(
     for cohort, table in hest_tables:
         if table is None or table.empty:
             continue
-        means = table.groupby("arm")[["macro_f1", "balanced_accuracy"]].mean()
+        metric_columns = ["macro_f1", "balanced_accuracy"]
+        if "norm_correctness_spearman" in table:
+            metric_columns.append("norm_correctness_spearman")
+        means = table.groupby("arm")[metric_columns].mean()
         task = (
-            "label_test_fast_5_sample_mean"
-            if cohort == "label_test_fast"
-            else cohort
+            "label_test_fast_5_sample_mean" if cohort == "label_test_fast" else cohort
         )
         rows.extend(
             {
@@ -38,6 +39,7 @@ def write_evaluation_summary(
                 "arm": arm,
                 "macro_f1": values["macro_f1"],
                 "balanced_accuracy": values["balanced_accuracy"],
+                "norm_correctness_spearman": values.get("norm_correctness_spearman"),
             }
             for arm, values in means.iterrows()
         )
@@ -50,6 +52,11 @@ def write_evaluation_summary(
                 "arm": row.arm,
                 "macro_f1": row.test_macro_f1,
                 "balanced_accuracy": row.test_balanced_accuracy,
+                "norm_correctness_spearman": getattr(
+                    row,
+                    "norm_correctness_spearman",
+                    float("nan"),
+                ),
             }
             for row in phenocell_metrics.itertuples(index=False)
         )

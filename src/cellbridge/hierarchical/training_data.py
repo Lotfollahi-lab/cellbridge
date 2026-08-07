@@ -53,11 +53,12 @@ def build_hierarchy_data(cfg, transform, selected_genes_path=None) -> HierarchyD
         split="label_test", sample_ids=split.breast_val, **common
     )
     labels_dir = settings["labels_dir"]
+    nodes_path = settings.get("nodes_path")
     return HierarchyData(
         base_train,
-        HierarchyDataset(breast_train, labels_dir),
+        HierarchyDataset(breast_train, labels_dir, nodes_path),
         base_val,
-        HierarchyDataset(breast_val, labels_dir),
+        HierarchyDataset(breast_val, labels_dir, nodes_path),
         split,
         genes,
     )

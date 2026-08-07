@@ -28,6 +28,12 @@ def _empty_metrics(reference: torch.Tensor) -> dict[str, torch.Tensor]:
         "hierarchy_sufficient": zero.detach(),
         "hierarchy_usable_fraction": zero.detach(),
         "negative_downweighted_fraction": zero.detach(),
+        "loss_cone": zero,
+        "cone_pairs": zero.detach(),
+        "cone_active_pairs": zero.detach(),
+        "cone_violations": zero.detach(),
+        "cone_activation_rate": zero.detach(),
+        "cone_violation_rate": zero.detach(),
     }
 
 
@@ -40,6 +46,8 @@ def compute_hierarchy_objective(
     *,
     gex_target: torch.Tensor | None = None,
     gex_mask: torch.Tensor | None = None,
+    manifold=None,
+    ontology_points: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     """Keep exact pairs primary and add only mapped auxiliary assumptions."""
 
@@ -48,12 +56,14 @@ def compute_hierarchy_objective(
         terra_target,
         gex_target,
         gex_mask,
+        manifold=manifold,
         **objective,
     )
     # Kept before any reweighting so one metric means the same thing in every
     # arm; negative downweighting otherwise changes the scale of loss_pair.
     metrics["loss_pair_plain"] = metrics["loss_contrastive"].detach()
     projected = outputs["projected"]
+    terra_projected = outputs.get("terra_projected", terra_target)
     auxiliary = _empty_metrics(projected)
     required = {"hierarchy_levels", "hierarchy_depth", "hierarchy_usable"}
     if not required <= set(batch):
@@ -79,7 +89,7 @@ def compute_hierarchy_objective(
         if bool(softened.any()):
             weighted = weighted_symmetric_pair_loss(
                 projected,
-                terra_target,
+                terra_projected,
                 weights,
                 float(objective["temperature"]),
                 bidirectional=bool(objective["bidirectional"]),
@@ -94,7 +104,7 @@ def compute_hierarchy_objective(
     if ranking["enabled"]:
         ranked = symmetric_hierarchy_ranking_loss(
             projected,
-            terra_target,
+            terra_projected,
             relations,
             batch["sample_id"],
             levels=ranking["levels"],
@@ -109,6 +119,41 @@ def compute_hierarchy_objective(
             metrics["loss_total"] + float(ranking["lambda_hier"]) * ranked["loss_hier"]
         )
 
+    cones = hierarchy.get("cones", {})
+    if cones.get("enabled", False):
+        if manifold is None or ontology_points is None:
+            raise ValueError("entailment cones require a manifold and ontology points")
+        if "hierarchy_node_ids" not in batch:
+            raise ValueError("entailment cones require hierarchy_node_ids")
+        from cellbridge.hyperbolic.losses import multimodal_entailment_cone_loss
+
+        node_ids = batch["hierarchy_node_ids"].to(projected.device)
+        if node_ids.shape != levels.shape:
+            raise ValueError("hierarchy_node_ids must have shape [batch, 4]")
+        level_index = torch.arange(4, device=projected.device)[None, :]
+        valid = (
+            usable[:, None]
+            & (node_ids >= 0)
+            & (level_index > 0)
+            & (level_index <= depth[:, None])
+        )
+        safe_ids = node_ids.clamp_min(0)
+        ancestors = ontology_points[safe_ids]
+        cone_metrics = multimodal_entailment_cone_loss(
+            [
+                projected[:, None, :].expand_as(ancestors),
+                terra_projected[:, None, :].expand_as(ancestors),
+            ],
+            ancestors,
+            manifold,
+            float(cones["K"]),
+            valid_mask=valid,
+        )
+        auxiliary.update(cone_metrics)
+        metrics["loss_total"] = (
+            metrics["loss_total"]
+            + float(cones["lambda_cone"]) * cone_metrics["loss_cone"]
+        )
     metrics.update(auxiliary)
     metrics["loss_pair"] = metrics["loss_contrastive"]
     return metrics

@@ -20,6 +20,7 @@ from cellbridge.evaluation.ood import (
     prepare_ood_task,
     validate_official_split,
 )
+from cellbridge.hyperbolic.metrics import norm_correctness_correlation
 from cellbridge.lora.features import FEATURE_ARMS, FORMAT_VERSION, PCA_ARMS
 
 
@@ -50,7 +51,7 @@ def load_phenocell_arm(manifest, arm):
     return np.concatenate(features), pd.concat(records, ignore_index=True)
 
 
-def _format_result(data, result, task, arm):
+def _format_result(data, result, task, arm, embedding_norms):
     common = result.metrics
     metrics = {
         "task": task,
@@ -65,6 +66,11 @@ def _format_result(data, result, task, arm):
         "test_macro_f1": common["macro_f1"],
         "test_weighted_f1": common["weighted_f1"],
         "pca_explained_variance": data.pca_explained_variance,
+        "norm_correctness_spearman": norm_correctness_correlation(
+            embedding_norms,
+            result.predictions["y_true"],
+            result.predictions["y_pred"],
+        ),
     }
     for key in (
         "best_C",
@@ -88,7 +94,14 @@ def evaluate_phenocell_arm(features, table, task, arm, settings, method="linear"
     """Evaluate one LoRA feature arm with the shared PhenoCell protocol."""
     data = prepare_ood_task(features, table, task, settings, pca=arm in PCA_ARMS)
     result = evaluate_ood_task(data, method, settings)
-    return _format_result(data, result, task, arm)
+    norms = np.linalg.norm(np.asarray(features, dtype=np.float32), axis=1)
+    return _format_result(
+        data,
+        result,
+        task,
+        arm,
+        norms[data.test_indices],
+    )
 
 
 def probe_phenocell(cfg, output_dir):
@@ -101,16 +114,25 @@ def probe_phenocell(cfg, output_dir):
         features, table = load_phenocell_arm(manifest, arm)
         if features is None:
             continue
+        norms = np.linalg.norm(np.asarray(features, dtype=np.float32), axis=1)
         validate_official_split(
             table,
             cfg["data"]["split"],
             require_full_coverage=not cfg["data"].get("allow_unlabeled_samples", False),
         )
         for task in settings.get("tasks", ["all", "immune"]):
-            data = prepare_ood_task(features, table, task, settings, pca=arm in PCA_ARMS)
+            data = prepare_ood_task(
+                features, table, task, settings, pca=arm in PCA_ARMS
+            )
             for method in methods:
                 result = evaluate_ood_task(data, method, settings)
-                metrics, predictions = _format_result(data, result, task, arm)
+                metrics, predictions = _format_result(
+                    data,
+                    result,
+                    task,
+                    arm,
+                    norms[data.test_indices],
+                )
                 payload = {
                     "features": manifest["signature"].astype(str).tolist(),
                     "official_split": file_identity(cfg["data"]["split"]),
@@ -121,8 +143,12 @@ def probe_phenocell(cfg, output_dir):
                 if method != "linear":
                     payload["method"] = method
                 signature = stable_signature(payload)
-                result_dir = method_directory(output_dir / "probes" / task / arm, method)
-                metrics = write_probe_result(result_dir, metrics, predictions, signature)
+                result_dir = method_directory(
+                    output_dir / "probes" / task / arm, method
+                )
+                metrics = write_probe_result(
+                    result_dir, metrics, predictions, signature
+                )
                 all_metrics[method].append(metrics)
                 print(
                     f"[PhenoCell/{task}/{arm}/{method}] "

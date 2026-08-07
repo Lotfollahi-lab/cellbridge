@@ -11,9 +11,9 @@ from cellbridge.evaluation.artifacts import (
     write_array_artifact,
 )
 
-FEATURE_ARMS = ("uni_original", "lora_adapted")
+FEATURE_ARMS = ("uni_original", "lora_adapted", "lora_projected")
 PCA_ARMS = {"uni_original", "lora_adapted"}
-FORMAT_VERSION = "cellbridge.lora.features/1"
+FORMAT_VERSION = "cellbridge.lora.features/2"
 
 
 def feature_signature(dataset, checkpoint_identity, source_identity, settings):
@@ -39,14 +39,17 @@ def feature_file_is_current(
 ):
     keys = tuple(required_keys or FEATURE_ARMS)
     dimensions = expected_dims or {}
-    return artifact_row_count(
-        path,
-        format_version=FORMAT_VERSION,
-        signature=signature,
-        array_dims={name: dimensions.get(name) for name in keys},
-        expected_cells=expected_cells,
-        required_metadata=required_metadata,
-    ) is not None
+    return (
+        artifact_row_count(
+            path,
+            format_version=FORMAT_VERSION,
+            signature=signature,
+            array_dims={name: dimensions.get(name) for name in keys},
+            expected_cells=expected_cells,
+            required_metadata=required_metadata,
+        )
+        is not None
+    )
 
 
 def write_feature_file(path, cell_ids, features, signature, metadata=None):
@@ -60,8 +63,8 @@ def write_feature_file(path, cell_ids, features, signature, metadata=None):
     )
 
 
-def infer_tensor(model, images, device):
-    """Infer adapted and adapter-disabled representations for one image batch."""
+def infer_tensor(model, images, device, terra=None):
+    """Infer raw features plus the alignment-space tangent coordinates."""
     import torch
 
     images = images.to(device, non_blocking=True)
@@ -72,11 +75,20 @@ def infer_tensor(model, images, device):
         dtype=precision,
         enabled=device_type == "cuda" and precision in {torch.float16, torch.bfloat16},
     )
-    with torch.inference_mode(), autocast:
-        return {
-            "lora_adapted": model.encode_images(images, use_lora=True),
+    with torch.no_grad(), autocast:
+        adapted = model.encode_images(images, use_lora=True)
+        aligned = model.apply_heads(adapted)["projected"]
+        outputs = {
+            "lora_adapted": adapted,
             "uni_original": model.encode_base(images),
+            "lora_projected": model.probe_projection(aligned),
         }
+        if terra is not None:
+            terra = terra.to(device, non_blocking=True)
+            outputs["terra_projected"] = model.probe_projection(
+                model.project_terra(terra)
+            )
+        return outputs
 
 
 def infer_loader(model, loader, device, storage_dir=None):
@@ -87,7 +99,7 @@ def infer_loader(model, loader, device, storage_dir=None):
     for batch in loader:
         if not {"image", "cell_id"}.issubset(batch):
             raise KeyError("evaluation batches require image and cell_id")
-        outputs = infer_tensor(model, batch["image"], device)
+        outputs = infer_tensor(model, batch["image"], device, batch.get("terra"))
         for name, tensor in outputs.items():
             values = tensor.float().cpu().numpy()
             if name not in feature_arrays:

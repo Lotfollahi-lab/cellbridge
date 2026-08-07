@@ -31,6 +31,21 @@ from cellbridge.lora.probe_phenocell import (
 )
 from cellbridge.lora.summary import write_evaluation_summary
 
+__all__ = [
+    "FEATURE_ARMS",
+    "FORMAT_VERSION",
+    "PCA_ARMS",
+    "evaluate_hest_sample",
+    "evaluate_phenocell_arm",
+    "feature_file_is_current",
+    "feature_signature",
+    "infer_loader",
+    "infer_tensor",
+    "load_phenocell_arm",
+    "phenocell_cell_ids",
+    "write_feature_file",
+]
+
 # Backward-compatible name used by existing scripts/tests.
 _checkpoint_path = checkpoint_path
 
@@ -138,6 +153,7 @@ def main(argv=None):
     model = load_model(checkpoint, device, cfg.get("model", {}).get("weights_path"))
     hest_metrics = {}
     phenocell_metrics = phenocell_cfg = None
+    run_geometry = False
     if not args.skip_hest:
         for cohort, selected in _selected_hest_cohorts(cfg, samples).items():
             directory = _hest_directory(root, cohort)
@@ -157,9 +173,22 @@ def main(argv=None):
                     cohort,
                 )
             if not args.skip_probes:
-                hest_metrics[cohort], _ = _run_hest_probe(
-                    cfg, directory, None, cohort
-                )
+                hest_metrics[cohort], _ = _run_hest_probe(cfg, directory, None, cohort)
+        run_geometry = bool(
+            cfg.get("eval", {}).get("hierarchy_metric_config")
+            and samples is None
+            and not args.skip_probes
+        )
+        if run_geometry:
+            export_hest(
+                cfg,
+                model,
+                device,
+                _hest_directory(root, "breast_train"),
+                identity,
+                args.overwrite,
+                cohort="breast_train",
+            )
     if not args.skip_phenocell:
         phenocell_cfg = load_phenocell_config(cfg)
         directory = root / "phenocell"
@@ -168,10 +197,13 @@ def main(argv=None):
         )
         if not args.skip_probes:
             phenocell_metrics = probe_phenocell(phenocell_cfg, directory)
+    if run_geometry:
+        from cellbridge.hyperbolic.evaluation import evaluate_geometry
+
+        geometry = evaluate_geometry(cfg, model, root)
+        print(geometry.to_string(index=False))
     if not args.skip_probes:
-        write_evaluation_summary(
-            cfg, root, hest_metrics or None, phenocell_metrics
-        )
+        write_evaluation_summary(cfg, root, hest_metrics or None, phenocell_metrics)
         _write_other_method_summaries(cfg, root, phenocell_cfg, args)
 
 

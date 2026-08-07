@@ -14,6 +14,8 @@ import yaml
 from torch.utils.data import DataLoader
 
 from cellbridge.config import load_config as load_yaml_config
+from cellbridge.hierarchical.dataset import load_ontology_nodes
+from cellbridge.hyperbolic.config import configure_geometry
 from cellbridge.distill.train import init_wandb
 from cellbridge.hierarchical.config import configure_hierarchy
 from cellbridge.hierarchical.objective import compute_hierarchy_objective
@@ -114,7 +116,8 @@ def load_config(path):
         raise ValueError("training.precision must be bf16, fp16, or fp32")
 
     cfg.setdefault("wandb", {}).setdefault("enabled", False)
-    return configure_hierarchy(cfg)
+    configure_hierarchy(cfg)
+    return configure_geometry(cfg)
 
 
 def selection_criteria(cfg, checkpoint_dir) -> list[Criterion]:
@@ -129,7 +132,9 @@ def selection_criteria(cfg, checkpoint_dir) -> list[Criterion]:
     configured = training.get("selection")
     if configured:
         return [
-            Criterion(entry["metric"], entry["mode"], Path(checkpoint_dir) / entry["filename"])
+            Criterion(
+                entry["metric"], entry["mode"], Path(checkpoint_dir) / entry["filename"]
+            )
             for entry in configured
         ]
     primary = Criterion(
@@ -152,15 +157,33 @@ def model_config(cfg, num_genes):
     weights_path = settings.pop("weights_path", None)
     settings["mode"] = cfg["objective"]["mode"]
     settings["num_genes"] = int(num_genes)
+    geometry = cfg["geometry"]
+    settings.update(
+        geometry_mode=geometry["mode"],
+        alignment_dim=int(geometry["dim"]),
+        curvature=float(geometry["curvature"]),
+        learnable_curvature=bool(geometry["learnable_curvature"]),
+        min_curvature=float(geometry["min_curvature"]),
+        max_curvature=float(geometry["max_curvature"]),
+        max_tangent_norm=float(geometry["max_tangent_norm"]),
+        ontology_init_radius=float(geometry["ontology_init_radius"]),
+    )
+    cones = cfg.get("hierarchy", {}).get("cones", {})
+    if cones.get("enabled", False):
+        nodes = load_ontology_nodes(cfg["hierarchy"]["nodes_path"])
+        settings["ontology_depths"] = nodes["level"].astype(int).tolist()
+        settings["ontology_parents"] = nodes["parent_id"].astype(int).tolist()
     return settings, weights_path
 
 
 def make_optimizer(model, cfg):
     lora = list(model.lora_parameters())
     heads = list(model.head_parameters())
+    curvature = list(model.curvature_parameters())
+    manifold = list(model.manifold_parameters())
     if not heads:
         raise ValueError("no trainable heads found")
-    grouped = {id(parameter) for parameter in [*lora, *heads]}
+    grouped = {id(parameter) for parameter in [*lora, *heads, *curvature, *manifold]}
     trainable = {
         id(parameter) for parameter in model.parameters() if parameter.requires_grad
     }
@@ -168,16 +191,39 @@ def make_optimizer(model, cfg):
         raise ValueError("optimizer groups do not exactly cover trainable parameters")
 
     training = cfg["training"]
-    groups = []
+    euclidean_groups = []
     if lora:
-        groups.append(
+        euclidean_groups.append(
             {"params": lora, "lr": float(training["lr_lora"]), "name": "lora"}
         )
-    groups.append({"params": heads, "lr": float(training["lr_heads"]), "name": "heads"})
-    optimizer = torch.optim.AdamW(groups, weight_decay=float(training["weight_decay"]))
+    euclidean_groups.append(
+        {"params": heads, "lr": float(training["lr_heads"]), "name": "heads"}
+    )
+    if curvature:
+        euclidean_groups.append(
+            {
+                "params": curvature,
+                "lr": float(training["lr_curvature"]),
+                "weight_decay": 0.0,
+                "name": "curvature",
+            }
+        )
+    euclidean = torch.optim.AdamW(
+        euclidean_groups, weight_decay=float(training["weight_decay"])
+    )
+    riemannian = None
+    if manifold:
+        import geoopt
+
+        riemannian = geoopt.optim.RiemannianAdam(
+            manifold, lr=float(training["lr_manifold"]), stabilize=10
+        )
+    optimizer = (euclidean, riemannian) if riemannian is not None else euclidean
     return optimizer, {
         "lora": sum(parameter.numel() for parameter in lora),
         "heads": sum(parameter.numel() for parameter in heads),
+        "curvature": sum(parameter.numel() for parameter in curvature),
+        "manifold": sum(parameter.numel() for parameter in manifold),
     }
 
 
@@ -231,6 +277,12 @@ def _loss(model, batch, device, cfg, amp_enabled, amp_dtype):
         enabled=amp_enabled,
     ):
         outputs = model(images)
+        # Preserve the original Euclidean baseline exactly: its frozen TERRA
+        # tensor is normalized once inside the legacy contrastive objective.
+        # A learned TERRA head is needed only for reduced dimensions or Lorentz
+        # alignment.
+        if model.lorentz is not None or model.alignment_dim != model.terra_dim:
+            outputs["terra_projected"] = model.project_terra(terra)
         if cfg.get("hierarchy", {}).get("enabled", False):
             losses = compute_hierarchy_objective(
                 outputs,
@@ -240,6 +292,8 @@ def _loss(model, batch, device, cfg, amp_enabled, amp_dtype):
                 cfg["hierarchy"],
                 gex_target=gex,
                 gex_mask=gex_mask,
+                manifold=model.lorentz,
+                ontology_points=model.ontology_points,
             )
         else:
             losses = compute_loss(
@@ -247,12 +301,17 @@ def _loss(model, batch, device, cfg, amp_enabled, amp_dtype):
                 terra,
                 gex,
                 gex_mask,
+                manifold=model.lorentz,
                 **cfg["objective"],
+            )
+        if model.lorentz is not None:
+            losses["curvature"] = outputs["projected"].new_tensor(
+                model.current_curvature
             )
     return losses, len(images), outputs
 
 
-@torch.inference_mode()
+@torch.no_grad()
 def evaluate(model, loader, device, cfg, amp_enabled, amp_dtype, probe=None):
     model.eval()
     totals = {}
@@ -266,7 +325,9 @@ def evaluate(model, loader, device, cfg, amp_enabled, amp_dtype, probe=None):
             totals[name] = totals.get(name, 0.0) + float(value) * batch_size
         n_cells += batch_size
         if probe is not None:
-            embeddings.append(outputs["projected"].float().cpu().numpy())
+            embeddings.append(
+                model.probe_projection(outputs["projected"]).float().cpu().numpy()
+            )
             cell_ids.extend(batch["cell_id"])
     if n_cells == 0:
         raise ValueError("validation has no contrastive batches")
@@ -276,7 +337,9 @@ def evaluate(model, loader, device, cfg, amp_enabled, amp_dtype, probe=None):
     return averaged
 
 
-def evaluate_validation(model, loaders, device, cfg, amp_enabled, amp_dtype, probes=None):
+def evaluate_validation(
+    model, loaders, device, cfg, amp_enabled, amp_dtype, probes=None
+):
     """Evaluate one legacy loader or separately named validation cohorts."""
 
     if not isinstance(loaders, dict):
@@ -307,6 +370,13 @@ def atomic_torch_save(state, path):
 def train_loop(
     model, train_loader, val_loader, optimizer, device, cfg, selector, run, probes=None
 ):
+    optimizers = (
+        tuple(item for item in optimizer if item is not None)
+        if isinstance(optimizer, (tuple, list))
+        else (optimizer,)
+    )
+    if not optimizers:
+        raise ValueError("training requires at least one optimizer")
     training = cfg["training"]
     amp_enabled, amp_dtype = _amp_settings(device, training["precision"])
     scaler = torch.amp.GradScaler(
@@ -317,7 +387,7 @@ def train_loop(
     log_every = int(training["log_every"])
     window = MetricWindow(
         gate_key="hierarchy_annotated_batch",
-        gated_prefixes=("hierarchy_", "negative_"),
+        gated_prefixes=("hierarchy_", "negative_", "cone_"),
     )
     train_rows, val_rows = [], []
     step = epoch = 0
@@ -329,22 +399,28 @@ def train_loop(
             sampler.set_epoch(epoch)
         for batch in train_loader:
             model.train()
-            optimizer.zero_grad(set_to_none=True)
+            for item in optimizers:
+                item.zero_grad(set_to_none=True)
             losses, _, _ = _loss(model, batch, device, cfg, amp_enabled, amp_dtype)
             scaler.scale(losses["loss_total"]).backward()
-            scaler.step(optimizer)
+            # Update manifold points under the curvature used by this forward
+            # pass; AdamW may then update curvature before reprojection below.
+            for item in reversed(optimizers):
+                scaler.step(item)
             scaler.update()
+            model.clamp_geometry_()
             step += 1
             window.add({name: float(value.detach()) for name, value in losses.items()})
 
             if step % log_every == 0 or step == 1:
+                primary_optimizer = optimizers[0]
                 learning_rate = next(
                     (
                         group["lr"]
-                        for group in optimizer.param_groups
+                        for group in primary_optimizer.param_groups
                         if group.get("name") == "lora"
                     ),
-                    optimizer.param_groups[0]["lr"],
+                    primary_optimizer.param_groups[0]["lr"],
                 )
                 train_metrics = {"step": step, **window.mean(), "lr": learning_rate}
                 window.reset()
@@ -363,7 +439,15 @@ def train_loop(
                             **{
                                 f"train/{name}": value
                                 for name, value in train_metrics.items()
-                                if name.startswith(("loss_", "hierarchy_", "negative_"))
+                                if name.startswith(
+                                    (
+                                        "loss_",
+                                        "hierarchy_",
+                                        "negative_",
+                                        "cone_",
+                                        "curvature",
+                                    )
+                                )
                             },
                         }
                     )
@@ -497,7 +581,10 @@ def main():
     optimizer, parameter_counts = make_optimizer(model, cfg)
     print(
         f"cells: train={train_cells:,} val={val_cells:,} | "
-        f"trainable LoRA={parameter_counts['lora']:,} heads={parameter_counts['heads']:,}"
+        f"trainable LoRA={parameter_counts['lora']:,} "
+        f"heads={parameter_counts['heads']:,} "
+        f"curvature={parameter_counts['curvature']:,} "
+        f"manifold={parameter_counts['manifold']:,}"
     )
 
     run = init_wandb(cfg)

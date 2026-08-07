@@ -30,7 +30,10 @@ def _signature(cfg, checkpoint_identity, sample_name, dataset):
     return feature_signature(
         dataset,
         checkpoint_identity,
-        {"lmdb": path_identity(data["lmdb"]), "metadata": file_identity(data["metadata"])},
+        {
+            "lmdb": path_identity(data["lmdb"]),
+            "metadata": file_identity(data["metadata"]),
+        },
         {
             "sample_id": sample_name,
             "image_shape": data.get("image_shape", [1440, 1920]),
@@ -51,9 +54,9 @@ def _features(image, locations, model, device, batch_size, crop_size):
         images = torch.stack(
             [
                 model.eval_transforms(
-                    Image.fromarray(centered_crop(image, row.x, row.y, crop_size)).resize(
-                        (224, 224), Image.Resampling.BILINEAR
-                    )
+                    Image.fromarray(
+                        centered_crop(image, row.x, row.y, crop_size)
+                    ).resize((224, 224), Image.Resampling.BILINEAR)
                 )
                 for row in rows.itertuples()
             ]
@@ -102,19 +105,24 @@ def export_phenocell(
     expected_dims = {
         "uni_original": model.image_dim,
         "lora_adapted": model.image_dim,
+        "lora_projected": model.alignment_dim,
     }
     rows, observed_samples = [], set()
     for position, (sample_name, entries) in enumerate(iter_lmdb_samples(data["lmdb"])):
         if shard is not None and position % num_shards != shard:
             continue
-        sample_metadata = metadata.loc[metadata["sample_id"].astype(str) == sample_name].copy()
+        sample_metadata = metadata.loc[
+            metadata["sample_id"].astype(str) == sample_name
+        ].copy()
         if sample_metadata.empty:
             if allow_unlabeled:
                 continue
             raise ValueError(f"{sample_name}: no metadata rows")
         observed_samples.add(sample_name)
         signature = _signature(cfg, checkpoint_identity, sample_name, dataset)
-        destination = output_dir / "features" / f"{sample_name.removesuffix('.hdf')}.npz"
+        destination = (
+            output_dir / "features" / f"{sample_name.removesuffix('.hdf')}.npz"
+        )
         if not overwrite and feature_file_is_current(
             destination,
             signature,
@@ -128,7 +136,10 @@ def export_phenocell(
             print(f"[{dataset}/{sample_name}] current ({count:,} cells)")
         else:
             locations = locate_cells(
-                sample_metadata, entries, image_shape, tile_size,
+                sample_metadata,
+                entries,
+                image_shape,
+                tile_size,
                 skip_missing=allow_unlabeled,
             )
             if locations.empty:

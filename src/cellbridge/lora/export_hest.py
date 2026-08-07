@@ -36,7 +36,10 @@ def export_hest(
     expected_dims = {
         "uni_original": model.image_dim,
         "lora_adapted": model.image_dim,
+        "lora_projected": model.alignment_dim,
+        "terra_projected": model.alignment_dim,
     }
+    required_arms = (*FEATURE_ARMS, "terra_projected")
     wanted = evaluation_samples(cfg, cohort)
     if samples is not None:
         requested = {str(sample_id) for sample_id in samples}
@@ -63,7 +66,7 @@ def export_hest(
         if not overwrite and feature_file_is_current(
             destination,
             signature,
-            FEATURE_ARMS,
+            required_arms,
             expected_cells=expected_cells,
             expected_dims=expected_dims,
         ):
@@ -86,7 +89,9 @@ def export_hest(
                         model, loader, device, temporary
                     )
                     if sample_ids is not None and set(sample_ids) != {sample_id}:
-                        raise ValueError(f"{sample_id}: dataset returned another sample")
+                        raise ValueError(
+                            f"{sample_id}: dataset returned another sample"
+                        )
                     write_feature_file(destination, cell_ids, features, signature)
             finally:
                 sample_dataset.close()
