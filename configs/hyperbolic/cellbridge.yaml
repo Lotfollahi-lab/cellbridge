@@ -91,6 +91,7 @@ hierarchy:
   cones:
     enabled: true
     K: 0.10
+    min_poincare_radius: 0.15
     lambda_cone: 0.10
   sampling:
     strategy: balanced

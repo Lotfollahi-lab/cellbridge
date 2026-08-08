@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 
 def configure_geometry(cfg: dict) -> dict:
     geometry = cfg.setdefault("geometry", {})
@@ -39,6 +41,7 @@ def configure_geometry(cfg: dict) -> dict:
     cones = hierarchy.setdefault("cones", {})
     cones.setdefault("enabled", False)
     cones.setdefault("K", 0.1)
+    cones.setdefault("min_poincare_radius", 0.15)
     cones.setdefault("lambda_cone", 0.1)
     if not isinstance(cones["enabled"], bool):
         raise ValueError("hierarchy.cones.enabled must be boolean")
@@ -68,6 +71,19 @@ def configure_geometry(cfg: dict) -> dict:
             raise ValueError("entailment cones cannot use Euclidean negative weighting")
         if hierarchy["ranking"]["enabled"]:
             raise ValueError("entailment cones replace the Euclidean ranking loss")
+        radius = float(cones["min_poincare_radius"])
+        if not 0 < radius < 1:
+            raise ValueError("cone min_poincare_radius must lie in (0, 1)")
+        aperture_argument = float(cones["K"]) * (1.0 - radius**2) / radius
+        if aperture_argument >= 1.0:
+            raise ValueError(
+                "cone min_poincare_radius must keep the half-aperture unsaturated"
+            )
+        largest_floor = 2.0 * math.atanh(radius) / math.sqrt(minimum)
+        if largest_floor > float(geometry["max_tangent_norm"]):
+            raise ValueError(
+                "cone radius floor exceeds max_tangent_norm at min_curvature"
+            )
 
     training = cfg["training"]
     training.setdefault("lr_manifold", training["lr_heads"])

@@ -14,11 +14,12 @@ import yaml
 from torch.utils.data import DataLoader
 
 from cellbridge.config import load_config as load_yaml_config
-from cellbridge.hierarchical.dataset import load_ontology_nodes
-from cellbridge.hyperbolic.config import configure_geometry
 from cellbridge.distill.train import init_wandb
 from cellbridge.hierarchical.config import configure_hierarchy
+from cellbridge.hierarchical.dataset import load_ontology_nodes
 from cellbridge.hierarchical.objective import compute_hierarchy_objective
+from cellbridge.hyperbolic.config import configure_geometry
+from cellbridge.hyperbolic.metrics import ontology_radius_metrics
 from cellbridge.lora.data import WithinSampleBatchSampler, build_datasets
 from cellbridge.lora.model import (
     build_uni2_distiller,
@@ -171,6 +172,7 @@ def model_config(cfg, num_genes):
     cones = cfg.get("hierarchy", {}).get("cones", {})
     if cones.get("enabled", False):
         nodes = load_ontology_nodes(cfg["hierarchy"]["nodes_path"])
+        settings["ontology_min_poincare_radius"] = float(cones["min_poincare_radius"])
         settings["ontology_depths"] = nodes["level"].astype(int).tolist()
         settings["ontology_parents"] = nodes["parent_id"].astype(int).tolist()
     return settings, weights_path
@@ -308,6 +310,9 @@ def _loss(model, batch, device, cfg, amp_enabled, amp_dtype):
             losses["curvature"] = outputs["projected"].new_tensor(
                 model.current_curvature
             )
+        if model.ontology is not None:
+            K = float(cfg["hierarchy"]["cones"]["K"])
+            losses.update(ontology_radius_metrics(model.ontology, K))
     return losses, len(images), outputs
 
 
@@ -445,6 +450,7 @@ def train_loop(
                                         "hierarchy_",
                                         "negative_",
                                         "cone_",
+                                        "ontology_",
                                         "curvature",
                                     )
                                 )
@@ -532,12 +538,11 @@ def main():
     transform = model.eval_transforms
 
     if cfg["hierarchy"]["enabled"]:
+        from cellbridge.hierarchical.prototypes import configure_target_shrinkage
         from cellbridge.hierarchical.training_data import (
             build_hierarchy_data,
             make_hierarchy_loaders,
         )
-
-        from cellbridge.hierarchical.prototypes import configure_target_shrinkage
 
         hierarchy_data = build_hierarchy_data(
             cfg, transform, out_dir / "selected_genes.json"

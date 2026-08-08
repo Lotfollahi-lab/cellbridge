@@ -128,6 +128,17 @@ class LorentzOps(nn.Module):
         with torch.autocast(device_type=point.device.type, enabled=False):
             return self.manifold.dist0(point)
 
+    def poincare_radius(self, point: torch.Tensor) -> torch.Tensor:
+        """Return the norm after the isometry to the unit Poincare ball."""
+
+        self._check_point(point)
+        point = self.project(point)
+        with torch.autocast(device_type=point.device.type, enabled=False):
+            sqrt_c = self.curvature.sqrt()
+            numerator = sqrt_c * point[..., 1:].norm(dim=-1)
+            denominator = sqrt_c * point[..., 0] + 1.0
+            return numerator / denominator.clamp_min(1e-15)
+
     def parameter(self, point: torch.Tensor) -> geoopt.ManifoldParameter:
         return geoopt.ManifoldParameter(self.project(point), manifold=self.manifold)
 
@@ -154,6 +165,7 @@ class OntologyEmbedding(nn.Module):
         parents: Sequence[int],
         *,
         init_radius: float = 0.5,
+        min_poincare_radius: float = 0.0,
     ) -> None:
         super().__init__()
         depths = torch.as_tensor(depths, dtype=torch.long)
@@ -166,6 +178,8 @@ class OntologyEmbedding(nn.Module):
             raise ValueError("ontology depths must lie in [0, 3]")
         if float(init_radius) <= 0:
             raise ValueError("ontology init_radius must be positive")
+        if not 0 <= float(min_poincare_radius) < 1:
+            raise ValueError("ontology min_poincare_radius must lie in [0, 1)")
         for index, (depth, parent) in enumerate(zip(depths, parents, strict=True)):
             if depth == 0 and parent != -1:
                 raise ValueError("ontology roots cannot have parents")
@@ -173,6 +187,7 @@ class OntologyEmbedding(nn.Module):
                 raise ValueError("ontology parents must precede their children")
 
         self.ops = ops
+        self.min_poincare_radius = float(min_poincare_radius)
         self.register_buffer("depths", depths)
         self.register_buffer("parents", parents)
         tangent = torch.zeros(len(depths), ops.dim)
@@ -188,6 +203,7 @@ class OntologyEmbedding(nn.Module):
                 direction = direction / direction.norm() + 0.05 * torch.randn(ops.dim)
             tangent[index] = direction / direction.norm() * (float(init_radius) * depth)
         self.points = ops.parameter(ops.expmap0(tangent))
+        self.clamp_()
 
     def forward(self, indices: torch.Tensor) -> torch.Tensor:
         return self.points[indices]
@@ -195,3 +211,24 @@ class OntologyEmbedding(nn.Module):
     @torch.no_grad()
     def clamp_(self) -> None:
         self.ops.clamp_(self.points)
+        if self.min_poincare_radius == 0:
+            return
+
+        tangent = self.ops.logmap0(self.points)
+        norm = tangent.norm(dim=-1, keepdim=True)
+        floor = (
+            2.0
+            * torch.atanh(tangent.new_tensor(self.min_poincare_radius))
+            / self.ops.curvature.sqrt()
+        )
+        if bool(floor > self.ops.max_tangent_norm):
+            raise RuntimeError(
+                "ontology radius floor exceeds geometry.max_tangent_norm"
+            )
+
+        non_root = self.depths[:, None] > 0
+        fallback = torch.zeros_like(tangent)
+        fallback[:, 0] = 1.0
+        direction = torch.where(norm > 1e-12, tangent / norm.clamp_min(1e-12), fallback)
+        target_norm = torch.where(non_root & (norm < floor), floor, norm)
+        self.points.copy_(self.ops.expmap0(direction * target_norm))

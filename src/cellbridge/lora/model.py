@@ -139,6 +139,7 @@ class LoRAUNIDistiller(nn.Module):
         ontology_depths: Sequence[int] | None = None,
         ontology_parents: Sequence[int] | None = None,
         ontology_init_radius: float = 0.5,
+        ontology_min_poincare_radius: float = 0.0,
     ) -> None:
         super().__init__()
         if mode not in OBJECTIVE_MODES:
@@ -155,6 +156,8 @@ class LoRAUNIDistiller(nn.Module):
         alignment_dim = int(terra_dim if alignment_dim is None else alignment_dim)
         if alignment_dim < 1:
             raise ValueError("alignment_dim must be positive")
+        if not 0 <= float(ontology_min_poincare_radius) < 1:
+            raise ValueError("ontology_min_poincare_radius must lie in [0, 1)")
 
         trainable_blocks = _parse_trainable_blocks(trainable_blocks)
         target_modules = tuple(dict.fromkeys(target_modules))
@@ -193,6 +196,7 @@ class LoRAUNIDistiller(nn.Module):
         self.ontology_parents = (
             tuple(map(int, ontology_parents)) if ontology_parents is not None else None
         )
+        self.ontology_min_poincare_radius = float(ontology_min_poincare_radius)
         self.ontology_init_radius = float(ontology_init_radius)
 
         self.projection_head = nn.Sequential(
@@ -229,6 +233,7 @@ class LoRAUNIDistiller(nn.Module):
                     self.lorentz,
                     self.ontology_depths,
                     self.ontology_parents,
+                    min_poincare_radius=self.ontology_min_poincare_radius,
                     init_radius=self.ontology_init_radius,
                 )
         elif self.ontology_depths is not None or self.ontology_parents is not None:
@@ -275,6 +280,7 @@ class LoRAUNIDistiller(nn.Module):
             "min_curvature": self.min_curvature,
             "max_curvature": self.max_curvature,
             "max_tangent_norm": self.max_tangent_norm,
+            "ontology_min_poincare_radius": self.ontology_min_poincare_radius,
             "ontology_depths": self.ontology_depths,
             "ontology_parents": self.ontology_parents,
             "ontology_init_radius": self.ontology_init_radius,
@@ -325,8 +331,9 @@ class LoRAUNIDistiller(nn.Module):
     @torch.no_grad()
     def clamp_geometry_(self) -> None:
         if self.lorentz is not None:
-            points = () if self.ontology is None else (self.ontology.points,)
-            self.lorentz.clamp_(*points)
+            self.lorentz.clamp_()
+            if self.ontology is not None:
+                self.ontology.clamp_()
 
     @contextmanager
     def use_lora(self, enabled: bool) -> Iterator[None]:

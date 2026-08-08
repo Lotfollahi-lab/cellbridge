@@ -7,15 +7,24 @@ import yaml
 
 geoopt = pytest.importorskip("geoopt")
 
-from cellbridge.exploration.phenotype_pairs import sample_ordering_triplets  # noqa: E402
+from cellbridge.exploration.phenotype_pairs import (
+    sample_ordering_triplets,  # noqa: E402
+)
+from cellbridge.hyperbolic.config import configure_geometry  # noqa: E402
 from cellbridge.hyperbolic.evaluation import evaluate_geometry  # noqa: E402
 from cellbridge.hyperbolic.losses import (  # noqa: E402
     cone_half_aperture,
     entailment_cone_loss,
     hyperbolic_contrastive_loss,
 )
-from cellbridge.hyperbolic.manifold import LorentzOps  # noqa: E402
-from cellbridge.hyperbolic.metrics import norm_correctness_correlation  # noqa: E402
+from cellbridge.hyperbolic.manifold import (  # noqa: E402
+    LorentzOps,
+    OntologyEmbedding,
+)
+from cellbridge.hyperbolic.metrics import (  # noqa: E402
+    norm_correctness_correlation,
+    ontology_radius_metrics,
+)
 from cellbridge.lora.model import LoRAUNIDistiller, compute_loss  # noqa: E402
 from cellbridge.lora.train import make_optimizer  # noqa: E402
 
@@ -53,6 +62,61 @@ def test_lorentz_aperture_matches_requested_poincare_formula():
 
     assert active.item()
     torch.testing.assert_close(aperture, expected)
+
+
+def test_ontology_clamp_enforces_curvature_aware_cone_domain():
+    manifold = LorentzOps(
+        2, curvature=1.0, min_curvature=0.1, max_tangent_norm=12.0
+    ).double()
+    ontology = OntologyEmbedding(
+        manifold,
+        depths=[0, 1, 2],
+        parents=[-1, 0, 1],
+        init_radius=0.5,
+        min_poincare_radius=0.15,
+    ).double()
+    collapsed = torch.tensor(
+        [[0.0, 0.0], [0.01, 0.0], [0.02, 0.0]], dtype=torch.float64
+    )
+
+    for k in (1.0, 10.0):
+        with torch.no_grad():
+            manifold.manifold.k.fill_(k)
+            ontology.points.copy_(manifold.expmap0(collapsed))
+        ontology.clamp_()
+
+        radii = manifold.poincare_radius(ontology.points)
+        torch.testing.assert_close(
+            radii[0], torch.zeros_like(radii[0]), atol=1e-8, rtol=0
+        )
+        assert torch.all(radii[1:] >= 0.15 - 1e-8)
+        _, active = cone_half_aperture(ontology.points[1:], manifold, K=0.1)
+        assert active.all()
+        assert ontology_radius_metrics(ontology, 0.1)["ontology_saturation_rate"] == 0
+
+
+def test_cone_config_rejects_floor_inside_saturated_domain():
+    cfg = {
+        "model": {"terra_dim": 384},
+        "geometry": {"mode": "hyperbolic"},
+        "objective": {"targets": "exact"},
+        "training": {"lr_heads": 3e-4},
+        "hierarchy": {
+            "enabled": True,
+            "nodes_path": "nodes.csv",
+            "negative_downweighting": {"enabled": False},
+            "ranking": {"enabled": False},
+            "cones": {
+                "enabled": True,
+                "K": 0.1,
+                "min_poincare_radius": 0.05,
+                "lambda_cone": 0.1,
+            },
+        },
+    }
+
+    with pytest.raises(ValueError, match="unsaturated"):
+        configure_geometry(cfg)
 
 
 def test_entailment_cone_accepts_radial_descendant_and_rejects_off_axis():
