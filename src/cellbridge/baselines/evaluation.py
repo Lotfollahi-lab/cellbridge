@@ -139,18 +139,26 @@ def _validate_common_artifacts(summaries, baseline_name, dataset_name):
         raise ValueError("feature artifacts were produced by different model revisions")
 
 
-def finalize_hest_manifest(cfg, output_dir) -> pd.DataFrame:
-    """Require all five full feature files and atomically rebuild their manifest."""
+def finalize_hest_manifest(cfg, output_dir, samples=None) -> pd.DataFrame:
+    """Validate selected feature files and rebuild the complete manifest."""
     hest_cfg = cfg["hest"]
     expected_dim = int(cfg["baseline"]["embedding_dim"])
-    samples = label_test_fast_samples(hest_cfg)
+    expected = label_test_fast_samples(hest_cfg)
+    if samples is None:
+        selected = expected
+    else:
+        requested = [str(sample) for sample in samples]
+        unknown = sorted(set(requested) - set(expected))
+        if unknown:
+            raise ValueError(f"not label_test_fast samples: {unknown}")
+        selected = [sample for sample in expected if sample in set(requested)]
     summaries = [
         summarize_feature_file(
             hest_feature_path(output_dir, sample_id), expected_dim=expected_dim
         )
-        for sample_id in samples
+        for sample_id in selected
     ]
-    for sample_id, summary in zip(samples, summaries):
+    for sample_id, summary in zip(selected, summaries):
         if summary.sample_id != sample_id:
             raise ValueError(
                 f"{summary.path}: sample is {summary.sample_id}, expected {sample_id}"
@@ -167,7 +175,8 @@ def finalize_hest_manifest(cfg, output_dir) -> pd.DataFrame:
         summaries, cfg["baseline"]["name"], "hest/label_test_fast"
     )
     rows = _manifest_rows(summaries)
-    write_table(Path(output_dir) / "features" / "manifest.csv", rows)
+    if samples is None:
+        write_table(Path(output_dir) / "features" / "manifest.csv", rows)
     return pd.DataFrame(rows)
 
 
@@ -271,14 +280,7 @@ def _probe_protocol_identity():
 
 def probe_hest(cfg, output_dir, samples=None):
     """Run linear and kNN probes on every complete fast-HEST artifact."""
-    manifest = finalize_hest_manifest(cfg, output_dir)
-    expected = manifest["sample_id"].astype(str).tolist()
-    if samples is not None:
-        requested = [str(sample) for sample in samples]
-        unknown = sorted(set(requested) - set(expected))
-        if unknown:
-            raise ValueError(f"not label_test_fast samples: {unknown}")
-        manifest = manifest[manifest["sample_id"].astype(str).isin(requested)]
+    manifest = finalize_hest_manifest(cfg, output_dir, samples=samples)
     settings = cfg["hest"]["probe"]
     methods = resolve_methods(settings)
     results = {method: [] for method in methods}
