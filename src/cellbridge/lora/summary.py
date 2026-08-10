@@ -44,8 +44,8 @@ def write_evaluation_summary(
             for arm, values in means.iterrows()
         )
     if phenocell_metrics is not None and not phenocell_metrics.empty:
-        rows.extend(
-            {
+        for row in phenocell_metrics.itertuples(index=False):
+            record = {
                 "run_name": run_name,
                 "dataset": "PhenoCell",
                 "task": row.task,
@@ -58,8 +58,9 @@ def write_evaluation_summary(
                     float("nan"),
                 ),
             }
-            for row in phenocell_metrics.itertuples(index=False)
-        )
+            if hasattr(row, "protocol"):
+                record["protocol"] = row.protocol
+            rows.append(record)
     if not rows:
         return None
     suffix = "" if method == "linear" else f"_{method}"

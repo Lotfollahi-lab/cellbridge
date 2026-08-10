@@ -9,7 +9,7 @@ Multimodal preprocessing and embedding experiments for HEST Xenium samples.
 - `src/cellbridge/distill/`: UNI-to-TERRA distillation.
 - `src/cellbridge/lora/`: LoRA adaptation from H&E crops to TERRA features.
 - `src/cellbridge/jepa/`: spatial context-to-target JEPA alignment.
-- `src/cellbridge/evaluation/`: shared linear/kNN evaluation and OOD datasets (PhenoCell, PanNuke).
+- `src/cellbridge/evaluation/`: shared linear/kNN evaluation and OOD datasets (PhenoCell, PanNuke, Lizard).
 - `src/cellbridge/hierarchical_conformal/`: calibrated phenotype sets on frozen embeddings.
 - `configs/`: preprocessing, exploration, and experiment settings.
 - `scripts/`: LSF launchers matching those workflows.
@@ -212,7 +212,7 @@ Contextual embeddings and evaluation summaries are written below
 
 ## OOD evaluation
 
-OOD datasets (PhenoCell, PanNuke) are evaluated separately from HEST with one
+OOD datasets (PhenoCell, PanNuke, Lizard) are evaluated separately from HEST with one
 shared, dataset-neutral workflow. It reconstructs each field from its LMDB tiles,
 extracts centred cell-context crops, and compares frozen raw UNI with distilled
 embeddings on the dataset's official split. Stable UNI features are kept under
@@ -223,6 +223,7 @@ dataset is selected entirely by the config passed to the shared scripts:
 ```bash
 scripts/evaluation/ood/submit_all.sh configs/evaluation/phenocell.yaml
 scripts/evaluation/ood/submit_all.sh configs/evaluation/pannuke.yaml
+scripts/evaluation/ood/submit_all.sh configs/evaluation/lizard.yaml
 ```
 
 If the projector is still training, make embedding wait for that LSF job:
@@ -233,9 +234,52 @@ DEPENDENCY=<distillation-job-id> \
 ```
 
 Each config lists the `probe.tasks` to report: PhenoCell runs the full 14-class
-benchmark plus an immune-only task, while PanNuke runs its five-class benchmark.
-Change `crop_size`, `projection.checkpoint`, or `output_dir` in a copied config
-to keep evaluation variants isolated.
+benchmark plus an immune-only task, PanNuke runs its five-class benchmark, and
+Lizard runs its six-class benchmark.
+PhenoCell and PanNuke crops use `data.source_mpp` and `embedding.fov_um`, then
+resize to the encoder's 224 px tensor input. PhenoCell
+uses the training-matched 112 um field of view (297 source pixels); PanNuke uses
+a 56 um native-context field (224 source pixels) because its 256 px fields
+cannot supply 112 um. Every cache records the resolved pixel geometry and the
+fraction of each crop covered by real, rather than padded, image.
+
+Lizard temporarily retains the historical 96 px (48 um) crop and balanced probe
+setup until its FoV and probe protocol are selected.
+
+The PhenoCell and PanNuke configs run three named classifier-prior protocols
+from the same embeddings:
+
+
+- `historical`: inverse-frequency logistic regression and all kNN references,
+  exactly reproducing the previous asymmetric setup.
+- `natural`: unweighted logistic regression and all kNN references.
+- `equal_class`: inverse-frequency logistic regression and an equal-count,
+  deterministically sampled kNN reference set.
+Results are namespaced below `probes/historical/`, `probes/natural/`, and
+`probes/equal_class/`.
+
+For fast protocol selection, use the development overlays. They uniformly
+sample at most 20,000 cells from each train/validation split, preserving the
+empirical class prior in expectation. They never extract official test cells
+and report on the official validation split:
+
+```bash
+CELLBRIDGE_CONFIG_OVERLAY=$PWD/configs/evaluation/overlays/phenocell_dev_crop96.yaml \
+  scripts/evaluation/ood/submit_all.sh configs/evaluation/phenocell.yaml
+CELLBRIDGE_CONFIG_OVERLAY=$PWD/configs/evaluation/overlays/phenocell_dev_fov56.yaml \
+  scripts/evaluation/ood/submit_all.sh configs/evaluation/phenocell.yaml
+CELLBRIDGE_CONFIG_OVERLAY=$PWD/configs/evaluation/overlays/phenocell_dev_fov112.yaml \
+  scripts/evaluation/ood/submit_all.sh configs/evaluation/phenocell.yaml
+CELLBRIDGE_CONFIG_OVERLAY=$PWD/configs/evaluation/overlays/pannuke_dev_crop96.yaml \
+  scripts/evaluation/ood/submit_all.sh configs/evaluation/pannuke.yaml
+CELLBRIDGE_CONFIG_OVERLAY=$PWD/configs/evaluation/overlays/pannuke_dev_fov56.yaml \
+  scripts/evaluation/ood/submit_all.sh configs/evaluation/pannuke.yaml
+```
+
+The historical metric column names retain their `test_` prefix for compatibility;
+check `evaluation_split`, which is `val` for these overlays. Lock the crop and
+prior protocol using only these validation results, then rerun the base config
+without an overlay for final full-test metrics.
 
 After the UNI cache exists, new distillation variants only need projection and
 probing. Keep `embedding.output_dir` unchanged, then change

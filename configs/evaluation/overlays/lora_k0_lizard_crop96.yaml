@@ -1,0 +1,6 @@
+# Direct contrastive_k0 LoRA evaluation on the full Lizard benchmark.
+embedding:
+  fov_um: null
+  crop_size: 96
+
+output_dir: outputs/evaluation/lora_k0/lizard_crop96

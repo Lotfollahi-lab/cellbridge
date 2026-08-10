@@ -20,6 +20,7 @@ from cellbridge.evaluation.ood import (
     prepare_ood_task,
     validate_official_split,
 )
+from cellbridge.evaluation.probe_ood import resolve_probe_protocols
 from cellbridge.hyperbolic.metrics import norm_correctness_correlation
 from cellbridge.lora.features import FEATURE_ARMS, FORMAT_VERSION, PCA_ARMS
 
@@ -51,14 +52,14 @@ def load_phenocell_arm(manifest, arm):
     return np.concatenate(features), pd.concat(records, ignore_index=True)
 
 
-def _format_result(data, result, task, arm, embedding_norms):
+def _format_result(data, result, task, arm, embedding_norms, protocol=None):
     common = result.metrics
     metrics = {
         "task": task,
         "arm": arm,
         "n_features": common["n_features"],
         "n_train": common["n_train"],
-        "n_val": common["n_val"],
+        "n_val": common.get("n_val", 0),
         "n_test": common["n_test"],
         "n_classes": common["n_classes"],
         "test_accuracy": common["accuracy"],
@@ -66,18 +67,23 @@ def _format_result(data, result, task, arm, embedding_norms):
         "test_macro_f1": common["macro_f1"],
         "test_weighted_f1": common["weighted_f1"],
         "pca_explained_variance": data.pca_explained_variance,
+        "evaluation_split": "val" if data.val_indices is None else "test",
         "norm_correctness_spearman": norm_correctness_correlation(
             embedding_norms,
             result.predictions["y_true"],
             result.predictions["y_pred"],
         ),
     }
+    if protocol is not None:
+        metrics["protocol"] = protocol
     for key in (
         "best_C",
         "val_macro_f1",
         "n_neighbors",
         "neighbor_metric",
         "neighbor_weights",
+        "reference_sampling",
+        "n_reference",
     ):
         if key in common:
             metrics[key] = common[key]
@@ -109,7 +115,10 @@ def probe_phenocell(cfg, output_dir):
     manifest = pd.read_csv(output_dir / "features" / "manifest.csv")
     settings = cfg.get("probe", {})
     methods = resolve_methods(settings)
-    all_metrics = {method: [] for method in methods}
+    protocols = resolve_probe_protocols(settings)
+    all_metrics = {
+        (protocol, method): [] for protocol, _ in protocols for method in methods
+    }
     for arm in FEATURE_ARMS:
         features, table = load_phenocell_arm(manifest, arm)
         if features is None:
@@ -118,47 +127,61 @@ def probe_phenocell(cfg, output_dir):
         validate_official_split(
             table,
             cfg["data"]["split"],
-            require_full_coverage=not cfg["data"].get("allow_unlabeled_samples", False),
+            require_full_coverage=(
+                not cfg["data"].get("allow_unlabeled_samples", False)
+                and not cfg.get("embedding", {}).get("development_subset")
+            ),
         )
         for task in settings.get("tasks", ["all", "immune"]):
             data = prepare_ood_task(
                 features, table, task, settings, pca=arm in PCA_ARMS
             )
-            for method in methods:
-                result = evaluate_ood_task(data, method, settings)
-                metrics, predictions = _format_result(
-                    data,
-                    result,
-                    task,
-                    arm,
-                    norms[data.test_indices],
-                )
-                payload = {
-                    "features": manifest["signature"].astype(str).tolist(),
-                    "official_split": file_identity(cfg["data"]["split"]),
-                    "arm": arm,
-                    "task": task,
-                    "settings": settings,
-                }
-                if method != "linear":
-                    payload["method"] = method
-                signature = stable_signature(payload)
-                result_dir = method_directory(
-                    output_dir / "probes" / task / arm, method
-                )
-                metrics = write_probe_result(
-                    result_dir, metrics, predictions, signature
-                )
-                all_metrics[method].append(metrics)
-                print(
-                    f"[PhenoCell/{task}/{arm}/{method}] "
-                    f"macro-F1={metrics['test_macro_f1']:.4f}, "
-                    f"balanced accuracy={metrics['test_balanced_accuracy']:.4f}"
-                )
+            for protocol, protocol_settings in protocols:
+                for method in methods:
+                    result = evaluate_ood_task(data, method, protocol_settings)
+                    metrics, predictions = _format_result(
+                        data,
+                        result,
+                        task,
+                        arm,
+                        norms[data.test_indices],
+                        protocol,
+                    )
+                    payload = {
+                        "features": manifest["signature"].astype(str).tolist(),
+                        "official_split": file_identity(cfg["data"]["split"]),
+                        "arm": arm,
+                        "task": task,
+                        "method": method,
+                        "protocol": protocol,
+                        "settings": protocol_settings,
+                    }
+                    signature = stable_signature(payload)
+                    probe_root = output_dir / "probes"
+                    if protocol is not None:
+                        probe_root = probe_root / protocol
+                    result_dir = method_directory(
+                        probe_root / task / arm, method
+                    )
+                    metrics = write_probe_result(
+                        result_dir, metrics, predictions, signature
+                    )
+                    all_metrics[(protocol, method)].append(metrics)
+                    label = method if protocol is None else f"{protocol}/{method}"
+                    print(
+                        f"[PhenoCell/{task}/{arm}/{label}] "
+                        f"{metrics['evaluation_split']} "
+                        f"macro-F1={metrics['test_macro_f1']:.4f}, "
+                        f"balanced accuracy={metrics['test_balanced_accuracy']:.4f}"
+                    )
     results = {}
-    for method in methods:
-        result = pd.DataFrame(all_metrics[method])
-        suffix = "" if method == "linear" else f"_{method}"
-        result.to_csv(output_dir / f"probe_summary{suffix}.csv", index=False)
-        results[method] = result
-    return results["linear" if "linear" in methods else methods[0]]
+    for protocol, _ in protocols:
+        summary_dir = output_dir if protocol is None else output_dir / "probes" / protocol
+        summary_dir.mkdir(parents=True, exist_ok=True)
+        for method in methods:
+            result = pd.DataFrame(all_metrics[(protocol, method)])
+            suffix = "" if method == "linear" else f"_{method}"
+            result.to_csv(summary_dir / f"probe_summary{suffix}.csv", index=False)
+            results[(protocol, method)] = result
+    preferred_method = "linear" if "linear" in methods else methods[0]
+    return results[(protocols[0][0], preferred_method)]

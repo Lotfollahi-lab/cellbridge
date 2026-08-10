@@ -1,5 +1,6 @@
 """Export LoRA feature arms directly from OOD image crops (PhenoCell, PanNuke)."""
 
+from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
@@ -7,11 +8,17 @@ import pandas as pd
 from PIL import Image
 
 from cellbridge.evaluation.artifacts import file_identity, path_identity, write_table
+from cellbridge.evaluation.embed_ood import (
+    crop_valid_fraction,
+    resolve_crop_spec,
+    select_development_subset,
+)
 from cellbridge.evaluation.ood_data import (
     centered_crop,
     iter_lmdb_samples,
     locate_cells,
     reconstruct_image,
+    resolve_tile_layout,
     to_uint8_rgb,
 )
 from cellbridge.lora.features import (
@@ -22,11 +29,21 @@ from cellbridge.lora.features import (
     write_feature_file,
 )
 
-_METADATA = ("row_id", "sample_id", "tile_id", "cell_id", "label", "class_id", "split")
+_METADATA = (
+    "row_id",
+    "sample_id",
+    "tile_id",
+    "cell_id",
+    "label",
+    "class_id",
+    "split",
+    "crop_valid_fraction",
+)
 
 
 def _signature(cfg, checkpoint_identity, sample_name, dataset):
     data = cfg["data"]
+    embedding = cfg.get("embedding", {})
     return feature_signature(
         dataset,
         checkpoint_identity,
@@ -36,16 +53,17 @@ def _signature(cfg, checkpoint_identity, sample_name, dataset):
         },
         {
             "sample_id": sample_name,
-            "image_shape": data.get("image_shape", [1440, 1920]),
+            "image_shape": data.get("image_shape"),
             "tile_size": int(data.get("tile_size", 224)),
             "value_scale": float(data.get("value_scale", 250)),
-            "crop_size": int(cfg.get("embedding", {}).get("crop_size", 96)),
+            "crop": asdict(resolve_crop_spec(cfg)),
+            "development_subset": embedding.get("development_subset"),
             "encoder": "uni_v2",
         },
     )
 
 
-def _features(image, locations, model, device, batch_size, crop_size):
+def _features(image, locations, model, device, batch_size, crop_spec):
     import torch
 
     parts = {}
@@ -55,8 +73,11 @@ def _features(image, locations, model, device, batch_size, crop_size):
             [
                 model.eval_transforms(
                     Image.fromarray(
-                        centered_crop(image, row.x, row.y, crop_size)
-                    ).resize((224, 224), Image.Resampling.BILINEAR)
+                        centered_crop(image, row.x, row.y, crop_spec.source_size_px)
+                    ).resize(
+                        (crop_spec.target_size_px, crop_spec.target_size_px),
+                        Image.Resampling.BILINEAR,
+                    )
                 )
                 for row in rows.itertuples()
             ]
@@ -97,11 +118,15 @@ def export_phenocell(
     data = cfg["data"]
     metadata = pd.read_csv(data["metadata"])
     metadata["row_id"] = np.arange(len(metadata), dtype=np.int64)
-    image_shape = tuple(data.get("image_shape", [1440, 1920]))
+    embedding = cfg.get("embedding", {})
+    subset_settings = embedding.get("development_subset")
+    metadata = select_development_subset(metadata, subset_settings)
+    configured_shape = data.get("image_shape")
+    image_shape = None if configured_shape is None else tuple(configured_shape)
     tile_size = int(data.get("tile_size", 224))
     allow_unlabeled = bool(data.get("allow_unlabeled_samples", False))
-    crop_size = int(cfg.get("embedding", {}).get("crop_size", 96))
-    batch_size = int(cfg.get("embedding", {}).get("batch_size", 128))
+    crop_spec = resolve_crop_spec(cfg)
+    batch_size = int(embedding.get("batch_size", 128))
     expected_dims = {
         "uni_original": model.image_dim,
         "lora_adapted": model.image_dim,
@@ -115,7 +140,7 @@ def export_phenocell(
             metadata["sample_id"].astype(str) == sample_name
         ].copy()
         if sample_metadata.empty:
-            if allow_unlabeled:
+            if allow_unlabeled or subset_settings:
                 continue
             raise ValueError(f"{sample_name}: no metadata rows")
         observed_samples.add(sample_name)
@@ -135,12 +160,14 @@ def export_phenocell(
                 count = len(cached["cell_ids"])
             print(f"[{dataset}/{sample_name}] current ({count:,} cells)")
         else:
+            layout = resolve_tile_layout(entries, image_shape, tile_size)
             locations = locate_cells(
                 sample_metadata,
                 entries,
                 image_shape,
                 tile_size,
                 skip_missing=allow_unlabeled,
+                layout=layout,
             )
             if locations.empty:
                 print(f"[{dataset}/{sample_name}] no locatable cells; skipped")
@@ -150,10 +177,14 @@ def export_phenocell(
                     {index: entry["image"] for index, entry in entries.items()},
                     image_shape,
                     tile_size,
+                    layout=layout,
                 ),
                 data.get("value_scale", 250),
             )
-            features = _features(image, locations, model, device, batch_size, crop_size)
+            features = _features(image, locations, model, device, batch_size, crop_spec)
+            valid_fraction = crop_valid_fraction(
+                image.shape, locations, crop_spec.source_size_px
+            )
             write_feature_file(
                 destination,
                 phenocell_cell_ids(locations),
@@ -167,6 +198,7 @@ def export_phenocell(
                     "label": locations["label"].to_numpy(dtype=str),
                     "class_id": locations["class_id"].to_numpy(np.int16),
                     "split": locations["split_id"].to_numpy(dtype=str),
+                    "crop_valid_fraction": valid_fraction,
                 },
             )
             count = len(locations)

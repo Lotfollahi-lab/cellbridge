@@ -1,0 +1,12 @@
+# Direct contrastive_k0 LoRA evaluation on a protocol-selection subset.
+embedding:
+  fov_um: 56.0
+  development_subset:
+    max_cells_per_split: 20000
+    seed: 0
+    splits: [train, val]
+
+probe:
+  evaluation_split: val
+
+output_dir: outputs/evaluation/lora_k0/phenocell_fov56_dev20k

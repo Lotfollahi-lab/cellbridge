@@ -3,7 +3,10 @@ import pandas as pd
 
 from cellbridge.evaluation.embed_ood import (
     complete_manifest,
+    crop_valid_fraction,
     embedding_signature,
+    resolve_crop_spec,
+    select_development_subset,
     validate_existing_signature,
 )
 from cellbridge.evaluation.ood import validate_official_split
@@ -125,6 +128,78 @@ def test_centered_crop_pads_field_edge_in_white():
     assert np.all(crop[:2] == 255)
     assert np.all(crop[:, :2] == 255)
     assert np.all(crop[2:, 2:] == 0)
+
+
+def test_physical_crop_resolves_source_pixels_and_actual_fov():
+    phenocell = resolve_crop_spec(
+        {
+            "data": {"source_mpp": 0.377},
+            "embedding": {"fov_um": 112.0, "output_dir": "unused"},
+        }
+    )
+    assert phenocell.source_size_px == 297
+    assert phenocell.target_size_px == 224
+    assert phenocell.actual_fov_um == 297 * 0.377
+
+    pannuke = resolve_crop_spec(
+        {
+            "data": {"source_mpp": 0.25},
+            "embedding": {"fov_um": 56.0, "output_dir": "unused"},
+        }
+    )
+    assert pannuke.source_size_px == 224
+    assert pannuke.actual_fov_um == 56.0
+
+    legacy = resolve_crop_spec(
+        {
+            "data": {"source_mpp": 0.377},
+            "embedding": {
+                "fov_um": None,
+                "crop_size": 96,
+                "output_dir": "unused",
+            },
+        }
+    )
+    assert legacy.mode == "legacy_pixels"
+    assert legacy.source_size_px == 96
+    assert legacy.actual_fov_um == 96 * 0.377
+
+
+def test_physical_crop_requires_source_mpp():
+    with np.testing.assert_raises_regex(ValueError, "source_mpp"):
+        resolve_crop_spec(
+            {
+                "data": {},
+                "embedding": {"fov_um": 112.0, "output_dir": "unused"},
+            }
+        )
+
+
+def test_development_subset_is_stratified_reproducible_and_excludes_test():
+    metadata = pd.DataFrame(
+        {
+            "row_id": np.arange(18),
+            "split_id": np.repeat(["train", "valid", "test"], 6),
+            "label": np.tile(np.repeat(["A", "B"], 3), 3),
+        }
+    )
+    settings = {
+        "max_cells_per_class_per_split": 2,
+        "seed": 7,
+        "splits": ["train", "val"],
+    }
+    first = select_development_subset(metadata, settings)
+    second = select_development_subset(metadata, settings)
+
+    assert first["row_id"].tolist() == second["row_id"].tolist()
+    assert set(first["split_id"]) == {"train", "valid"}
+    assert first.groupby(["split_id", "label"]).size().eq(2).all()
+
+
+def test_crop_valid_fraction_reports_padding():
+    locations = pd.DataFrame({"x": [0, 2], "y": [0, 2]})
+    fractions = crop_valid_fraction((4, 4, 3), locations, crop_size=4)
+    np.testing.assert_allclose(fractions, [0.25, 1.0])
 
 
 def test_distilled_rows_must_align_with_uni_rows(tmp_path):

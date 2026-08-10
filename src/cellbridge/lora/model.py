@@ -12,6 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 CHECKPOINT_FORMAT = "cellbridge.lora/1"
+LEGACY_CHECKPOINT_FORMATS = {"terra_multi.lora/1"}
 OBJECTIVE_MODES = {"contrastive", "contrastive_gex"}
 TARGET_TYPES = {"exact", "terra_similarity"}
 
@@ -711,9 +712,10 @@ def load_checkpoint(
     """Rebuild UNI2-h, load adapters/heads, and return the checkpoint metadata."""
 
     checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+    supported_formats = {CHECKPOINT_FORMAT, *LEGACY_CHECKPOINT_FORMATS}
     if (
         not isinstance(checkpoint, dict)
-        or checkpoint.get("format_version") != CHECKPOINT_FORMAT
+        or checkpoint.get("format_version") not in supported_formats
     ):
         raise ValueError(f"{path} is not a supported LoRA distillation checkpoint")
     if not isinstance(checkpoint.get("model_config"), dict):

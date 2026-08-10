@@ -7,6 +7,7 @@ import pandas as pd
 
 from cellbridge.config import load_config
 from cellbridge.evaluation.classification import resolve_methods
+from cellbridge.evaluation.probe_ood import resolve_probe_protocols
 from cellbridge.lora.export_hest import export_hest
 from cellbridge.lora.export_phenocell import export_phenocell, phenocell_cell_ids
 from cellbridge.lora.features import (
@@ -113,6 +114,26 @@ def _run_hest_probe(cfg, directory, samples, cohort):
     return probe_hest(cfg, directory, samples=samples, cohort=cohort)
 
 
+def _read_phenocell_method_summary(root, phenocell_cfg, method):
+    """Load every configured PhenoCell protocol or fail if one is absent."""
+    suffix = "" if method == "linear" else f"_{method}"
+    tables = []
+    for protocol, _ in resolve_probe_protocols(phenocell_cfg.get("probe", {})):
+        summary_dir = Path(root) / "phenocell"
+        if protocol is not None:
+            summary_dir = summary_dir / "probes" / protocol
+        path = summary_dir / f"probe_summary{suffix}.csv"
+        if not path.exists():
+            raise FileNotFoundError(
+                f"missing configured PhenoCell {method} summary: {path}"
+            )
+        table = pd.read_csv(path)
+        if protocol is not None and "protocol" not in table:
+            table["protocol"] = protocol
+        tables.append(table)
+    return pd.concat(tables, ignore_index=True)
+
+
 def _write_other_method_summaries(cfg, root, phenocell_cfg, args):
     methods = set(resolve_methods(cfg["eval"]))
     if phenocell_cfg is not None:
@@ -124,10 +145,9 @@ def _write_other_method_summaries(cfg, root, phenocell_cfg, args):
                 path = _hest_directory(root, cohort) / f"probe_metrics_{method}.csv"
                 if path.exists():
                     hest[cohort] = pd.read_csv(path)
-        phenocell_path = root / "phenocell" / f"probe_summary_{method}.csv"
         phenocell = (
-            pd.read_csv(phenocell_path)
-            if not args.skip_phenocell and phenocell_path.exists()
+            _read_phenocell_method_summary(root, phenocell_cfg, method)
+            if not args.skip_phenocell and phenocell_cfg is not None
             else None
         )
         write_evaluation_summary(cfg, root, hest or None, phenocell, method)

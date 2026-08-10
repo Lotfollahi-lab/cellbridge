@@ -1,6 +1,7 @@
 """Compare frozen raw UNI and distilled features on out-of-distribution labels."""
 
 import argparse
+from collections.abc import Mapping
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +23,33 @@ from cellbridge.evaluation.ood import (
 )
 
 ARMS = ("uni", "distilled")
+
+
+def resolve_probe_protocols(settings):
+    """Merge named classifier-prior variants without repeating feature settings."""
+    configured = settings.get("protocols")
+    if configured is None:
+        return [(None, dict(settings))]
+    if not isinstance(configured, Mapping) or not configured:
+        raise ValueError("probe.protocols must be a non-empty mapping")
+
+    base = {key: value for key, value in settings.items() if key != "protocols"}
+    allowed = {"class_weight", "knn_reference_sampling"}
+    resolved = []
+    for name, overrides in configured.items():
+        if not isinstance(name, str) or not name or "/" in name:
+            raise ValueError(f"invalid probe protocol name {name!r}")
+        if not isinstance(overrides, Mapping):
+            raise ValueError(f"probe protocol {name!r} must be a mapping")
+        unknown = set(overrides) - allowed
+        if unknown:
+            raise ValueError(
+                f"probe protocol {name!r} has unsupported overrides {sorted(unknown)}"
+            )
+        resolved.append((name, {**base, **overrides}))
+    return resolved
+
+
 __all__ = [
     "ARMS",
     "IMMUNE_CLASSES",
@@ -72,7 +100,7 @@ def reduce_uni(features, train_indices, components, seed):
     return reduce_features(features, train_indices, components, seed)
 
 
-def _format_result(data, result, task, arm):
+def _format_result(data, result, task, arm, protocol=None):
     common = result.metrics
     labels = result.predictions["classes"]
     per_class = f1_score(
@@ -87,7 +115,7 @@ def _format_result(data, result, task, arm):
         "arm": arm,
         "n_features": common["n_features"],
         "n_train": common["n_train"],
-        "n_val": common["n_val"],
+        "n_val": common.get("n_val", 0),
         "n_test": common["n_test"],
         "n_classes": common["n_classes"],
         "test_accuracy": common["accuracy"],
@@ -95,18 +123,29 @@ def _format_result(data, result, task, arm):
         "test_macro_f1": common["macro_f1"],
         "test_weighted_f1": common["weighted_f1"],
         "uni_pca_explained_variance": data.pca_explained_variance,
+        "evaluation_split": "val" if data.val_indices is None else "test",
     }
+    if protocol is not None:
+        metrics["protocol"] = protocol
     for key in (
         "best_C",
         "val_macro_f1",
         "n_neighbors",
         "neighbor_metric",
         "neighbor_weights",
+        "reference_sampling",
+        "n_reference",
     ):
         if key in common:
             metrics[key] = common[key]
     class_rows = [
-        {"task": task, "arm": arm, "class": label, "f1": score}
+        {
+            "task": task,
+            "arm": arm,
+            **({} if protocol is None else {"protocol": protocol}),
+            "class": label,
+            "f1": score,
+        }
         for label, score in zip(labels, per_class)
     ]
     predictions = {
@@ -132,8 +171,11 @@ def evaluate(features, table, split, task, arm, settings, method="linear"):
     return _format_result(data, result, task, arm)
 
 
-def _method_path(output_dir, task, arm, method):
-    return method_directory(Path(output_dir) / "probes" / task / arm, method)
+def _method_path(output_dir, task, arm, method, protocol=None):
+    root = Path(output_dir) / "probes"
+    if protocol is not None:
+        root = root / protocol
+    return method_directory(root / task / arm, method)
 
 
 def _summary_name(prefix, arm, method):
@@ -156,13 +198,18 @@ def main():
     validate_official_split(
         table,
         cfg["data"]["split"],
-        require_full_coverage=not cfg["data"].get("allow_unlabeled_samples", False),
+        require_full_coverage=(
+            not cfg["data"].get("allow_unlabeled_samples", False)
+            and not cfg["embedding"].get("development_subset")
+        ),
     )
     arms = [args.arm] if args.arm else list(ARMS)
     methods = resolve_methods(cfg["probe"], args.methods)
+    protocols = resolve_probe_protocols(cfg["probe"])
+    keys = [(protocol, method) for protocol, _ in protocols for method in methods]
     distilled = None
-    metrics_by_method = {method: [] for method in methods}
-    classes_by_method = {method: [] for method in methods}
+    metrics_by_key = {key: [] for key in keys}
+    classes_by_key = {key: [] for key in keys}
     for arm in arms:
         if arm == "uni":
             features = uni
@@ -184,38 +231,49 @@ def main():
                 pca=arm == "uni",
                 split=split,
             )
-            for method in methods:
-                result = evaluate_ood_task(data, method, cfg["probe"])
-                metrics, class_rows, predictions = _format_result(
-                    data, result, task, arm
-                )
-                result_dir = _method_path(output_dir, task, arm, method)
-                result_dir.mkdir(parents=True, exist_ok=True)
-                pd.DataFrame([metrics]).to_csv(result_dir / "metrics.csv", index=False)
-                pd.DataFrame(class_rows).to_csv(
-                    result_dir / "per_class_f1.csv", index=False
-                )
-                np.savez(result_dir / "predictions.npz", **predictions)
-                metrics_by_method[method].append(metrics)
-                classes_by_method[method].extend(class_rows)
-                print(
-                    f"[{task}/{arm}/{method}] "
-                    f"test macro-F1={metrics['test_macro_f1']:.4f}"
-                )
+            for protocol, protocol_settings in protocols:
+                for method in methods:
+                    result = evaluate_ood_task(data, method, protocol_settings)
+                    metrics, class_rows, predictions = _format_result(
+                        data, result, task, arm, protocol
+                    )
+                    result_dir = _method_path(
+                        output_dir, task, arm, method, protocol
+                    )
+                    result_dir.mkdir(parents=True, exist_ok=True)
+                    pd.DataFrame([metrics]).to_csv(
+                        result_dir / "metrics.csv", index=False
+                    )
+                    pd.DataFrame(class_rows).to_csv(
+                        result_dir / "per_class_f1.csv", index=False
+                    )
+                    np.savez(result_dir / "predictions.npz", **predictions)
+                    key = (protocol, method)
+                    metrics_by_key[key].append(metrics)
+                    classes_by_key[key].extend(class_rows)
+                    label = method if protocol is None else f"{protocol}/{method}"
+                    print(
+                        f"[{task}/{arm}/{label}] "
+                        f"{metrics['evaluation_split']} "
+                        f"macro-F1={metrics['test_macro_f1']:.4f}"
+                    )
 
-    for method in methods:
-        summary_path = output_dir / "probes" / _summary_name(
-            "summary", args.arm, method
-        )
-        summary_path.parent.mkdir(parents=True, exist_ok=True)
-        pd.DataFrame(metrics_by_method[method]).to_csv(summary_path, index=False)
-        pd.DataFrame(classes_by_method[method]).to_csv(
-            output_dir
-            / "probes"
-            / _summary_name("per_class", args.arm, method),
-            index=False,
-        )
-        print(f"wrote {summary_path}")
+    for protocol, _ in protocols:
+        summary_dir = output_dir / "probes"
+        if protocol is not None:
+            summary_dir = summary_dir / protocol
+        for method in methods:
+            key = (protocol, method)
+            summary_path = summary_dir / _summary_name(
+                "summary", args.arm, method
+            )
+            summary_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(metrics_by_key[key]).to_csv(summary_path, index=False)
+            pd.DataFrame(classes_by_key[key]).to_csv(
+                summary_dir / _summary_name("per_class", args.arm, method),
+                index=False,
+            )
+            print(f"wrote {summary_path}")
 
 
 if __name__ == "__main__":

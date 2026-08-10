@@ -2,30 +2,16 @@
 
 import pickle
 import re
-from dataclasses import dataclass
 
 import numpy as np
 
+from cellbridge.evaluation.tile_layout import (
+    TileLayout,
+    fixed_tile_layout,
+    infer_tile_layout,
+)
+
 TILE_PATTERN = re.compile(r"_TILE_(\d+)$")
-
-
-@dataclass(frozen=True)
-class TileGeometry:
-    index: int
-    y0: int
-    y1: int
-    x0: int
-    x1: int
-    pad_top: int
-    pad_left: int
-
-    @property
-    def height(self):
-        return self.y1 - self.y0
-
-    @property
-    def width(self):
-        return self.x1 - self.x0
 
 
 def tile_index(tile_name):
@@ -37,36 +23,30 @@ def tile_index(tile_name):
 
 def tile_geometries(image_shape=(1440, 1920), tile_size=224):
     """Reproduce the benchmark's row-major, evenly spaced tiling."""
-    height, width = map(int, image_shape)
-    rows = int(np.ceil(height / tile_size))
-    columns = int(np.ceil(width / tile_size))
-    y_edges = np.linspace(0, height, rows + 1, dtype=int)
-    x_edges = np.linspace(0, width, columns + 1, dtype=int)
-
-    geometries = []
-    for row in range(rows):
-        for column in range(columns):
-            y0, y1 = int(y_edges[row]), int(y_edges[row + 1])
-            x0, x1 = int(x_edges[column]), int(x_edges[column + 1])
-            geometries.append(
-                TileGeometry(
-                    index=row * columns + column,
-                    y0=y0,
-                    y1=y1,
-                    x0=x0,
-                    x1=x1,
-                    pad_top=(tile_size - (y1 - y0)) // 2,
-                    pad_left=(tile_size - (x1 - x0)) // 2,
-                )
-            )
-    return geometries
+    return list(fixed_tile_layout(image_shape, tile_size).geometries)
 
 
-def reconstruct_image(tiles, image_shape=(1440, 1920), tile_size=224):
+def resolve_tile_layout(entries, image_shape=(1440, 1920), tile_size=224):
+    """Resolve configured geometry or infer it from centrally padded tiles."""
+    if image_shape is not None:
+        return fixed_tile_layout(image_shape, tile_size)
+    tiles = {
+        index: entry["image"] if isinstance(entry, dict) else entry
+        for index, entry in entries.items()
+    }
+    return infer_tile_layout(tiles)
+
+
+def reconstruct_image(
+    tiles, image_shape=(1440, 1920), tile_size=224, *, layout: TileLayout | None = None
+):
     """Undo PhenoCell's per-tile zero padding and rebuild the RGB field."""
-    height, width = map(int, image_shape)
-    canvas = np.empty((3, height, width), dtype=np.asarray(next(iter(tiles.values()))).dtype)
-    geometries = tile_geometries(image_shape, tile_size)
+    layout = layout or resolve_tile_layout(tiles, image_shape, tile_size)
+    geometries = layout.geometries
+    height, width = layout.image_shape
+    canvas = np.empty(
+        (3, height, width), dtype=np.asarray(next(iter(tiles.values()))).dtype
+    )
     if set(tiles) != {geometry.index for geometry in geometries}:
         raise ValueError("tile set does not match the configured field-of-view shape")
 
@@ -92,19 +72,31 @@ def instance_centroids(mask):
     x_sums = np.bincount(flat, weights=x.ravel(), minlength=len(counts))
     y_sums = np.bincount(flat, weights=y.ravel(), minlength=len(counts))
     return {
-        instance_id: (x_sums[instance_id] / counts[instance_id], y_sums[instance_id] / counts[instance_id])
+        instance_id: (
+            x_sums[instance_id] / counts[instance_id],
+            y_sums[instance_id] / counts[instance_id],
+        )
         for instance_id in np.flatnonzero(counts)[1:]
     }
 
 
-def locate_cells(metadata, entries, image_shape=(1440, 1920), tile_size=224, *, skip_missing=False):
+def locate_cells(
+    metadata,
+    entries,
+    image_shape=(1440, 1920),
+    tile_size=224,
+    *,
+    skip_missing=False,
+    layout: TileLayout | None = None,
+):
     """Add field-level x/y coordinates to one sample's metadata rows.
 
     With ``skip_missing`` set, cells whose instance is absent from its tile mask
     are dropped instead of raising; some benchmarks (e.g. PanNuke) list boundary
     cells whose instance carries no pixels in the tiled mask.
     """
-    geometries = {geometry.index: geometry for geometry in tile_geometries(image_shape, tile_size)}
+    layout = layout or resolve_tile_layout(entries, image_shape, tile_size)
+    geometries = {geometry.index: geometry for geometry in layout.geometries}
     located = metadata.copy()
     located["x"] = np.nan
     located["y"] = np.nan
@@ -119,7 +111,9 @@ def locate_cells(metadata, entries, image_shape=(1440, 1920), tile_size=224, *, 
             if instance_id not in centroids:
                 if skip_missing:
                     continue
-                raise ValueError(f"{entry['tile_name']}: instance {instance_id} is missing from its mask")
+                raise ValueError(
+                    f"{entry['tile_name']}: instance {instance_id} is missing from its mask"
+                )
             local_x, local_y = centroids[instance_id]
             located.at[row_index, "x"] = geometry.x0 + local_x - geometry.pad_left
             located.at[row_index, "y"] = geometry.y0 + local_y - geometry.pad_top
@@ -129,7 +123,9 @@ def locate_cells(metadata, entries, image_shape=(1440, 1920), tile_size=224, *, 
         if skip_missing:
             return located.loc[~missing].copy()
         names = located.loc[missing, "tile_id"].astype(str).unique()[:5]
-        raise ValueError(f"could not locate {missing.sum()} cells; tiles include {names.tolist()}")
+        raise ValueError(
+            f"could not locate {missing.sum()} cells; tiles include {names.tolist()}"
+        )
     return located
 
 
@@ -172,7 +168,9 @@ def iter_lmdb_samples(path):
             "LMDB reading requires lmdb; run through the supplied uv --with lmdb launcher"
         ) from exc
 
-    environment = lmdb.open(str(path), readonly=True, lock=False, readahead=False, meminit=False)
+    environment = lmdb.open(
+        str(path), readonly=True, lock=False, readahead=False, meminit=False
+    )
     try:
         with environment.begin(write=False) as transaction:
             sample_name, entries = None, {}

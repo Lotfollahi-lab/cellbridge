@@ -1,0 +1,14 @@
+# Historical 96 px protocol-selection subset; never use for final paper metrics.
+embedding:
+  fov_um: null
+  crop_size: 96
+  development_subset:
+    max_cells_per_split: 20000
+    seed: 0
+    splits: [train, val]
+  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/embeddings/uni_v2/crop_96px_dev20k
+
+probe:
+  evaluation_split: val
+
+output_dir: outputs/evaluation/pannuke_crop96_dev20k_distill_v0

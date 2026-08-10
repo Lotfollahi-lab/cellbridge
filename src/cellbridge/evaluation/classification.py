@@ -93,29 +93,63 @@ def write_probe_result(result_dir, metrics, predictions, signature):
     return metrics
 
 
+def select_knn_reference(labels, reference, sampling="all", seed=0):
+    """Return all references or a reproducible equal-count sample per class."""
+    reference = np.asarray(reference, dtype=int)
+    if sampling == "all":
+        return reference
+    if sampling != "balanced":
+        raise ValueError(
+            "knn_reference_sampling must be either 'all' or 'balanced'"
+        )
+
+    reference_labels = np.asarray(labels)[reference]
+    classes, counts = np.unique(reference_labels, return_counts=True)
+    if not len(classes):
+        raise ValueError("kNN reference set is empty")
+    per_class = int(counts.min())
+    rng = np.random.default_rng(int(seed))
+    selected = []
+    for label in classes:
+        candidates = reference[reference_labels == label]
+        selected.extend(
+            rng.choice(candidates, size=per_class, replace=False).tolist()
+        )
+    return np.asarray(sorted(selected), dtype=int)
+
+
 def _fit(features, labels, train, val, method, settings):
     if method == "linear" and val is not None:
+        class_weight = settings.get("class_weight", "balanced")
         model, best_C, val_score = fit_validated_linear_classifier(
             features,
             labels,
             train,
             val,
             settings.get("Cs", [0.1, 1, 10]),
-            settings.get("class_weight", "balanced"),
+            class_weight,
             settings.get("max_iter", 2000),
         )
         return model, {"best_C": best_C, "val_macro_f1": val_score}
     if method == "linear":
+        class_weight = settings.get("class_weight", "balanced")
         model = fit_linear_classifier(
             features[train],
             labels[train],
             settings.get("Cs", [0.1, 1, 10]),
-            settings.get("class_weight", "balanced"),
+            class_weight,
             settings.get("max_iter", 2000),
         )
         return model, {}
     if method == "knn":
         reference = train if val is None else np.concatenate([train, val])
+        reference_sampling = settings.get("knn_reference_sampling", "all")
+        reference = select_knn_reference(
+            labels,
+            reference,
+            reference_sampling,
+            settings.get("seed", 0),
+        )
         model = fit_knn_classifier(
             features[reference],
             labels[reference],
@@ -127,6 +161,8 @@ def _fit(features, labels, train, val, method, settings):
             "n_neighbors": int(settings.get("knn_neighbors", 20)),
             "neighbor_metric": settings.get("knn_metric", "cosine"),
             "neighbor_weights": settings.get("knn_weights", "uniform"),
+            "reference_sampling": reference_sampling,
+            "n_reference": int(len(reference)),
         }
     raise ValueError(f"unknown evaluation method {method!r}; choose from {METHODS}")
 

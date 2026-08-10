@@ -1,0 +1,13 @@
+# Protocol-selection subset only; never use this overlay for final paper metrics.
+embedding:
+  fov_um: 56.0
+  development_subset:
+    max_cells_per_split: 20000
+    seed: 0
+    splits: [train, val]
+  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/embeddings/uni_v2/fov_56um_dev20k
+
+probe:
+  evaluation_split: val
+
+output_dir: outputs/evaluation/phenocell_fov56_dev20k_distill_v0

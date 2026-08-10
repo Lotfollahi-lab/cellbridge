@@ -2,8 +2,10 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+import cellbridge.lora.model as lora_model
 from cellbridge.lora.model import (
     compute_loss,
+    load_checkpoint,
     soft_target_contrastive_loss,
     symmetric_contrastive_loss,
     terra_similarity_targets,
@@ -149,3 +151,36 @@ def test_lora_config_rejects_non_positive_exact_match_boost(tmp_path):
     )
     with pytest.raises(ValueError, match="exact_match_boost"):
         load_config(config_path)
+
+
+def test_checkpoint_loader_accepts_pre_rename_format(monkeypatch):
+    checkpoint = {
+        "format_version": "terra_multi.lora/1",
+        "model_config": {"mode": "contrastive"},
+        "trainable_state": {"adapter": torch.ones(1)},
+    }
+    observed = {}
+
+    class StubModel:
+        def to(self, device):
+            observed["device"] = device
+            return self
+
+        def load_trainable_state_dict(self, state, *, strict):
+            observed["state"] = state
+            observed["strict"] = strict
+
+    monkeypatch.setattr(lora_model.torch, "load", lambda *args, **kwargs: checkpoint)
+    monkeypatch.setattr(
+        lora_model, "build_uni2_distiller", lambda **kwargs: StubModel()
+    )
+
+    model, metadata = load_checkpoint("legacy.pt", device="cpu")
+
+    assert isinstance(model, StubModel)
+    assert metadata is checkpoint
+    assert observed == {
+        "device": "cpu",
+        "state": checkpoint["trainable_state"],
+        "strict": True,
+    }

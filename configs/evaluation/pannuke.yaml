@@ -6,14 +6,19 @@ data:
   image_shape: [256, 256]
   tile_size: 224
   value_scale: 1
+  source_mpp: 0.25
   # 343 PanNuke fields carry no labelled nuclei; skip them and relax split coverage.
   allow_unlabeled_samples: true
 
 embedding:
   encoder: uni_v2
-  crop_size: 96
+  # PanNuke fields cannot supply the 112 um training FoV; 56 um uses a
+  # complete 224 px source crop and is reported as native-context OOD.
+  fov_um: 56.0
+  target_size: 224
+  interpolation: bilinear
   batch_size: 128
-  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/embeddings/uni_v2/crop_96px
+  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/embeddings/uni_v2/fov_56um
 
 projection:
   checkpoint: checkpoints/distill_v0/best.pt
@@ -26,9 +31,19 @@ probe:
   knn_neighbors: 20
   knn_metric: cosine
   knn_weights: uniform
-  class_weight: balanced
+  protocols:
+    # Exact previous asymmetry, retained only for historical comparison.
+    historical:
+      class_weight: balanced
+      knn_reference_sampling: all
+    natural:
+      class_weight: null
+      knn_reference_sampling: all
+    equal_class:
+      class_weight: balanced
+      knn_reference_sampling: balanced
   uni_pca_components: 256
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/pannuke_crop96_distill_v0
+output_dir: outputs/evaluation/pannuke_fov56_distill_v0

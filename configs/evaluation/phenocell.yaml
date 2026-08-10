@@ -6,12 +6,16 @@ data:
   image_shape: [1440, 1920]
   tile_size: 224
   value_scale: 250
+  source_mpp: 0.377
 
 embedding:
   encoder: uni_v2
-  crop_size: 96
+  # Match the 224 px x 0.5 um/px CellBridge training field of view.
+  fov_um: 112.0
+  target_size: 224
+  interpolation: bilinear
   batch_size: 128
-  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/embeddings/uni_v2/crop_96px
+  output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/embeddings/uni_v2/fov_112um
 
 projection:
   checkpoint: checkpoints/distill_v0/best.pt
@@ -24,9 +28,19 @@ probe:
   knn_neighbors: 20
   knn_metric: cosine
   knn_weights: uniform
-  class_weight: balanced
+  protocols:
+    # Exact previous asymmetry, retained only for historical comparison.
+    historical:
+      class_weight: balanced
+      knn_reference_sampling: all
+    natural:
+      class_weight: null
+      knn_reference_sampling: all
+    equal_class:
+      class_weight: balanced
+      knn_reference_sampling: balanced
   uni_pca_components: 256
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/phenocell_crop96_distill_v0
+output_dir: outputs/evaluation/phenocell_fov112_distill_v0

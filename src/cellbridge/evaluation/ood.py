@@ -52,7 +52,7 @@ class OodTask:
     labels: np.ndarray
     row_ids: np.ndarray
     train_indices: np.ndarray
-    val_indices: np.ndarray
+    val_indices: np.ndarray | None
     test_indices: np.ndarray
     pca_explained_variance: float | None
 
@@ -71,10 +71,21 @@ def prepare_ood_task(features, table, task, settings, *, pca=False, split=None):
         selected = table["label"].isin(IMMUNE_CLASSES).to_numpy()
 
     train = np.flatnonzero(selected & (split == "train"))
-    val = np.flatnonzero(selected & (split == "val"))
-    test = np.flatnonzero(selected & (split == "test"))
-    if min(len(train), len(val), len(test)) == 0:
-        raise ValueError(f"{task}: an official split is empty")
+    official_val = np.flatnonzero(selected & (split == "val"))
+    official_test = np.flatnonzero(selected & (split == "test"))
+    evaluation_split = settings.get("evaluation_split", "test")
+    if evaluation_split == "test":
+        val = official_val
+        test = official_test
+        if min(len(train), len(val), len(test)) == 0:
+            raise ValueError(f"{task}: an official split is empty")
+    elif evaluation_split == "val":
+        val = None
+        test = official_val
+        if min(len(train), len(test)) == 0:
+            raise ValueError(f"{task}: train or validation split is empty")
+    else:
+        raise ValueError("probe.evaluation_split must be either 'val' or 'test'")
 
     features = np.asarray(features, dtype=np.float32)
     explained = None
