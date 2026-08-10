@@ -30,7 +30,16 @@ def evaluation_cohorts(cfg) -> dict[str, list[str]]:
         cfg["splits_path"],
         expected_counts=hierarchy.get("expected_counts"),
     )
-    return split.evaluation_cohorts()
+    cohorts = split.evaluation_cohorts()
+    selected = cfg.get("eval", {}).get("hest_cohorts")
+    if selected is None:
+        return cohorts
+    if not isinstance(selected, list) or not selected:
+        raise ValueError("eval.hest_cohorts must be a non-empty list")
+    unknown = sorted(set(selected) - set(cohorts))
+    if unknown:
+        raise ValueError(f"eval.hest_cohorts contains unknown cohorts: {unknown}")
+    return {name: cohorts[name] for name in selected}
 
 
 def evaluation_samples(cfg, cohort="label_test_fast") -> list[str]:

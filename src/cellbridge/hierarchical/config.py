@@ -12,6 +12,9 @@ def configure_hierarchy(cfg: dict) -> dict:
         raise ValueError("hierarchy.enabled must be true or false")
     if not hierarchy["enabled"]:
         return cfg
+    hierarchy.setdefault("breast_only", False)
+    if not isinstance(hierarchy["breast_only"], bool):
+        raise ValueError("hierarchy.breast_only must be boolean")
     for key in ("split_manifest", "labels_dir"):
         if not hierarchy.get(key):
             raise ValueError(f"hierarchy.{key} is required when enabled")

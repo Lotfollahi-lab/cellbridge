@@ -548,17 +548,28 @@ def main():
             cfg, transform, out_dir / "selected_genes.json"
         )
         shrinkage = configure_target_shrinkage(cfg, hierarchy_data)
-        train_dataset = hierarchy_data.train
+        breast_only = bool(cfg["hierarchy"].get("breast_only", False))
+        train_dataset = (
+            hierarchy_data.breast_train if breast_only else hierarchy_data.train
+        )
         train_loader, val_loader = make_hierarchy_loaders(hierarchy_data, cfg)
         selected_genes = hierarchy_data.genes
-        cohort_cells = {
-            "base_train": len(hierarchy_data.base_train),
-            "breast_train": len(hierarchy_data.breast_train),
-            "base_val": len(hierarchy_data.base_val),
-            "breast_val": len(hierarchy_data.breast_val),
-        }
-        train_cells = cohort_cells["base_train"] + cohort_cells["breast_train"]
-        val_cells = cohort_cells["base_val"] + cohort_cells["breast_val"]
+        if breast_only:
+            cohort_cells = {
+                "breast_train": len(hierarchy_data.breast_train),
+                "breast_val": len(hierarchy_data.breast_val),
+            }
+            train_cells = cohort_cells["breast_train"]
+            val_cells = cohort_cells["breast_val"]
+        else:
+            cohort_cells = {
+                "base_train": len(hierarchy_data.base_train),
+                "breast_train": len(hierarchy_data.breast_train),
+                "base_val": len(hierarchy_data.base_val),
+                "breast_val": len(hierarchy_data.breast_val),
+            }
+            train_cells = cohort_cells["base_train"] + cohort_cells["breast_train"]
+            val_cells = cohort_cells["base_val"] + cohort_cells["breast_val"]
         probes = {"breast_val": build_validation_probe(cfg, hierarchy_data.breast_val)}
         pd.read_csv(cfg["hierarchy"]["split_manifest"]).to_csv(
             out_dir / "split_manifest.csv", index=False

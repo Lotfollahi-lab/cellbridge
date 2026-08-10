@@ -82,13 +82,16 @@ def make_hierarchy_loaders(data: HierarchyData, cfg):
     batch_size = int(training["batch_size"])
     seed = int(training["seed"])
     workers = int(training["num_workers"])
-    base_train = WithinSampleBatchSampler(
-        data.base_train,
-        batch_size,
-        seed=seed,
-        shuffle=True,
-        batches_per_sample_visit=int(training["batches_per_sample_visit"]),
-    )
+    breast_only = bool(hierarchy.get("breast_only", False))
+    base_train = None
+    if not breast_only:
+        base_train = WithinSampleBatchSampler(
+            data.base_train,
+            batch_size,
+            seed=seed,
+            shuffle=True,
+            batches_per_sample_visit=int(training["batches_per_sample_visit"]),
+        )
     sampling = hierarchy["sampling"]
     annotated_train = AnnotatedBatchSampler(
         data.breast_train,
@@ -99,24 +102,26 @@ def make_hierarchy_loaders(data: HierarchyData, cfg):
         relations=sampling["relations"],
         cross_sample=sampling["cross_sample"],
     )
-    combined = InterleavedBatchSampler(
-        base_train,
-        annotated_train,
-        len(data.base_train),
-        seed,
-        annotated_fraction=sampling["annotated_batch_fraction"],
-    )
-    base_batches, annotated_batches = combined.source_counts
+    if breast_only:
+        train_sampler = annotated_train
+        base_batches, annotated_batches = 0, len(annotated_train)
+    else:
+        train_sampler = InterleavedBatchSampler(
+            base_train,
+            annotated_train,
+            len(data.base_train),
+            seed,
+            annotated_fraction=sampling["annotated_batch_fraction"],
+        )
+        base_batches, annotated_batches = train_sampler.source_counts
     print(
         "training batch schedule | "
         f"base={base_batches} annotated={annotated_batches} "
-        f"annotated_fraction={annotated_batches / len(combined):.6f}"
+        f"annotated_fraction={annotated_batches / len(train_sampler):.6f}"
     )
-    train_loader = _loader(data.train, combined, workers, seed)
+    train_dataset = data.breast_train if breast_only else data.train
+    train_loader = _loader(train_dataset, train_sampler, workers, seed)
 
-    base_val = WithinSampleBatchSampler(
-        data.base_val, batch_size, seed=seed, shuffle=False
-    )
     annotated_val = AnnotatedBatchSampler(
         data.breast_val,
         batch_size,
@@ -127,7 +132,14 @@ def make_hierarchy_loaders(data: HierarchyData, cfg):
         cross_sample=sampling["cross_sample"],
     )
     validation = {
-        "base_val": _loader(data.base_val, base_val, workers, seed + 1),
-        "breast_val": _loader(data.breast_val, annotated_val, workers, seed + 2),
+        "breast_val": _loader(data.breast_val, annotated_val, workers, seed + 2)
     }
+    if not breast_only:
+        base_val = WithinSampleBatchSampler(
+            data.base_val, batch_size, seed=seed, shuffle=False
+        )
+        validation = {
+            "base_val": _loader(data.base_val, base_val, workers, seed + 1),
+            **validation,
+        }
     return train_loader, validation

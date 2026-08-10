@@ -21,23 +21,26 @@ from cellbridge.hierarchical.dataset import (
     load_ontology_nodes,
 )
 from cellbridge.hyperbolic.losses import entailment_cone_loss
-from cellbridge.lora.hest import evaluation_samples
+from cellbridge.lora.hest import evaluation_cohorts, evaluation_samples
 
 
 def _feature_paths(cfg, root, expected_samples):
     paths = {}
-    for cohort in ("breast_train", "breast_val", "breast_test"):
+    expected_samples = set(map(str, expected_samples))
+    cohorts = ("breast_train", *evaluation_cohorts(cfg))
+    for cohort in cohorts:
         for sample_id in evaluation_samples(cfg, cohort):
+            if sample_id not in expected_samples:
+                continue
             path = Path(root) / f"hest_{cohort}" / "features" / f"{sample_id}.npz"
             if sample_id in paths:
                 raise ValueError(f"duplicate hierarchy-metric sample {sample_id}")
             paths[sample_id] = path
     missing = sorted(set(expected_samples) - set(paths))
-    extra = sorted(set(paths) - set(expected_samples))
-    if missing or extra:
+    if missing:
         raise ValueError(
             "hierarchy metric cohort differs from phenotype sampler: "
-            f"missing={missing}, extra={extra}"
+            f"missing={missing}"
         )
     return paths
 

@@ -28,9 +28,21 @@ Use `--only` to run a subset. `--output-root`, `--checkpoint-root`, and
 `--wandb-group` keep replacement suites isolated from prior artifacts while
 using the same script.
 
-
 `--action local` instead runs training and evaluation sequentially in the
 current environment. Evaluation keeps the existing HEST and OOD linear/kNN
 probes, and additionally writes `hierarchy_metrics.csv`,
 `hierarchy_metrics.json`, exact sampled triplets, and sampled cell IDs under
 the normal evaluation directory.
+
+## Breast-only geometry screen
+
+The patient-disjoint screening suite trains only on annotated breast samples
+TENX191–196, validates on TENX197–199, and evaluates only the held-out
+TENX200–202 cohort. It compares matched d64 Euclidean, hyperbolic, and
+hyperbolic-with-cones arms without running the broader OOD suite:
+
+```bash
+python scripts/hyperbolic/run_breast_only.py --action submit
+```
+
+Set `LORA_QUEUE` and `LORA_EVAL_QUEUE` to override the shared launcher queues.

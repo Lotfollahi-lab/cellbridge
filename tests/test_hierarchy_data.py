@@ -8,6 +8,7 @@ from cellbridge.hierarchical.sampler import (
     AnnotatedBatchSampler,
     InterleavedBatchSampler,
 )
+from cellbridge.hierarchical.training_data import make_hierarchy_loaders
 
 
 class TinyCells(Dataset):
@@ -91,6 +92,43 @@ def test_balanced_sampler_is_deterministic_cross_sample_and_without_replacement(
     assert first == second
     assert sorted(index for batch in first for index in batch) == list(range(8))
     assert all(len(set(dataset.sample_ids_by_index[batch])) == 2 for batch in first)
+
+
+def test_breast_only_loaders_use_annotated_train_and_validation(tmp_path):
+    _write_labels(tmp_path, "A")
+    _write_labels(tmp_path, "B")
+    breast_train = HierarchyDataset(TinyCells(), tmp_path)
+    breast_val = HierarchyDataset(TinyCells(), tmp_path)
+    data = type(
+        "HierarchyData",
+        (),
+        {
+            "base_train": TinyCells(),
+            "breast_train": breast_train,
+            "base_val": TinyCells(),
+            "breast_val": breast_val,
+            "train": None,
+        },
+    )()
+    cfg = {
+        "training": {"batch_size": 4, "num_workers": 0, "seed": 7},
+        "hierarchy": {
+            "breast_only": True,
+            "sampling": {
+                "strategy": "balanced",
+                "validation_strategy": "balanced",
+                "relations": ["identity", "lineage", "unrelated"],
+                "cross_sample": "prefer",
+            },
+        },
+    }
+
+    train, validation = make_hierarchy_loaders(data, cfg)
+    batches = list(train)
+
+    assert set(validation) == {"breast_val"}
+    assert len(batches) == len(breast_train) // 4
+    assert all("hierarchy_depth" in batch for batch in batches)
 
 
 def test_hierarchy_sampler_draws_cross_sample_relations_without_replacement(tmp_path):

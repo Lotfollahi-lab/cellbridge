@@ -22,7 +22,7 @@ from cellbridge.lora.features import (
     load_model,
     write_feature_file,
 )
-from cellbridge.lora.hest import evaluation_cohorts
+from cellbridge.lora.hest import evaluation_cohorts, evaluation_samples
 from cellbridge.lora.probe_hest import evaluate_hest_sample, probe_hest
 from cellbridge.lora.probe_phenocell import (
     evaluate_phenocell_arm,
@@ -136,6 +136,8 @@ def _write_other_method_summaries(cfg, root, phenocell_cfg, args):
 def main(argv=None):
     args, samples, probe_samples = _arguments(argv)
     cfg = load_config(args.config)
+    if cfg.get("eval", {}).get("skip_phenocell", False):
+        args.skip_phenocell = True
     root = Path(
         args.output_dir
         or cfg.get("eval", {}).get("output_dir", Path(cfg["output_dir"]) / "evaluation")
@@ -180,15 +182,24 @@ def main(argv=None):
             and not args.skip_probes
         )
         if run_geometry:
-            export_hest(
-                cfg,
-                model,
-                device,
-                _hest_directory(root, "breast_train"),
-                identity,
-                args.overwrite,
-                cohort="breast_train",
-            )
+            metric_cfg = load_config(cfg["eval"]["hierarchy_metric_config"])
+            metric_samples = set(map(str, metric_cfg["sample_ids"]))
+            breast_train = [
+                sample
+                for sample in evaluation_samples(cfg, "breast_train")
+                if sample in metric_samples
+            ]
+            if breast_train:
+                export_hest(
+                    cfg,
+                    model,
+                    device,
+                    _hest_directory(root, "breast_train"),
+                    identity,
+                    args.overwrite,
+                    breast_train,
+                    "breast_train",
+                )
     if not args.skip_phenocell:
         phenocell_cfg = load_phenocell_config(cfg)
         directory = root / "phenocell"

@@ -60,6 +60,13 @@ def test_hierarchy_evaluation_cohorts_remain_separate(tmp_path):
     }
 
 
+def test_hierarchy_evaluation_can_select_only_held_out_breast_test(tmp_path):
+    cfg = _config(tmp_path)
+    cfg["eval"]["hest_cohorts"] = ["breast_test"]
+
+    assert evaluation_cohorts(cfg) == {"breast_test": ["C"]}
+
+
 def test_breast_training_cohort_is_available_only_when_requested(tmp_path):
     assert evaluation_samples(_config(tmp_path), "breast_train") == ["A"]
 
