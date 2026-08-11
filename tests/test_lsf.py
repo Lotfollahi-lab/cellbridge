@@ -56,6 +56,5 @@ def test_explicit_cross_cluster_target_is_rejected_locally():
         lsf.resolve_cluster("tiger22", "training-normal", "cub22")
 
 
-def test_group_is_derived_from_gpu_request():
-    assert lsf.group_for(None) == "team361"
-    assert lsf.group_for(1000) == "s10396"
+def test_lsf_group_matches_the_farm_submission_group():
+    assert lsf.LSF_GROUP == "s10396"

@@ -58,7 +58,7 @@ def render_job(args):
         f"#BSUB -o {log_dir / (args.log_prefix + '_%J.out')}",
         f"#BSUB -e {log_dir / (args.log_prefix + '_%J.err')}",
         f"#BSUB -q {args.queue}",
-        f"#BSUB -G {lsf.group_for(args.gmem)}",
+        f"#BSUB -G {lsf.LSF_GROUP}",
         f"#BSUB -n {args.cores}",
         f"#BSUB -M {args.memory}G",
         (
@@ -138,12 +138,23 @@ def _parser():
     job.add_argument("--cores", required=True, type=int)
     job.add_argument("--dependency")
     job.add_argument("--environment", choices=("terra", "hest", "none"), default="terra")
-    job.add_argument("command", nargs=argparse.REMAINDER)
     return parser
 
 
-def main(argv=None):
+def _parse_args(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    command = []
+    if "--" in argv:
+        separator = argv.index("--")
+        command = argv[separator + 1 :]
+        argv = argv[:separator]
     args = _parser().parse_args(argv)
+    args.command = command
+    return args
+
+
+def main(argv=None):
+    args = _parse_args(argv)
     if args.action == "queues":
         current = lsf.current_cluster()
         for name in lsf.CLUSTERS:
@@ -156,8 +167,6 @@ def main(argv=None):
         split_path = config_value(args.config, args.splits_key)
         print(*cohort_in_split(cohort_path, split_path, args.split), sep="\n")
     else:
-        if args.command and args.command[0] == "--":
-            args.command = args.command[1:]
         if not args.command:
             raise ValueError("submit requires a command after --")
         if args.gmem is not None and args.gmem <= 0:

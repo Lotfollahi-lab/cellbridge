@@ -6,8 +6,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 
-CPU_GROUP = "team361"
-GPU_GROUP = "s10396"
+LSF_GROUP = "s10396"
 
 
 @dataclass(frozen=True)
@@ -94,10 +93,6 @@ def resolve_queue(cluster: str, queue: str, *, gmem: int | None) -> str:
     if queue in profile.cpu_queues and gmem is not None:
         raise ValueError(f"CPU queue {queue!r} cannot be used with --gmem")
     return queue
-
-
-def group_for(gmem: int | None) -> str:
-    return GPU_GROUP if gmem is not None else CPU_GROUP
 
 
 def describe_cluster(name: str) -> str:

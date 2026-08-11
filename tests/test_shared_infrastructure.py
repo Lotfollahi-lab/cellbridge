@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from cellbridge.cluster import render_job
+from cellbridge.cluster import _parse_args, render_job
 from cellbridge.cohorts import cohort_in_split, samples_in_split
 from cellbridge.config import load_config
 from cellbridge.lora.features import feature_file_is_current, write_feature_file
@@ -101,3 +101,27 @@ def test_lsf_render_uses_resolved_config_and_one_environment(tmp_path):
     assert '#BSUB -w "done(7)"' in job
     assert f"#BSUB -o {tmp_path / 'output/logs/train_%J.out'}" in job
     assert "PYTHONPATH=src python3 -m cellbridge.lora.train" in job
+
+
+@pytest.mark.parametrize("config_first", [True, False])
+def test_submit_parser_accepts_config_before_or_after_options(config_first):
+    options = [
+        "--job",
+        "smoke",
+        "--log-prefix",
+        "smoke",
+        "--memory",
+        "1",
+        "--cores",
+        "1",
+    ]
+    argv = ["submit", "config.yaml", *options] if config_first else [
+        "submit",
+        *options,
+        "config.yaml",
+    ]
+
+    args = _parse_args([*argv, "--", "echo", "ok"])
+
+    assert args.config == "config.yaml"
+    assert args.command == ["echo", "ok"]
