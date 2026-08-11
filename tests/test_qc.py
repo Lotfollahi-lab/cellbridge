@@ -10,13 +10,14 @@ reconstruct_cells = importlib.import_module(
 ).reconstruct_cells
 
 # (cell_id, feature_name, x, y, he_x, he_y, qv). Cell 1 keeps GENEA x2 + GENEB;
-# cell 2 keeps GENEA only. The last three rows are each dropped for a reason.
+# cell 2 keeps GENEA only. The last five rows are each dropped for a reason.
 _ROWS = [
     (1, b"GENEA", 10.0, 10.0, 100.0, 100.0, 30.0),
     (1, b"GENEA", 12.0, 10.0, 102.0, 100.0, 30.0),
     (1, b"GENEB", 11.0, 12.0, 101.0, 102.0, 30.0),
     (2, b"GENEA", 50.0, 50.0, 500.0, 500.0, 40.0),
     (1, b"NegControlProbe_5", 11.0, 11.0, 101.0, 101.0, 40.0),  # control probe
+    (1, b"UnassignedCodeword_5", 11.0, 11.0, 101.0, 101.0, 40.0),  # codeword
     (2, b"GENEB", 60.0, 60.0, 600.0, 600.0, 10.0),              # qv below cutoff
     (-1, b"GENEA", 0.0, 0.0, 0.0, 0.0, 40.0),                   # unassigned (int -1)
     ("UNASSIGNED", b"GENEA", 0.0, 0.0, 0.0, 0.0, 40.0),         # unassigned (string)

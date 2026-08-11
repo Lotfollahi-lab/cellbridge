@@ -13,7 +13,12 @@ import scipy.sparse as sp
 
 from cellbridge.config import load_config
 
-_CONTROL_PREFIXES = ("NegControlProbe_", "NegControlCodeword_", "BLANK_")
+_CONTROL_PREFIXES = (
+    "NegControlProbe_",
+    "NegControlCodeword_",
+    "UnassignedCodeword_",
+    "BLANK_",
+)
 _COLUMNS = ["cell_id", "feature_name", "x_location", "y_location", "he_x", "he_y", "qv"]
 _UNASSIGNED = {"-1", "UNASSIGNED"}
 

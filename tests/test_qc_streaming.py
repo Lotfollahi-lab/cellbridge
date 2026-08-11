@@ -10,8 +10,8 @@ _stream = importlib.import_module("cellbridge.preprocess.02_quality_check_stream
 
 _COLS = ["cell_id", "feature_name", "x_location", "y_location", "he_x", "he_y", "qv"]
 
-# Cell 1 straddles the batch split; the last four rows are each dropped for a
-# reason (control probe, below-cutoff qv, int -1, string UNASSIGNED).
+# Cell 1 straddles the batch split; the last five rows are each dropped for a
+# reason (control probe, unassigned codeword, low qv, int -1, string UNASSIGNED).
 _ROWS = [
     (1, b"GENEA", 10.0, 10.0, 100.0, 100.0, 30.0),
     (1, b"GENEA", 12.0, 10.0, 102.0, 100.0, 30.0),
@@ -22,6 +22,7 @@ _ROWS = [
     (2, b"GENEA", 52.0, 50.0, 520.0, 500.0, 40.0),
     (10, b"GENEB", 6.0, 5.0, 60.0, 55.0, 40.0),
     (1, b"NegControlProbe_5", 11.0, 11.0, 101.0, 101.0, 40.0),
+    (1, b"UnassignedCodeword_5", 11.0, 11.0, 101.0, 101.0, 40.0),
     (2, b"GENEB", 60.0, 60.0, 600.0, 600.0, 10.0),
     (-1, b"GENEA", 0.0, 0.0, 0.0, 0.0, 40.0),
     ("UNASSIGNED", b"GENEA", 0.0, 0.0, 0.0, 0.0, 40.0),
