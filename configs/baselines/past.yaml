@@ -19,7 +19,7 @@ crop:
   source_size: 224
   padding: black
 
-output_dir: outputs/baselines/past
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/baselines/past
 
 hest:
   data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest

@@ -12,8 +12,7 @@ submit() {
   local suffix="$1" memory="$2" cores="$3" dependency="$4"; shift 4
   local dep_args=(); [ -z "$dependency" ] || dep_args=(--dependency "$dependency")
   "$SUBMIT" submit "$CONFIG" --job "${RUN_NAME}_${suffix}" --log-prefix "$suffix" \
-    --queue "${LORA_EVAL_QUEUE:-training-normal}" \
-    --gpu "${LORA_EVAL_GPU_SPEC:-num=1:gmem=30000}" \
+    --queue "${LORA_EVAL_QUEUE:-auto}" --gmem "${LORA_EVAL_GMEM:-30000}" \
     --memory "$memory" --cores "$cores" --environment hest "${dep_args[@]}" -- \
     python -m cellbridge.lora.evaluate --config "$CONFIG" "$@"
 }

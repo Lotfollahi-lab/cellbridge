@@ -1,4 +1,4 @@
-"""Small config-aware LSF submission helper used by repository launchers."""
+"""Submit CellBridge jobs to LSF."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def _environment(name, cores):
             os.environ.get("TERRA_ENV", os.environ.get("ENV_PATH", default))
         )
         setup = (
-            "if command -v module >/dev/null 2>&1; then module load cellgen/uv; fi\n"
+            "module load cellgen/uv\n"
             f"source {shlex.quote(str(environment / 'bin' / 'activate'))}"
         )
     elif name == "none":
@@ -52,83 +52,49 @@ def render_job(args):
         value = value[part]
     log_dir = _path(value) / args.log_subdir
     log_dir.mkdir(parents=True, exist_ok=True)
+
     directives = [
         f"#BSUB -J {args.job}",
         f"#BSUB -o {log_dir / (args.log_prefix + '_%J.out')}",
         f"#BSUB -e {log_dir / (args.log_prefix + '_%J.err')}",
-        f"#BSUB -n {args.cores}",
         f"#BSUB -q {args.queue}",
+        f"#BSUB -G {lsf.group_for(args.gmem)}",
+        f"#BSUB -n {args.cores}",
+        f"#BSUB -M {args.memory}G",
+        (
+            f'#BSUB -R "select[mem>{args.memory}G] '
+            f'rusage[mem={args.memory}G] span[hosts=1]"'
+        ),
     ]
-    if args.gpu is not None:
-        directives.append(f'#BSUB -gpu "{args.gpu}"')
-    directives.extend(
-        [
-            f"#BSUB -G {args.group}",
-            f"#BSUB -M {args.memory}G",
-            (
-                f'#BSUB -R "select[mem>{args.memory}G] '
-                f'rusage[mem={args.memory}G] span[hosts=1]"'
-            ),
-        ]
-    )
+    if args.gmem is not None:
+        directives.append(f'#BSUB -gpu "num=1:gmem={args.gmem}"')
     if args.dependency:
         directives.append(f'#BSUB -w "{args.dependency}"')
+
     command = shlex.join(args.command)
-    body = [
-        *directives,
-        "",
-        "set -euo pipefail",
-        _environment(args.environment, args.cores),
-        f"cd {shlex.quote(str(ROOT))}",
-        f"PYTHONPATH=src {command}",
-    ]
-    return "\n".join(body) + "\n"
-
-
-def resolve_queue(args):
-    """Replace ``--queue auto`` with a queue that fits and can start the job."""
-    if args.queue != "auto":
-        return args.queue
-    queue = lsf.choose_queue(memory_gb=args.memory, cores=args.cores, gpu=args.gpu)
-    if queue is None:
-        raise RuntimeError(
-            f"no configured queue can run {args.memory}G on {args.cores} cores"
-            f"{'' if args.gpu in (None, '-') else ' with a GPU'}; "
-            f"candidates were {lsf.GPU_QUEUES if args.gpu not in (None, '-') else lsf.CPU_QUEUES}"
+    return (
+        "\n".join(
+            (
+                *directives,
+                "",
+                "set -euo pipefail",
+                _environment(args.environment, args.cores),
+                f"cd {shlex.quote(str(ROOT))}",
+                f"PYTHONPATH=src {command}",
+            )
         )
-    if args.gpu is None and lsf.queue_capacity(queue).gpu_backed:
-        # Only a GPU queue had enough memory. Those queues reject a job with no
-        # GPU selector, so claim the smallest possible one rather than fail.
-        args.gpu = "-"
-        print(
-            f"auto-selected queue {queue}; it is GPU-backed and only reachable "
-            f"with a GPU reservation, so --gpu - was added",
-            file=sys.stderr,
-        )
-        return queue
-    print(f"auto-selected queue {queue}", file=sys.stderr)
-    return queue
-
-
-def preflight(args):
-    """Refuse requests that LSF would silently pend or reject outright."""
-    capacity = lsf.queue_capacity(args.queue)
-    problems = lsf.request_problems(
-        capacity, memory_gb=args.memory, cores=args.cores, gpu=args.gpu
+        + "\n"
     )
-    if problems:
-        raise RuntimeError("; ".join(problems))
-    if capacity.known and capacity.free_slots < args.cores:
-        print(
-            f"note: queue {args.queue} has {capacity.free_slots} free slots for a "
-            f"{args.cores}-core job, so it will pend until others finish",
-            file=sys.stderr,
-        )
 
 
 def submit(args):
-    args.queue = resolve_queue(args)
-    preflight(args)
+    current = lsf.current_cluster()
+    cluster = lsf.resolve_cluster(args.cluster, args.queue, current)
+    requested_queue = args.queue
+    args.queue = lsf.resolve_queue(cluster, requested_queue, gmem=args.gmem)
+    if requested_queue == "auto":
+        print(f"using {cluster} queue {args.queue}", file=sys.stderr)
+
     result = subprocess.run(
         ["bsub"],
         input=render_job(args),
@@ -146,9 +112,13 @@ def submit(args):
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="action", required=True)
+
+    commands.add_parser("queues", help="show known queues and head nodes")
+
     value = commands.add_parser("value", help="print one expanded config value")
     value.add_argument("config")
     value.add_argument("key")
+
     cohort = commands.add_parser("cohort", help="print a validated cohort")
     cohort.add_argument("config")
     cohort.add_argument("cohort_key")
@@ -161,11 +131,11 @@ def _parser():
     job.add_argument("--log-prefix", required=True)
     job.add_argument("--output-key", default="output_dir")
     job.add_argument("--log-subdir", default="logs")
-    job.add_argument("--queue", required=True, help="queue name, or 'auto' to pick one")
-    job.add_argument("--gpu")
+    job.add_argument("--cluster", default=os.environ.get("CELLBRIDGE_CLUSTER", "auto"))
+    job.add_argument("--queue", default="auto")
+    job.add_argument("--gmem", type=int, help="GPU memory in MB; requests one GPU")
     job.add_argument("--memory", required=True, type=int)
     job.add_argument("--cores", required=True, type=int)
-    job.add_argument("--group", default=os.environ.get("BGROUP", "s10396"))
     job.add_argument("--dependency")
     job.add_argument("--environment", choices=("terra", "hest", "none"), default="terra")
     job.add_argument("command", nargs=argparse.REMAINDER)
@@ -174,7 +144,12 @@ def _parser():
 
 def main(argv=None):
     args = _parser().parse_args(argv)
-    if args.action == "value":
+    if args.action == "queues":
+        current = lsf.current_cluster()
+        for name in lsf.CLUSTERS:
+            marker = "*" if name == current else " "
+            print(f"{marker} {lsf.describe_cluster(name)}")
+    elif args.action == "value":
         print(config_value(args.config, args.key))
     elif args.action == "cohort":
         cohort_path = config_value(args.config, args.cohort_key)
@@ -185,6 +160,8 @@ def main(argv=None):
             args.command = args.command[1:]
         if not args.command:
             raise ValueError("submit requires a command after --")
+        if args.gmem is not None and args.gmem <= 0:
+            raise ValueError("--gmem must be positive")
         submit(args)
 
 

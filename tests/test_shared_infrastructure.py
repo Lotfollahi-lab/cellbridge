@@ -1,4 +1,5 @@
 from argparse import Namespace
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -24,6 +25,22 @@ def test_config_expands_environment_and_merges_overlay(tmp_path, monkeypatch):
 
     assert config["data_root"] == str(tmp_path / "data" / "hest")
     assert config["settings"] == {"keep": True, "value": "local"}
+
+
+def test_config_defaults_to_workspace_outputs_and_checkpoints(tmp_path, monkeypatch):
+    config_path = tmp_path / "paths.yaml"
+    config_path.write_text(
+        "output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/run\n"
+        "checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/run\n"
+    )
+    monkeypatch.delenv("CELLBRIDGE_OUTPUTS_ROOT", raising=False)
+    monkeypatch.delenv("CELLBRIDGE_CHECKPOINTS_ROOT", raising=False)
+    workspace = Path(__file__).resolve().parents[1].parents[1]
+
+    config = load_config(config_path)
+
+    assert config["output_dir"] == str(workspace / "outputs" / "run")
+    assert config["checkpoint_dir"] == str(workspace / "checkpoints" / "run")
 
 
 def test_cohort_is_ordered_unique_and_held_out(tmp_path):
@@ -70,8 +87,7 @@ def test_lsf_render_uses_resolved_config_and_one_environment(tmp_path):
         job="run",
         cores=4,
         queue="training-normal",
-        gpu="-",
-        group="group",
+        gmem=16_000,
         memory=16,
         dependency="done(7)",
         environment="none",
@@ -80,7 +96,8 @@ def test_lsf_render_uses_resolved_config_and_one_environment(tmp_path):
 
     job = render_job(args)
 
-    assert '#BSUB -gpu "-"' in job
+    assert '#BSUB -gpu "num=1:gmem=16000"' in job
+    assert "#BSUB -G s10396" in job
     assert '#BSUB -w "done(7)"' in job
     assert f"#BSUB -o {tmp_path / 'output/logs/train_%J.out'}" in job
     assert "PYTHONPATH=src python3 -m cellbridge.lora.train" in job

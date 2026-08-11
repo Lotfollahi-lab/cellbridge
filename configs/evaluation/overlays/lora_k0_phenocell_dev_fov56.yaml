@@ -9,4 +9,4 @@ embedding:
 probe:
   evaluation_split: val
 
-output_dir: outputs/evaluation/lora_k0/phenocell_fov56_dev20k
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/evaluation/lora_k0/phenocell_fov56_dev20k

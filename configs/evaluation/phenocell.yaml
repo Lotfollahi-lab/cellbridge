@@ -39,4 +39,4 @@ probe:
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/phenocell_fov112_lora
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/evaluation/phenocell_fov112_lora

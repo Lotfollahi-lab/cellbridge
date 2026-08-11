@@ -43,8 +43,8 @@ training:
   seed: 0
   log_every: 20
 
-output_dir: outputs/lora/frozen_head_only
-checkpoint_dir: checkpoints/lora/frozen_head_only
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/frozen_head_only
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/frozen_head_only
 phenocell_config: configs/evaluation/phenocell.yaml
 
 wandb:

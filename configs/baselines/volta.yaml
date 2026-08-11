@@ -19,7 +19,7 @@ crop:
   scale: 2.0
   padding: white
 
-output_dir: outputs/baselines/volta
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/baselines/volta
 
 hest:
   data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest

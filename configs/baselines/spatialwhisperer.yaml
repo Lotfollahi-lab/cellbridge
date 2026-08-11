@@ -11,7 +11,7 @@ model:
   checkpoint_filename: spatialwhisperer.ckpt
   precision: bf16
 
-output_dir: outputs/baselines/spatialwhisperer
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/baselines/spatialwhisperer
 
 hest:
   data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest

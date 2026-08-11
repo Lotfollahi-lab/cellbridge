@@ -27,4 +27,4 @@ probe:
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/lizard_crop96_lora
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/evaluation/lizard_crop96_lora

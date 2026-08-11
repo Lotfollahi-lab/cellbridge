@@ -42,4 +42,4 @@ probe:
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/pannuke_fov56_lora
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/evaluation/pannuke_fov56_lora

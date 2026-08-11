@@ -15,10 +15,11 @@ def _defaults() -> dict[str, str]:
     workspace = root.parents[1]
     return {
         "CELLBRIDGE_ROOT": str(root),
-        "CELLBRIDGE_WORKSPACE": str(workspace),
         "CELLBRIDGE_DATA_ROOT": str(workspace / "data"),
         "CELLBRIDGE_REPOS_ROOT": str(workspace / "repos"),
         "CELLBRIDGE_ENV_ROOT": str(workspace / "envs"),
+        "CELLBRIDGE_OUTPUTS_ROOT": str(workspace / "outputs"),
+        "CELLBRIDGE_CHECKPOINTS_ROOT": str(workspace / "checkpoints"),
     }
 
 
@@ -48,8 +49,8 @@ def load_config(path, *, overlay=None) -> dict:
     """Load YAML, merge a local overlay, and expand ``$VARS`` recursively.
 
     ``CELLBRIDGE_CONFIG_OVERLAY`` supplies a machine-local overlay when the
-    caller does not pass one explicitly. Repository/data/repo/env roots have
-    portable defaults inferred from this checkout and can be overridden.
+    caller does not pass one explicitly. Shared paths have portable defaults
+    inferred from this checkout and can be overridden by environment variables.
     """
     path = Path(path)
     with open(path) as handle:

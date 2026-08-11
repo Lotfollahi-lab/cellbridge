@@ -17,9 +17,6 @@ configs/local.yaml
 # Claude
 CLAUDE.md
 
-# Cluster launch env (machine-specific paths / LSF group)
-scripts/cluster_env.sh
-
 # Outputs
 outputs/
 

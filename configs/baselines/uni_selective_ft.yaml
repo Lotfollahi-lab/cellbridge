@@ -22,7 +22,7 @@ training:
   weight_decay: 0.05
   grad_clip: 1.0
 
-output_dir: outputs/baselines/uni_selective_ft
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/baselines/uni_selective_ft
 
 hest:
   data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest

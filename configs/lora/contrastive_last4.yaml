@@ -43,8 +43,8 @@ training:
   seed: 0
   log_every: 20
 
-output_dir: outputs/lora/contrastive_last4
-checkpoint_dir: checkpoints/lora/contrastive_last4
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/contrastive_last4
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/contrastive_last4
 phenocell_config: configs/evaluation/phenocell.yaml
 
 wandb:

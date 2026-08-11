@@ -44,8 +44,8 @@ training:
   seed: 0
   log_every: 20
 
-output_dir: outputs/lora/projection_head_mlp_2048
-checkpoint_dir: checkpoints/lora/projection_head_mlp_2048
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/projection_head_mlp_2048
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/projection_head_mlp_2048
 phenocell_config: configs/evaluation/phenocell.yaml
 
 wandb:

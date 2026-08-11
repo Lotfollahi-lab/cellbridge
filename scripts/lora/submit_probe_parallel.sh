@@ -11,16 +11,15 @@ mapfile -t SAMPLES < <("$SUBMIT" cohort "$CONFIG" eval.label_test_fast_path spli
 IDS=()
 for sample in "${SAMPLES[@]}"; do
   id="$($SUBMIT submit "$CONFIG" --job "${RUN_NAME}_probe_${sample}" \
-    --log-prefix "probe_${sample}" --queue "${LORA_PROBE_QUEUE:-training-normal}" \
-    --gpu "${LORA_PROBE_GPU_SPEC:--}" --memory "${LORA_PROBE_MEM_GB:-64}" \
+    --log-prefix "probe_${sample}" --queue "${LORA_PROBE_QUEUE:-auto}" \
+    --gmem "${LORA_PROBE_GMEM:-1000}" --memory "${LORA_PROBE_MEM_GB:-64}" \
     --cores "${LORA_PROBE_NCORES:-12}" --environment hest -- \
     python -m cellbridge.lora.evaluate --config "$CONFIG" --probe-samples "$sample")"
   echo "  PROBE $sample -> job $id" >&2; IDS+=("$id")
 done
 dependency="$(printf 'done(%s)&&' "${IDS[@]}")"
 "$SUBMIT" submit "$CONFIG" --job "${RUN_NAME}_aggregate" --log-prefix aggregate \
-  --queue "${LORA_EVAL_QUEUE:-training-normal}" \
-  --gpu "${LORA_EVAL_GPU_SPEC:-num=1:gmem=30000}" \
+  --queue "${LORA_EVAL_QUEUE:-auto}" --gmem "${LORA_EVAL_GMEM:-30000}" \
   --memory "${LORA_AGG_MEM_GB:-128}" --cores "${LORA_AGG_NCORES:-16}" \
   --environment hest --dependency "${dependency%&&}" -- \
   python -m cellbridge.lora.evaluate --config "$CONFIG"

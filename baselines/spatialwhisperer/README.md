@@ -193,9 +193,8 @@ SPATIALWHISPERER_PROBE_MEM_GB=128 \
 scripts/baselines/spatialwhisperer/submit_parallel.sh "$CONFIG"
 ```
 
-The launcher also reads the Git-ignored `scripts/cluster_env.sh` when present
-for `BGROUP`, the CPU queue, and the `terra-dev` environment path. Logs are
-written below `outputs/baselines/spatialwhisperer/logs/`.
+Logs are written below
+`$CELLBRIDGE_OUTPUTS_ROOT/baselines/spatialwhisperer/logs/`.
 
 ## 6. Understand the image inputs
 

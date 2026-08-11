@@ -17,8 +17,8 @@ COMMON=(python -m cellbridge.lora.evaluate_ood --config "$CONFIG"
 IDS=()
 for ((shard = 0; shard < SHARDS; shard++)); do
   id="$("$SUBMIT" submit --job "${DATASET}_export_${shard}" \
-    --log-prefix "export_${shard}" --queue "${OOD_QUEUE:-training-normal}" \
-    --gpu "${OOD_GPU_SPEC:-num=1:gmem=30000}" --memory "${OOD_MEM_GB:-48}" \
+    --log-prefix "export_${shard}" --queue "${OOD_QUEUE:-auto}" \
+    --gmem "${OOD_GMEM:-30000}" --memory "${OOD_MEM_GB:-48}" \
     --cores "${OOD_NCORES:-8}" --environment hest "$OOD_CONFIG" -- \
     "${COMMON[@]}" --shard "$shard")"
   echo "  EXPORT shard $shard -> job $id" >&2
@@ -27,7 +27,7 @@ done
 
 dependency="$(printf 'done(%s)&&' "${IDS[@]}")"
 "$SUBMIT" submit --job "${DATASET}_probe" --log-prefix probe \
-  --queue "${OOD_PROBE_QUEUE:-inference}" --gpu "-" \
+  --queue "${OOD_PROBE_QUEUE:-auto}" --gmem "${OOD_PROBE_GMEM:-1000}" \
   --memory "${OOD_PROBE_MEM_GB:-64}" --cores "${OOD_PROBE_NCORES:-8}" \
   --environment hest --dependency "${dependency%&&}" "$OOD_CONFIG" -- \
   "${COMMON[@]}" --probe-only
