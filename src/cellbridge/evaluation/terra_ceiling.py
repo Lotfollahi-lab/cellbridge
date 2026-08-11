@@ -1,7 +1,7 @@
 """Probe the frozen TERRA teacher at a chosen label granularity.
 
 TERRA sees the molecular data the image model never does, so its score bounds
-what any H&E distillation could reach. The existing arms are compared at raw
+what any H&E model could reach. The existing arms are compared at raw
 source-cluster granularity; this reports the same ceiling at whatever
 ``eval.label_level`` is configured, using the identical split, probe, and
 metrics so the numbers line up with every other arm.
@@ -10,8 +10,8 @@ TERRA is used at full 384-D and is deliberately not PCA-reduced, matching the
 established teacher protocol.
 
     PYTHONPATH=src python -m cellbridge.evaluation.terra_ceiling \
-      --config configs/hierarchical/identity/lora_baseline_identity.yaml \
-      --samples TENX200 --output-dir outputs/hierarchical/terra_ceiling
+      --config configs/lora/contrastive_k0.yaml \
+      --samples TENX200 --output-dir outputs/evaluation/terra_ceiling
 """
 
 from __future__ import annotations

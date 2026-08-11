@@ -15,10 +15,6 @@ embedding:
   batch_size: 128
   output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/embeddings/uni_v2/crop_96px
 
-projection:
-  checkpoint: checkpoints/distill_v0/best.pt
-  batch_size: 8192
-
 probe:
   tasks: [all]
   methods: [linear, knn]
@@ -31,4 +27,4 @@ probe:
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/lizard_crop96_distill_v0
+output_dir: outputs/evaluation/lizard_crop96_lora

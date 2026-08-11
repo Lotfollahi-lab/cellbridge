@@ -11,13 +11,16 @@ import pandas as pd
 import yaml
 
 from cellbridge.config import load_config
-from cellbridge.evaluation.linear_probe import fit_fixed_linear_classifier, reduce_features
+from cellbridge.evaluation.linear_probe import (
+    fit_fixed_linear_classifier,
+    reduce_features,
+)
 from cellbridge.evaluation.storage import write_table
-from cellbridge.hierarchical.splits import load_phenotype_split
 
 from .conformal import calibrate_graph, calibrate_split, graph_sets, split_sets
 from .hest_data import load_frozen_hest_representation, load_pruned_ontology_hierarchy
 from .metrics import per_class_coverage, summarize
+from .splits import load_phenotype_split
 
 
 def _samples(config):

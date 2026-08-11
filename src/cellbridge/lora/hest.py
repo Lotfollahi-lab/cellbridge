@@ -6,7 +6,6 @@ import pandas as pd
 
 from cellbridge.cohorts import cohort_in_split
 from cellbridge.evaluation.artifacts import file_identity
-from cellbridge.hierarchical.splits import load_phenotype_split
 
 
 def label_test_fast_samples(cfg):
@@ -20,39 +19,11 @@ def label_test_fast_samples(cfg):
 
 
 def evaluation_cohorts(cfg) -> dict[str, list[str]]:
-    """Return named HEST cohorts, preserving the legacy five-sample default."""
-
-    hierarchy = cfg.get("hierarchy", {})
-    if not hierarchy.get("enabled", False):
-        return {"label_test_fast": label_test_fast_samples(cfg)}
-    split = load_phenotype_split(
-        hierarchy["split_manifest"],
-        cfg["splits_path"],
-        expected_counts=hierarchy.get("expected_counts"),
-    )
-    cohorts = split.evaluation_cohorts()
-    selected = cfg.get("eval", {}).get("hest_cohorts")
-    if selected is None:
-        return cohorts
-    if not isinstance(selected, list) or not selected:
-        raise ValueError("eval.hest_cohorts must be a non-empty list")
-    unknown = sorted(set(selected) - set(cohorts))
-    if unknown:
-        raise ValueError(f"eval.hest_cohorts contains unknown cohorts: {unknown}")
-    return {name: cohorts[name] for name in selected}
+    """Return the fixed held-out HEST evaluation cohort."""
+    return {"label_test_fast": label_test_fast_samples(cfg)}
 
 
 def evaluation_samples(cfg, cohort="label_test_fast") -> list[str]:
-    if cohort == "breast_train":
-        hierarchy = cfg.get("hierarchy", {})
-        if not hierarchy.get("enabled", False):
-            raise ValueError("breast_train requires a hierarchy-enabled HEST config")
-        split = load_phenotype_split(
-            hierarchy["split_manifest"],
-            cfg["splits_path"],
-            expected_counts=hierarchy.get("expected_counts"),
-        )
-        return list(split.breast_train)
     cohorts = evaluation_cohorts(cfg)
     if cohort not in cohorts:
         raise ValueError(f"unknown HEST evaluation cohort {cohort!r}")

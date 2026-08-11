@@ -18,7 +18,6 @@ from cellbridge.evaluation.classification import (
     write_probe_result,
 )
 from cellbridge.evaluation.hest import prepare_labeled_hest_features
-from cellbridge.hyperbolic.metrics import norm_correctness_correlation
 from cellbridge.lora.features import FEATURE_ARMS, FORMAT_VERSION, PCA_ARMS
 from cellbridge.lora.hest import evaluation_samples, manifest_row, sample_dir
 
@@ -58,12 +57,6 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear
         settings,
         row_ids=data.cell_ids,
     )
-    norm_by_id = dict(
-        zip(
-            np.asarray(cell_ids).astype(str),
-            np.linalg.norm(np.asarray(features, dtype=np.float32), axis=1),
-        )
-    )
     common = result.metrics
     metrics = {
         "sample_id": sample_id,
@@ -76,13 +69,6 @@ def evaluate_hest_sample(features, cell_ids, sample_id, arm, cfg, method="linear
             for key in ("accuracy", "balanced_accuracy", "macro_f1", "weighted_f1")
         },
         "pca_explained_variance": data.pca_explained_variance,
-        "norm_correctness_spearman": norm_correctness_correlation(
-            np.asarray(
-                [norm_by_id[cell_id] for cell_id in result.predictions["row_ids_test"]]
-            ),
-            result.predictions["y_true"],
-            result.predictions["y_pred"],
-        ),
     }
     for key in ("n_neighbors", "neighbor_metric", "neighbor_weights"):
         if key in common:
@@ -180,7 +166,6 @@ def probe_hest(cfg, output_dir, samples=None, cohort="label_test_fast"):
         "balanced_accuracy",
         "accuracy",
         "weighted_f1",
-        "norm_correctness_spearman",
     ]
     for method in methods:
         result = pd.DataFrame(rows[method])

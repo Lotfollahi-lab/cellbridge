@@ -1,49 +1,23 @@
-import math
-
 import pytest
 
 from cellbridge.lora.monitoring import CheckpointSelector, Criterion, MetricWindow
 
 
 def _window():
-    return MetricWindow(
-        gate_key="hierarchy_annotated_batch", gated_prefixes=("hierarchy_", "negative_")
-    )
+    return MetricWindow()
 
 
 def test_ungated_metrics_average_over_every_step():
     window = _window()
-    window.add({"loss_total": 1.0, "hierarchy_annotated_batch": 0.0})
-    window.add({"loss_total": 3.0, "hierarchy_annotated_batch": 0.0})
+    window.add({"loss_total": 1.0})
+    window.add({"loss_total": 3.0})
 
     assert window.mean()["loss_total"] == pytest.approx(2.0)
 
 
-def test_gated_metrics_ignore_the_steps_they_do_not_apply_to():
-    window = _window()
-    # Three unlabelled steps zero-fill the hierarchy metrics; one labelled step
-    # carries the real value. Averaging over all four would report 0.1.
-    for _ in range(3):
-        window.add({"hierarchy_violation_rate": 0.0, "hierarchy_annotated_batch": 0.0})
-    window.add({"hierarchy_violation_rate": 0.4, "hierarchy_annotated_batch": 1.0})
-
-    averaged = window.mean()
-
-    assert averaged["hierarchy_violation_rate"] == pytest.approx(0.4)
-    assert averaged["hierarchy_annotated_batch"] == pytest.approx(0.25)
-    assert averaged["window_steps"] == 4
-
-
-def test_gated_metric_is_nan_when_the_gate_never_opens():
-    window = _window()
-    window.add({"hierarchy_violation_rate": 0.0, "hierarchy_annotated_batch": 0.0})
-
-    assert math.isnan(window.mean()["hierarchy_violation_rate"])
-
-
 def test_reset_clears_the_window():
     window = _window()
-    window.add({"loss_total": 5.0, "hierarchy_annotated_batch": 1.0})
+    window.add({"loss_total": 5.0})
     window.reset()
 
     assert window.steps == 0

@@ -7,7 +7,6 @@ import pandas as pd
 
 from cellbridge.config import load_config
 from cellbridge.evaluation.classification import resolve_methods
-from cellbridge.evaluation.probe_ood import resolve_probe_protocols
 from cellbridge.lora.export_hest import export_hest
 from cellbridge.lora.export_phenocell import export_phenocell, phenocell_cell_ids
 from cellbridge.lora.features import (
@@ -23,12 +22,13 @@ from cellbridge.lora.features import (
     load_model,
     write_feature_file,
 )
-from cellbridge.lora.hest import evaluation_cohorts, evaluation_samples
+from cellbridge.lora.hest import evaluation_cohorts
 from cellbridge.lora.probe_hest import evaluate_hest_sample, probe_hest
 from cellbridge.lora.probe_phenocell import (
     evaluate_phenocell_arm,
     load_phenocell_arm,
     probe_phenocell,
+    resolve_probe_protocols,
 )
 from cellbridge.lora.summary import write_evaluation_summary
 
@@ -90,12 +90,9 @@ def _hest_directory(root, cohort):
 
 
 def _selected_hest_cohorts(cfg, selected=None):
-    hierarchy_enabled = cfg.get("hierarchy", {}).get("enabled", False)
-    if selected is None and not hierarchy_enabled:
+    if selected is None:
         return {"label_test_fast": None}
     cohorts = evaluation_cohorts(cfg)
-    if selected is None:
-        return {cohort: None for cohort in cohorts}
     requested = {str(sample_id) for sample_id in selected}
     configured = {sample for samples in cohorts.values() for sample in samples}
     unknown = sorted(requested - configured)
@@ -175,7 +172,6 @@ def main(argv=None):
     model = load_model(checkpoint, device, cfg.get("model", {}).get("weights_path"))
     hest_metrics = {}
     phenocell_metrics = phenocell_cfg = None
-    run_geometry = False
     if not args.skip_hest:
         for cohort, selected in _selected_hest_cohorts(cfg, samples).items():
             directory = _hest_directory(root, cohort)
@@ -196,30 +192,6 @@ def main(argv=None):
                 )
             if not args.skip_probes:
                 hest_metrics[cohort], _ = _run_hest_probe(cfg, directory, None, cohort)
-        run_geometry = bool(
-            cfg.get("eval", {}).get("hierarchy_metric_config")
-            and samples is None
-            and not args.skip_probes
-        )
-        if run_geometry:
-            metric_cfg = load_config(cfg["eval"]["hierarchy_metric_config"])
-            metric_samples = set(map(str, metric_cfg["sample_ids"]))
-            breast_train = [
-                sample
-                for sample in evaluation_samples(cfg, "breast_train")
-                if sample in metric_samples
-            ]
-            if breast_train:
-                export_hest(
-                    cfg,
-                    model,
-                    device,
-                    _hest_directory(root, "breast_train"),
-                    identity,
-                    args.overwrite,
-                    breast_train,
-                    "breast_train",
-                )
     if not args.skip_phenocell:
         phenocell_cfg = load_phenocell_config(cfg)
         directory = root / "phenocell"
@@ -228,11 +200,6 @@ def main(argv=None):
         )
         if not args.skip_probes:
             phenocell_metrics = probe_phenocell(phenocell_cfg, directory)
-    if run_geometry:
-        from cellbridge.hyperbolic.evaluation import evaluate_geometry
-
-        geometry = evaluate_geometry(cfg, model, root)
-        print(geometry.to_string(index=False))
     if not args.skip_probes:
         write_evaluation_summary(cfg, root, hest_metrics or None, phenocell_metrics)
         _write_other_method_summaries(cfg, root, phenocell_cfg, args)

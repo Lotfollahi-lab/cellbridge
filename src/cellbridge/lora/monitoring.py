@@ -3,50 +3,27 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Mapping
 
 IMPROVEMENT_MARGIN = 1e-6
 
 
 class MetricWindow:
-    """Average step metrics over a logging window instead of sampling one step.
+    """Average step metrics over a logging window."""
 
-    Logging a single step aliases badly against a deterministic batch schedule:
-    with an alternating labelled/unlabelled interleave and an even ``log_every``,
-    every logged row comes from the same source. Averaging the whole window
-    removes that.
-
-    Metrics that only apply on gated steps are averaged over those steps alone,
-    so a rare labelled batch is not diluted by the zeros around it. The gate is
-    reported as the rate of gated steps in the window.
-    """
-
-    def __init__(self, gate_key: str | None = None, gated_prefixes: Iterable[str] = ()):
-        self.gate_key = gate_key
-        self.gated_prefixes = tuple(gated_prefixes)
+    def __init__(self):
         self.reset()
 
     def reset(self) -> None:
         self._sums: dict[str, float] = {}
         self._steps = 0
-        self._gated_steps = 0
-
-    def _is_gated(self, name: str) -> bool:
-        return name != self.gate_key and name.startswith(self.gated_prefixes)
 
     def add(self, metrics: Mapping[str, float]) -> None:
-        gate_open = self.gate_key is None or bool(float(metrics.get(self.gate_key, 0)))
         self._steps += 1
-        self._gated_steps += int(gate_open)
         for name, value in metrics.items():
-            # Register every key even when the gate is shut, so a window with no
-            # labelled step reports NaN rather than dropping the column.
-            total = self._sums.setdefault(name, 0.0)
-            if self._is_gated(name) and not gate_open:
-                continue
-            self._sums[name] = total + float(value)
+            self._sums[name] = self._sums.get(name, 0.0) + float(value)
 
     @property
     def steps(self) -> int:
@@ -55,12 +32,7 @@ class MetricWindow:
     def mean(self) -> dict[str, float]:
         if self._steps == 0:
             raise ValueError("metric window is empty")
-        averaged = {}
-        for name, total in self._sums.items():
-            count = self._gated_steps if self._is_gated(name) else self._steps
-            averaged[name] = total / count if count else float("nan")
-        if self.gate_key is not None:
-            averaged[self.gate_key] = self._gated_steps / self._steps
+        averaged = {name: total / self._steps for name, total in self._sums.items()}
         averaged["window_steps"] = float(self._steps)
         return averaged
 

@@ -1,4 +1,4 @@
-"""Validated development and evaluation cohorts for phenotype supervision."""
+"""Patient-disjoint HEST cohorts for conformal evaluation."""
 
 from __future__ import annotations
 
@@ -14,29 +14,12 @@ ROLES = ("breast_train", "breast_val", "breast_test", "cross_organ_test")
 
 @dataclass(frozen=True)
 class PhenotypeSplit:
-    """Base LoRA and annotated cohorts with explicit, disjoint purposes."""
-
     base_train: tuple[str, ...]
     base_val: tuple[str, ...]
     breast_train: tuple[str, ...]
     breast_val: tuple[str, ...]
     breast_test: tuple[str, ...]
     cross_organ_test: tuple[str, ...]
-
-    @property
-    def training(self) -> tuple[str, ...]:
-        return self.base_train + self.breast_train
-
-    @property
-    def validation(self) -> tuple[str, ...]:
-        return self.base_val + self.breast_val
-
-    def evaluation_cohorts(self) -> dict[str, list[str]]:
-        return {
-            "breast_val": list(self.breast_val),
-            "breast_test": list(self.breast_test),
-            "cross_organ": list(self.cross_organ_test),
-        }
 
 
 def _read_manifest(path: str | Path) -> pd.DataFrame:
@@ -83,12 +66,14 @@ def load_phenotype_split(
     *,
     expected_counts: dict[str, int] | None = None,
 ) -> PhenotypeSplit:
-    """Load the fixed manifest and prove it cannot leak into base training."""
+    """Load fixed cohorts and prove that patients and roles are disjoint."""
 
     table = _read_manifest(manifest_path)
     _validate_patients(table, manifest_path)
     base = load_split_table(base_splits_path).set_index("sample_id")["split"]
-    outside = [sample for sample in table["sample_id"] if base.get(sample) != "label_test"]
+    outside = [
+        sample for sample in table["sample_id"] if base.get(sample) != "label_test"
+    ]
     if outside:
         raise ValueError(
             f"{manifest_path}: annotated samples outside base label_test: {outside[:5]}"
@@ -114,11 +99,15 @@ def load_phenotype_split(
         **groups,
     )
     partitions = [
-        set(split.training),
-        set(split.validation),
+        set(split.base_train) | set(split.breast_train),
+        set(split.base_val) | set(split.breast_val),
         set(split.breast_test),
         set(split.cross_organ_test),
     ]
-    if any(left & right for i, left in enumerate(partitions) for right in partitions[i + 1 :]):
+    if any(
+        left & right
+        for index, left in enumerate(partitions)
+        for right in partitions[index + 1 :]
+    ):
         raise ValueError("training, validation, and test cohorts are not disjoint")
     return split

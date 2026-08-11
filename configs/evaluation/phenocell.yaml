@@ -17,10 +17,6 @@ embedding:
   batch_size: 128
   output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/embeddings/uni_v2/fov_112um
 
-projection:
-  checkpoint: checkpoints/distill_v0/best.pt
-  batch_size: 8192
-
 probe:
   tasks: [all, immune]
   methods: [linear, knn]
@@ -43,4 +39,4 @@ probe:
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/phenocell_fov112_distill_v0
+output_dir: outputs/evaluation/phenocell_fov112_lora

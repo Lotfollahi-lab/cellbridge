@@ -75,7 +75,7 @@ def test_lsf_render_uses_resolved_config_and_one_environment(tmp_path):
         memory=16,
         dependency="done(7)",
         environment="none",
-        command=["python3", "-m", "cellbridge.jepa.train", "--config", str(config)],
+        command=["python3", "-m", "cellbridge.lora.train", "--config", str(config)],
     )
 
     job = render_job(args)
@@ -83,4 +83,4 @@ def test_lsf_render_uses_resolved_config_and_one_environment(tmp_path):
     assert '#BSUB -gpu "-"' in job
     assert '#BSUB -w "done(7)"' in job
     assert f"#BSUB -o {tmp_path / 'output/logs/train_%J.out'}" in job
-    assert "PYTHONPATH=src python3 -m cellbridge.jepa.train" in job
+    assert "PYTHONPATH=src python3 -m cellbridge.lora.train" in job

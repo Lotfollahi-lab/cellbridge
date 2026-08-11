@@ -13,6 +13,9 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+import cellbridge.lora.export_phenocell as lora_export
+import cellbridge.lora.probe_phenocell as lora_probe
 from cellbridge.baselines.evaluation import _probe_protocol_identity
 from cellbridge.evaluation.classification import (
     evaluate_classification,
@@ -22,15 +25,10 @@ from cellbridge.evaluation.classification import (
 )
 from cellbridge.evaluation.hest import HestData, evaluate_hest_data
 from cellbridge.evaluation.ood import prepare_ood_task, validate_official_split
-from cellbridge.evaluation.probe_ood import (
-    evaluate as evaluate_phenocell,
-    resolve_probe_protocols,
-)
 from cellbridge.lora import evaluate as lora_evaluate
-import cellbridge.lora.export_phenocell as lora_export
-import cellbridge.lora.probe_phenocell as lora_probe
 from cellbridge.lora.evaluate import evaluate_phenocell_arm
 from cellbridge.lora.evaluate_ood import merge_shard_manifests
+from cellbridge.lora.probe_phenocell import resolve_probe_protocols
 
 
 def classification_data():
@@ -246,8 +244,8 @@ def test_hest_adapter_keeps_legacy_linear_schema():
     }
 
 
-def test_phenocell_adapters_keep_linear_schema_and_support_knn():
-    features, labels, train, test = classification_data()
+def test_phenocell_adapter_supports_knn():
+    features, labels, train, _ = classification_data()
     val = np.concatenate([indices[-3:] for indices in np.split(train, 3)])
     train = np.setdiff1d(train, val)
     split = np.full(len(labels), "test", dtype=object)
@@ -265,28 +263,6 @@ def test_phenocell_adapters_keep_linear_schema_and_support_knn():
         "class_weight": "balanced",
         "knn_neighbors": 1,
     }
-
-    metrics, _, predictions = evaluate_phenocell(
-        features, table, split, "all", "distilled", settings, "linear"
-    )
-    assert set(metrics) == {
-        "task",
-        "arm",
-        "n_features",
-        "n_train",
-        "n_val",
-        "n_test",
-        "n_classes",
-        "best_C",
-        "val_macro_f1",
-        "test_accuracy",
-        "test_balanced_accuracy",
-        "test_macro_f1",
-        "test_weighted_f1",
-        "uni_pca_explained_variance",
-        "evaluation_split",
-    }
-    assert set(predictions) == {"row_id", "y_true", "y_pred", "classes"}
 
     lora_metrics, lora_predictions = evaluate_phenocell_arm(
         features, table, "all", "lora_projected", settings, "knn"
@@ -371,8 +347,6 @@ def test_lora_validation_probe_uses_every_named_protocol(tmp_path, monkeypatch):
     monkeypatch.setattr(lora_probe, "validate_official_split", lambda *a, **k: None)
     monkeypatch.setattr(lora_probe, "prepare_ood_task", lambda *a, **k: data)
     monkeypatch.setattr(lora_probe, "file_identity", lambda _: "split")
-    monkeypatch.setattr(lora_probe, "norm_correctness_correlation", lambda *a: 0.0)
-
     def fake_evaluate(_data, method, settings):
         captured.append((method, settings["class_weight"], settings["knn_reference_sampling"]))
         return SimpleNamespace(

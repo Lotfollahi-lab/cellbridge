@@ -20,10 +20,6 @@ embedding:
   batch_size: 128
   output_dir: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/embeddings/uni_v2/fov_56um
 
-projection:
-  checkpoint: checkpoints/distill_v0/best.pt
-  batch_size: 8192
-
 probe:
   tasks: [all]
   methods: [linear, knn]
@@ -46,4 +42,4 @@ probe:
   max_iter: 2000
   seed: 0
 
-output_dir: outputs/evaluation/pannuke_fov56_distill_v0
+output_dir: outputs/evaluation/pannuke_fov56_lora

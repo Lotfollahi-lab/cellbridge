@@ -1,5 +1,6 @@
 """Probe exported LoRA arms on the official PhenoCell split."""
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import numpy as np
@@ -20,9 +21,32 @@ from cellbridge.evaluation.ood import (
     prepare_ood_task,
     validate_official_split,
 )
-from cellbridge.evaluation.probe_ood import resolve_probe_protocols
-from cellbridge.hyperbolic.metrics import norm_correctness_correlation
 from cellbridge.lora.features import FEATURE_ARMS, FORMAT_VERSION, PCA_ARMS
+
+
+def resolve_probe_protocols(settings):
+    """Merge named classifier-prior variants with shared feature settings."""
+    configured = settings.get("protocols")
+    if configured is None:
+        return [(None, dict(settings))]
+    if not isinstance(configured, Mapping) or not configured:
+        raise ValueError("probe.protocols must be a non-empty mapping")
+
+    base = {key: value for key, value in settings.items() if key != "protocols"}
+    allowed = {"class_weight", "knn_reference_sampling"}
+    resolved = []
+    for name, overrides in configured.items():
+        if not isinstance(name, str) or not name or "/" in name:
+            raise ValueError(f"invalid probe protocol name {name!r}")
+        if not isinstance(overrides, Mapping):
+            raise TypeError(f"probe protocol {name!r} must be a mapping")
+        unknown = set(overrides) - allowed
+        if unknown:
+            raise ValueError(
+                f"probe protocol {name!r} has unsupported overrides {sorted(unknown)}"
+            )
+        resolved.append((name, {**base, **overrides}))
+    return resolved
 
 
 def load_phenocell_arm(manifest, arm):
@@ -52,7 +76,7 @@ def load_phenocell_arm(manifest, arm):
     return np.concatenate(features), pd.concat(records, ignore_index=True)
 
 
-def _format_result(data, result, task, arm, embedding_norms, protocol=None):
+def _format_result(data, result, task, arm, protocol=None):
     common = result.metrics
     metrics = {
         "task": task,
@@ -68,11 +92,6 @@ def _format_result(data, result, task, arm, embedding_norms, protocol=None):
         "test_weighted_f1": common["weighted_f1"],
         "pca_explained_variance": data.pca_explained_variance,
         "evaluation_split": "val" if data.val_indices is None else "test",
-        "norm_correctness_spearman": norm_correctness_correlation(
-            embedding_norms,
-            result.predictions["y_true"],
-            result.predictions["y_pred"],
-        ),
     }
     if protocol is not None:
         metrics["protocol"] = protocol
@@ -100,14 +119,7 @@ def evaluate_phenocell_arm(features, table, task, arm, settings, method="linear"
     """Evaluate one LoRA feature arm with the shared PhenoCell protocol."""
     data = prepare_ood_task(features, table, task, settings, pca=arm in PCA_ARMS)
     result = evaluate_ood_task(data, method, settings)
-    norms = np.linalg.norm(np.asarray(features, dtype=np.float32), axis=1)
-    return _format_result(
-        data,
-        result,
-        task,
-        arm,
-        norms[data.test_indices],
-    )
+    return _format_result(data, result, task, arm)
 
 
 def probe_phenocell(cfg, output_dir):
@@ -123,7 +135,6 @@ def probe_phenocell(cfg, output_dir):
         features, table = load_phenocell_arm(manifest, arm)
         if features is None:
             continue
-        norms = np.linalg.norm(np.asarray(features, dtype=np.float32), axis=1)
         validate_official_split(
             table,
             cfg["data"]["split"],
@@ -144,7 +155,6 @@ def probe_phenocell(cfg, output_dir):
                         result,
                         task,
                         arm,
-                        norms[data.test_indices],
                         protocol,
                     )
                     payload = {

@@ -18,7 +18,6 @@ from PIL import Image
 from torch.utils.data import Dataset, Sampler
 
 from cellbridge.cohorts import cohort_in_split, samples_in_split
-from cellbridge.distill.data import select_indices
 
 TARGET_PATCH_SIZE = 224
 DST_PIXEL_SIZE_UM = 0.5
@@ -45,6 +44,17 @@ def canonical_id(value) -> str:
 
 def _canonical_ids(values) -> np.ndarray:
     return np.asarray([canonical_id(value) for value in values], dtype=str)
+
+
+def select_indices(n, cap, base_seed, sample_id):
+    """Choose at most ``cap`` rows deterministically for one sample."""
+    if cap is None or n <= cap:
+        return np.arange(n)
+    sample_hash = int.from_bytes(
+        hashlib.sha1(str(sample_id).encode()).digest()[:8], "big"
+    )
+    rng = np.random.default_rng([int(base_seed), sample_hash])
+    return np.sort(rng.choice(n, cap, replace=False))
 
 
 def split_samples(

@@ -17,7 +17,6 @@ from cellbridge.evaluation.ood_data import (
     reconstruct_image,
     tile_geometries,
 )
-from cellbridge.evaluation.probe_ood import load_distilled
 
 
 def split_into_tiles(image, tile_size):
@@ -200,21 +199,6 @@ def test_crop_valid_fraction_reports_padding():
     locations = pd.DataFrame({"x": [0, 2], "y": [0, 2]})
     fractions = crop_valid_fraction((4, 4, 3), locations, crop_size=4)
     np.testing.assert_allclose(fractions, [0.25, 1.0])
-
-
-def test_distilled_rows_must_align_with_uni_rows(tmp_path):
-    path = tmp_path / "sample.npz"
-    np.savez(
-        path,
-        row_id=np.array([2, 1]),
-        distilled_emb=np.ones((2, 3), dtype=np.float16),
-    )
-    manifest = pd.DataFrame({"path": [str(path)]})
-    features = load_distilled(manifest, np.array([2, 1]))
-    assert features.shape == (2, 3)
-
-    with np.testing.assert_raises_regex(ValueError, "not aligned"):
-        load_distilled(manifest, np.array([1, 2]))
 
 
 def test_complete_uni_manifest_requires_every_expected_cell(tmp_path):
