@@ -1,16 +1,64 @@
 import pytest
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 import cellbridge.lora.model as lora_model
 from cellbridge.lora.model import (
+    LoRAUNIDistiller,
     compute_loss,
     load_checkpoint,
+    make_checkpoint,
     soft_target_contrastive_loss,
     symmetric_contrastive_loss,
     terra_similarity_targets,
 )
 from cellbridge.lora.train import load_config
+
+
+@pytest.mark.parametrize(
+    ("hidden_dim", "expected_types"),
+    [
+        (None, (nn.LayerNorm, nn.Linear)),
+        (8, (nn.LayerNorm, nn.Linear, nn.GELU, nn.Linear)),
+    ],
+)
+def test_projection_head_architecture_and_checkpoint_round_trip(
+    tmp_path, hidden_dim, expected_types
+):
+    model = LoRAUNIDistiller(
+        nn.Identity(),
+        image_dim=4,
+        terra_dim=3,
+        trainable_blocks="none",
+        projection_hidden_dim=hidden_dim,
+    )
+    assert tuple(type(layer) for layer in model.projection_head) == expected_types
+    assert model.model_config["projection_hidden_dim"] == hidden_dim
+
+    path = tmp_path / "model.pt"
+    torch.save(make_checkpoint(model), path)
+    restored, _ = load_checkpoint(
+        path,
+        encoder=nn.Identity(),
+        strict=True,
+    )
+
+    assert restored.projection_hidden_dim == hidden_dim
+    assert restored.model_config == model.model_config
+    for name, parameter in model.trainable_state_dict().items():
+        torch.testing.assert_close(restored.trainable_state_dict()[name], parameter)
+
+
+def test_projection_hidden_dim_must_be_positive():
+    with pytest.raises(ValueError, match="projection_hidden_dim must be positive"):
+        LoRAUNIDistiller(
+            nn.Identity(),
+            image_dim=4,
+            terra_dim=3,
+            trainable_blocks="none",
+            projection_hidden_dim=0,
+        )
 
 
 def test_terra_similarity_targets_are_normalized_and_keep_exact_match_highest():

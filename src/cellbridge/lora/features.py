@@ -12,6 +12,9 @@ from cellbridge.evaluation.artifacts import (
 )
 
 FEATURE_ARMS = ("uni_original", "lora_adapted", "lora_projected")
+# PCA only reduces the wide encoder arms. The projected arm is already a learned
+# low-dimensional space, and reducing it would both discard learned dimensions
+# and fail outright whenever alignment_dim < eval.uni_pca_components.
 PCA_ARMS = {"uni_original", "lora_adapted"}
 FORMAT_VERSION = "cellbridge.lora.features/2"
 

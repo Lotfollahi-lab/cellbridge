@@ -18,7 +18,7 @@ split:
 representations:
   UNI: uni_original
   CellBridge: lora_adapted
-
+  CellBridge projected: lora_projected
 classifier:
   Cs: [0.1, 1.0, 10.0]
   class_weight: balanced

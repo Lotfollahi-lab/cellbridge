@@ -132,6 +132,7 @@ class LoRAUNIDistiller(nn.Module):
         target_modules: Sequence[str] = ("qkv", "proj"),
         geometry_mode: str = "euclidean",
         alignment_dim: int | None = None,
+        projection_hidden_dim: int | None = None,
         curvature: float = 1.0,
         learnable_curvature: bool = True,
         min_curvature: float = 1e-3,
@@ -157,6 +158,8 @@ class LoRAUNIDistiller(nn.Module):
         alignment_dim = int(terra_dim if alignment_dim is None else alignment_dim)
         if alignment_dim < 1:
             raise ValueError("alignment_dim must be positive")
+        if projection_hidden_dim is not None and projection_hidden_dim < 1:
+            raise ValueError("projection_hidden_dim must be positive")
         if not 0 <= float(ontology_min_poincare_radius) < 1:
             raise ValueError("ontology_min_poincare_radius must lie in [0, 1)")
 
@@ -186,6 +189,9 @@ class LoRAUNIDistiller(nn.Module):
         self.target_modules = target_modules
         self.geometry_mode = geometry_mode
         self.alignment_dim = alignment_dim
+        self.projection_hidden_dim = (
+            int(projection_hidden_dim) if projection_hidden_dim is not None else None
+        )
         self.initial_curvature = float(curvature)
         self.learnable_curvature = bool(learnable_curvature)
         self.min_curvature = float(min_curvature)
@@ -200,10 +206,18 @@ class LoRAUNIDistiller(nn.Module):
         self.ontology_min_poincare_radius = float(ontology_min_poincare_radius)
         self.ontology_init_radius = float(ontology_init_radius)
 
-        self.projection_head = nn.Sequential(
-            nn.LayerNorm(self.image_dim),
-            nn.Linear(self.image_dim, self.alignment_dim),
-        )
+        if self.projection_hidden_dim:
+            self.projection_head = nn.Sequential(
+                nn.LayerNorm(self.image_dim),
+                nn.Linear(self.image_dim, self.projection_hidden_dim),
+                nn.GELU(),
+                nn.Linear(self.projection_hidden_dim, self.alignment_dim),
+            )
+        else:
+            self.projection_head = nn.Sequential(
+                nn.LayerNorm(self.image_dim),
+                nn.Linear(self.image_dim, self.alignment_dim),
+            )
         needs_terra_head = self.geometry_mode == "hyperbolic" or (
             self.alignment_dim != self.terra_dim
         )
@@ -276,6 +290,7 @@ class LoRAUNIDistiller(nn.Module):
             "target_modules": list(self.target_modules),
             "geometry_mode": self.geometry_mode,
             "alignment_dim": self.alignment_dim,
+            "projection_hidden_dim": self.projection_hidden_dim,
             "curvature": self.current_curvature,
             "learnable_curvature": self.learnable_curvature,
             "min_curvature": self.min_curvature,

@@ -10,7 +10,7 @@ data:
 representations:
   UNI: uni_original
   CellBridge: lora_adapted
-
+  CellBridge projected: lora_projected
 classifier:
   C: 1.0
   class_weight: balanced

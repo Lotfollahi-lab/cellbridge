@@ -296,6 +296,26 @@ def test_phenocell_adapters_keep_linear_schema_and_support_knn():
     assert set(lora_predictions) == {"row_id", "y_true", "y_pred", "classes"}
 
 
+def test_projected_arm_keeps_its_learned_dimensions_under_wide_pca_settings():
+    # A d64 alignment head is narrower than the configured 256 components, so
+    # reducing it would raise; the projected arm must reach the probe intact.
+    features, labels, train, _ = classification_data()
+    split = np.full(len(labels), "test", dtype=object)
+    split[train[: len(train) // 2]] = "train"
+    split[train[len(train) // 2 :]] = "val"
+    table = pd.DataFrame(
+        {"row_id": np.arange(len(labels)), "label": labels, "split": split}
+    )
+    settings = {"Cs": [1], "knn_neighbors": 1, "uni_pca_components": 256}
+
+    metrics, _ = evaluate_phenocell_arm(
+        features, table, "all", "lora_projected", settings, "knn"
+    )
+
+    assert metrics["n_features"] == features.shape[1]
+    assert metrics["pca_explained_variance"] is None
+
+
 def test_lora_export_signature_resolves_physical_fov(monkeypatch):
     captured = {}
     monkeypatch.setattr(lora_export, "path_identity", lambda _: "lmdb")
