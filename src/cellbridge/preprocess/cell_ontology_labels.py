@@ -1,7 +1,7 @@
 """Inspect source cell labels before Cell Ontology mapping.
 
 PYTHONPATH=src python -m cellbridge.preprocess.cell_ontology_labels apply \
-  configs/labels/immunocto.yaml \
+  configs/preprocess/immunocto.yaml \
   --output immunocto_mapped_labels.parquet
 
 """
