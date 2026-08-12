@@ -2,8 +2,11 @@
 
 import numpy as np
 import pandas as pd
+from sklearn.decomposition import PCA
 
 from cellbridge.inference.evaluate import Task
+
+PCA_ARMS = frozenset({"uni_original", "lora_adapted"})
 
 IMMUNE_CLASSES = {
     "B cells",
@@ -53,6 +56,9 @@ def prepare_task(
     *,
     task: str = "all",
     evaluation_split: str = "test",
+    arm: str | None = None,
+    pca_components: int = 256,
+    seed: int = 0,
 ) -> Task:
     """Select an OOD label task and return its official train/val/test rows."""
     required = {"row_id", "sample_id", "label", "split"}
@@ -93,6 +99,20 @@ def prepare_task(
     missing = set(labels[test]) - set(labels[train])
     if missing:
         raise ValueError(f"test classes absent from training: {sorted(missing)}")
+
+    if arm in PCA_ARMS:
+        maximum = min(len(train), features.shape[1])
+        if not 1 <= pca_components <= maximum:
+            raise ValueError(
+                f"pca_components must be between 1 and {maximum}, got {pca_components}"
+            )
+        pca = PCA(
+            n_components=int(pca_components),
+            svd_solver="randomized",
+            random_state=int(seed),
+        )
+        pca.fit(features[train])
+        features = pca.transform(features).astype(np.float32)
 
     return Task(
         features,

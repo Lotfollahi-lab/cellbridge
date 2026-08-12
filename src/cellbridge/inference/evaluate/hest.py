@@ -4,10 +4,13 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.decomposition import PCA
 
 from cellbridge.helpers.io import load_coords
 from cellbridge.helpers.splits import spatial_split
 from cellbridge.inference.evaluate import Task
+
+PCA_ARMS = frozenset({"uni_original", "lora_adapted"})
 
 
 def _read_labels(path, id_column, label_column) -> pd.DataFrame:
@@ -43,6 +46,9 @@ def prepare_task(
     min_class_count: int = 25,
     test_fraction: float = 0.2,
     split_axis: str = "y",
+    arm: str | None = None,
+    pca_components: int = 256,
+    seed: int = 0,
 ) -> Task:
     """Align one sample's features and labels, then make a spatial split."""
     features = np.asarray(features, dtype=np.float32)
@@ -97,4 +103,17 @@ def prepare_task(
     missing = set(selected_labels[test]) - set(selected_labels[train])
     if missing:
         raise ValueError(f"test classes absent from training: {sorted(missing)}")
+    if arm in PCA_ARMS:
+        maximum = min(len(train), selected_features.shape[1])
+        if not 1 <= pca_components <= maximum:
+            raise ValueError(
+                f"pca_components must be between 1 and {maximum}, got {pca_components}"
+            )
+        pca = PCA(
+            n_components=int(pca_components),
+            svd_solver="randomized",
+            random_state=int(seed),
+        )
+        pca.fit(selected_features[train])
+        selected_features = pca.transform(selected_features).astype(np.float32)
     return Task(selected_features, selected_labels, selected_ids, train, None, test)
