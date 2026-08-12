@@ -1,12 +1,12 @@
-"""Reconstructed OOD images and centered cell crops for embedding inference."""
+"""Reconstructed OOD images and located cells for embedding inference."""
 
 from __future__ import annotations
 
 import pickle
 import re
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator
 
 import numpy as np
 import pandas as pd
@@ -80,6 +80,73 @@ def iter_lmdb_samples(path) -> Iterator[tuple[str, dict[int, dict]]]:
         environment.close()
 
 
+def load_metadata(metadata_path, split_path) -> pd.DataFrame:
+    """Load cells in CSV order and attach their normalized official split."""
+    metadata_path = Path(metadata_path)
+    metadata = pd.read_csv(metadata_path)
+    required = {"sample_id", "tile_id", "cell_id", "label"}
+    if not required <= set(metadata):
+        raise ValueError(
+            f"{metadata_path} is missing {sorted(required - set(metadata))}"
+        )
+    if metadata[list(required)].isna().any().any():
+        raise ValueError(f"{metadata_path} contains null cell metadata")
+    if metadata.duplicated(["sample_id", "tile_id", "cell_id"]).any():
+        raise ValueError(f"{metadata_path} contains duplicate cell IDs")
+
+    if "row_id" in metadata:
+        if metadata["row_id"].isna().any() or metadata["row_id"].duplicated().any():
+            raise ValueError(f"{metadata_path} contains invalid row IDs")
+    else:
+        metadata.insert(0, "row_id", np.arange(len(metadata), dtype=np.int64))
+
+    split_path = Path(split_path)
+    official = pd.read_csv(split_path)
+    split_columns = {"sample_name", "train_test_val_split"}
+    if not split_columns <= set(official):
+        raise ValueError(
+            f"{split_path} is missing {sorted(split_columns - set(official))}"
+        )
+    if official[list(split_columns)].isna().any().any():
+        raise ValueError(f"{split_path} contains null sample metadata")
+    official = official[list(split_columns)].copy()
+    official["sample_name"] = official["sample_name"].astype(str)
+    official["train_test_val_split"] = official["train_test_val_split"].replace(
+        {"valid": "val"}
+    )
+    if official["sample_name"].duplicated().any():
+        raise ValueError(f"{split_path} contains duplicate samples")
+    unknown_splits = set(official["train_test_val_split"]) - {"train", "val", "test"}
+    if unknown_splits:
+        raise ValueError(
+            f"{split_path} contains unknown splits: {sorted(unknown_splits)}"
+        )
+
+    split_by_sample = dict(
+        official[["sample_name", "train_test_val_split"]].itertuples(
+            index=False, name=None
+        )
+    )
+    sample_ids = metadata["sample_id"].astype(str)
+    observed = set(sample_ids)
+    expected = set(split_by_sample)
+    if observed != expected:
+        raise ValueError(
+            "metadata and official split contain different samples: "
+            f"metadata_only={sorted(observed - expected)[:5]}, "
+            f"split_only={sorted(expected - observed)[:5]}"
+        )
+
+    resolved = sample_ids.map(split_by_sample)
+    for column in ("split", "split_id"):
+        if column in metadata:
+            recorded = metadata[column].replace({"valid": "val"}).astype(str)
+            if not recorded.equals(resolved):
+                raise ValueError(f"{metadata_path} disagrees with the official split")
+    metadata["split"] = resolved
+    return metadata
+
+
 def _layout(entries, image_shape, tile_size) -> TileLayout:
     if image_shape is not None:
         return fixed_layout(tuple(image_shape), tile_size)
@@ -104,18 +171,40 @@ def _reconstruct(entries, layout: TileLayout, tile_size: int) -> np.ndarray:
             geometry.pad_top : geometry.pad_top + geometry.height,
             geometry.pad_left : geometry.pad_left + geometry.width,
         ]
-        canvas[:, geometry.top : geometry.bottom, geometry.left : geometry.right] = pixels
+        canvas[:, geometry.top : geometry.bottom, geometry.left : geometry.right] = (
+            pixels
+        )
     return canvas
 
 
-def _centroids(mask) -> dict[int, tuple[float, float]]:
+def _instance_geometry(mask) -> dict[int, tuple[float, float, int, int, int, int]]:
+    """Return centroid and exclusive bounds for each non-background instance."""
     mask = np.asarray(mask, dtype=np.int64)
+    if mask.ndim != 2 or np.any(mask < 0):
+        raise ValueError(
+            f"instance mask must be a non-negative 2D array, got {mask.shape}"
+        )
     y, x = np.indices(mask.shape)
     counts = np.bincount(mask.ravel())
     x_sums = np.bincount(mask.ravel(), weights=x.ravel(), minlength=len(counts))
     y_sums = np.bincount(mask.ravel(), weights=y.ravel(), minlength=len(counts))
+    x0 = np.full(len(counts), mask.shape[1], dtype=int)
+    y0 = np.full(len(counts), mask.shape[0], dtype=int)
+    x1 = np.zeros(len(counts), dtype=int)
+    y1 = np.zeros(len(counts), dtype=int)
+    np.minimum.at(x0, mask.ravel(), x.ravel())
+    np.minimum.at(y0, mask.ravel(), y.ravel())
+    np.maximum.at(x1, mask.ravel(), x.ravel() + 1)
+    np.maximum.at(y1, mask.ravel(), y.ravel() + 1)
     return {
-        instance: (x_sums[instance] / counts[instance], y_sums[instance] / counts[instance])
+        instance: (
+            x_sums[instance] / counts[instance],
+            y_sums[instance] / counts[instance],
+            x0[instance],
+            y0[instance],
+            x1[instance],
+            y1[instance],
+        )
         for instance in np.flatnonzero(counts)[1:]
     }
 
@@ -123,24 +212,43 @@ def _centroids(mask) -> dict[int, tuple[float, float]]:
 def _locate_cells(metadata, entries, layout, *, skip_missing) -> pd.DataFrame:
     geometries = {geometry.index: geometry for geometry in layout.tiles}
     cells = metadata.copy()
-    cells[["x", "y"]] = np.nan
+    columns = ["x", "y", "x0", "y0", "x1", "y1"]
+    cells[columns] = np.nan
     for index, entry in entries.items():
         geometry = geometries[index]
         rows = cells["tile_id"].astype(str) == str(entry["tile_name"])
-        centers = _centroids(entry["instance_mask"])
+        mask = np.asarray(entry["instance_mask"])
+        tile_shape = np.asarray(entry["image"]).shape[-2:]
+        if mask.shape != tile_shape:
+            raise ValueError(f"tile {index} image and instance mask shapes differ")
+        mask = mask[
+            geometry.pad_top : geometry.pad_top + geometry.height,
+            geometry.pad_left : geometry.pad_left + geometry.width,
+        ]
+        instances = _instance_geometry(mask)
         for row, instance in cells.loc[rows, "cell_id"].astype(int).items():
-            if instance not in centers:
+            if instance not in instances:
                 if skip_missing:
                     continue
-                raise ValueError(f"{entry['tile_name']}: instance {instance} is missing")
-            x, y = centers[instance]
-            cells.at[row, "x"] = geometry.left + x - geometry.pad_left
-            cells.at[row, "y"] = geometry.top + y - geometry.pad_top
+                raise ValueError(
+                    f"{entry['tile_name']}: instance {instance} is missing"
+                )
+            x, y, x0, y0, x1, y1 = instances[instance]
+            cells.loc[row, columns] = (
+                geometry.left + x,
+                geometry.top + y,
+                geometry.left + x0,
+                geometry.top + y0,
+                geometry.left + x1,
+                geometry.top + y1,
+            )
 
-    missing = cells[["x", "y"]].isna().any(axis=1)
+    missing = cells[columns].isna().any(axis=1)
     if missing.any() and not skip_missing:
         raise ValueError(f"could not locate {int(missing.sum())} cells")
-    return cells.loc[~missing].copy()
+    cells = cells.loc[~missing].copy()
+    cells[["x0", "y0", "x1", "y1"]] = cells[["x0", "y0", "x1", "y1"]].astype(int)
+    return cells
 
 
 def load_sample(
@@ -169,6 +277,41 @@ def load_sample(
     chw = _reconstruct(entries, layout, tile_size).astype(np.float32) / value_scale
     image = np.clip(np.rint(chw), 0, 255).astype(np.uint8).transpose(1, 2, 0)
     return OodSample(sample_id, image, cells, layout)
+
+
+def iter_samples(
+    lmdb_path,
+    metadata_path,
+    split_path,
+    *,
+    image_shape=None,
+    tile_size: int = 224,
+    value_scale: float = 250,
+    skip_missing: bool = False,
+) -> Iterator[OodSample]:
+    """Yield fully reconstructed, officially annotated samples one at a time."""
+    metadata = load_metadata(metadata_path, split_path)
+    expected = set(metadata["sample_id"].astype(str))
+    seen = set()
+    for sample_id, entries in iter_lmdb_samples(lmdb_path):
+        sample_id = str(sample_id)
+        if sample_id in seen:
+            raise ValueError(f"LMDB contains non-consecutive entries for {sample_id!r}")
+        if sample_id not in expected:
+            raise ValueError(f"LMDB contains unknown sample {sample_id!r}")
+        seen.add(sample_id)
+        yield load_sample(
+            sample_id,
+            entries,
+            metadata,
+            image_shape=image_shape,
+            tile_size=tile_size,
+            value_scale=value_scale,
+            skip_missing=skip_missing,
+        )
+    missing = expected - seen
+    if missing:
+        raise ValueError(f"LMDB is missing samples: {sorted(missing)[:5]}")
 
 
 def center_crop(image, x, y, size: int = CROP_SIZE, fill: int = 255) -> Image.Image:
@@ -214,7 +357,5 @@ class OodCrops:
         return {
             "image": image,
             "sample_id": self.sample.sample_id,
-            "cell_id": (
-                f"{row['sample_id']}/{row['tile_id']}/{row['cell_id']}"
-            ),
+            "cell_id": (f"{row['sample_id']}/{row['tile_id']}/{row['cell_id']}"),
         }
