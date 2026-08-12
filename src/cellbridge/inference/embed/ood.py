@@ -6,6 +6,7 @@ import pickle
 import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -327,21 +328,36 @@ def center_crop(image, x, y, size: int = CROP_SIZE, fill: int = 255) -> Image.Im
     return Image.fromarray(crop)
 
 
+Cropper = Callable[[np.ndarray, pd.Series], Image.Image]
+
+
+def center_cell_crop(
+    image,
+    cell,
+    *,
+    size: int = CROP_SIZE,
+    fill: int = 255,
+) -> Image.Image:
+    """Crop one located cell around its centroid."""
+    return center_crop(image, cell["x"], cell["y"], size=size, fill=fill)
+
+
 class OodCrops:
-    """Map-style dataset of centered crops from one OOD image."""
+    """Map-style dataset of method-specific crops from one OOD image."""
 
     def __init__(
         self,
         sample: OodSample,
         transform: Callable | None = None,
         *,
+        cropper: Cropper | None = None,
         crop_size: int = CROP_SIZE,
     ):
-        if crop_size != CROP_SIZE:
-            raise ValueError(f"OOD crop_size must be {CROP_SIZE}")
+        if crop_size < 1:
+            raise ValueError("crop_size must be positive")
         self.sample = sample
         self.transform = transform
-        self.crop_size = crop_size
+        self.cropper = cropper or partial(center_cell_crop, size=crop_size)
 
     def __len__(self) -> int:
         return len(self.sample.cells)
@@ -351,7 +367,9 @@ class OodCrops:
             raise IndexError(index)
         index %= len(self)
         row = self.sample.cells.iloc[index]
-        image = center_crop(self.sample.image, row["x"], row["y"], self.crop_size)
+        image = self.cropper(self.sample.image, row)
+        if not isinstance(image, Image.Image):
+            raise TypeError("cropper must return a PIL image")
         if self.transform is not None:
             image = self.transform(image)
         return {
