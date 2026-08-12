@@ -1,0 +1,13 @@
+# Shared ontology reference for the approved mappings in the dataset YAML files.
+# Populate this after assigning Cell Ontology IDs. It should pin the ontology
+# release and contain only the terms and ancestor relationships used by those
+# mappings, not a hand-written copy of the entire Cell Ontology.
+release: null
+source: null
+
+# Expected form:
+# terms:
+#   CL:0000000:
+#     name: cell
+#     parents: []
+terms: {}

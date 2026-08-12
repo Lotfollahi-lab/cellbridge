@@ -1,0 +1,54 @@
+dataset: lizard
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/lizard_info.csv
+  label_column: label
+  sample_column: sample_id
+labels:
+  Connective tissue:
+    n_cells: 105471
+    n_samples: 238
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Eosinophil:
+    n_cells: 3246
+    n_samples: 183
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Epithelial:
+    n_cells: 231526
+    n_samples: 219
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Lymphocyte:
+    n_cells: 97666
+    n_samples: 238
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Neutrophil:
+    n_cells: 4465
+    n_samples: 148
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Plasma:
+    n_cells: 26499
+    n_samples: 225
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null

@@ -1,0 +1,46 @@
+dataset: pannuke
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+  label_column: label
+  sample_column: sample_id
+labels:
+  Connective/Soft tissue cells:
+    n_cells: 59798
+    n_samples: 6140
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Dead Cells:
+    n_cells: 3171
+    n_samples: 232
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Epithelial:
+    n_cells: 31614
+    n_samples: 1528
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Inflammatory:
+    n_cells: 36913
+    n_samples: 4132
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
+  Neoplastic cells:
+    n_cells: 93675
+    n_samples: 4191
+    cleaned_label: null
+    grouped_label: null
+    cell_ontology_id: null
+    review_status: pending
+    notes: null
