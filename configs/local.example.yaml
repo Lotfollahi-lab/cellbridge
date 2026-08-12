@@ -1,8 +1,0 @@
-# Copy to configs/local.yaml and set CELLBRIDGE_CONFIG_OVERLAY to its path.
-# Overlay keys are merged into whichever checked-in config you load.
-hest_root: /path/to/HEST-1k/release
-
-# Examples of per-config overrides:
-# data_root: /path/to/preprocessed/hest
-# data:
-#   lmdb: /path/to/phenocell_lmdb

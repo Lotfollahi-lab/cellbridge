@@ -5,7 +5,6 @@ import numpy as np
 _AXIS = {"x": 0, "y": 1, 0: 0, 1: 1}
 
 
-# TODO: rethink this
 def spatial_split(cell_ids, coords, test_frac, axis):
     """Hold out the top ``test_frac`` of cells along ``axis`` as the test set.
 
