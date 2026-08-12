@@ -14,13 +14,14 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: composite of normal epithelium and malignant cells; no single CL term covers
+      both, and their common ancestor is uninformative
   0_Perivascular_Cells:
     n_cells: 51131
     n_samples: 1
     cleaned_label: Perivascular Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:4033054
     review_status: pending
     notes: null
   0_Proliferative_Tumor_Cells:
@@ -28,15 +29,15 @@ labels:
     n_samples: 1
     cleaned_label: Proliferative Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   0_Stromal_Cells:
     n_cells: 101180
     n_samples: 2
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   0_T_Lymphocytes:
@@ -44,7 +45,7 @@ labels:
     n_samples: 1
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   0_Tumor_Cells:
@@ -52,15 +53,15 @@ labels:
     n_samples: 6
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   10_Alveolar_Epithelial_Cells:
     n_cells: 4558
     n_samples: 1
     cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000322
     review_status: pending
     notes: null
   10_Endothelial_Cells:
@@ -68,7 +69,7 @@ labels:
     n_samples: 1
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   10_Inflammatory_Tumor_Cells:
@@ -76,15 +77,15 @@ labels:
     n_samples: 1
     cleaned_label: Inflammatory Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   10_MMP9+_Myeloid_Cells:
     n_cells: 2483
     n_samples: 1
     cleaned_label: MMP9+ Myeloid Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000763
     review_status: pending
     notes: null
   10_Myoepithelial_Cells:
@@ -92,7 +93,7 @@ labels:
     n_samples: 2
     cleaned_label: Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
     notes: null
   10_Perivascular_Cells:
@@ -100,7 +101,7 @@ labels:
     n_samples: 2
     cleaned_label: Perivascular Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:4033054
     review_status: pending
     notes: null
   10_Tumor_Adjacent_Myoepithelial_Cells:
@@ -108,39 +109,39 @@ labels:
     n_samples: 1
     cleaned_label: Tumor Adjacent Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
-    notes: null
+    notes: spatial qualifier dropped; CL does not encode tumour adjacency
   10_Tumor_Cells:
     n_cells: 13749
     n_samples: 3
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   11_Activated_Lymphoid_Cells:
     n_cells: 1742
     n_samples: 1
     cleaned_label: Activated Lymphoid Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000542
     review_status: pending
-    notes: null
+    notes: read as lymphocyte; 'activated' is not represented at this level
   11_Activated_Macrophages:
     n_cells: 8949
     n_samples: 1
     cleaned_label: Activated Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
-    notes: null
+    notes: activation state unspecified; not resolvable to M1 (CL:0000863) or M2 (CL:0000890)
   11_Adipocytes:
     n_cells: 517
     n_samples: 1
     cleaned_label: Adipocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000136
     review_status: pending
     notes: null
   11_Epithelial_&_Myoepithelial_Cells:
@@ -148,15 +149,16 @@ labels:
     n_samples: 1
     cleaned_label: Epithelial & Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000066
     review_status: pending
-    notes: null
+    notes: composite; myoepithelial cell is a descendant of epithelial cell, so the
+      parent term covers both members
   11_Mast_Cells:
     n_cells: 3038
     n_samples: 1
     cleaned_label: Mast Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000097
     review_status: pending
     notes: null
   11_Normal_Epithelial_Cells:
@@ -164,15 +166,15 @@ labels:
     n_samples: 1
     cleaned_label: Normal Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000066
     review_status: pending
-    notes: null
+    notes: '''normal'' qualifier dropped'
   11_Plasma_Cells:
     n_cells: 4051
     n_samples: 1
     cleaned_label: Plasma Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000786
     review_status: pending
     notes: null
   11_Proliferative_Tumor Cells:
@@ -180,15 +182,15 @@ labels:
     n_samples: 1
     cleaned_label: Proliferative Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   11_Stromal_Cells:
     n_cells: 5762
     n_samples: 2
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   11_Tumor_Cells:
@@ -196,23 +198,23 @@ labels:
     n_samples: 1
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   12_Activated_Macrophages:
     n_cells: 3081
     n_samples: 2
     cleaned_label: Activated Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
-    notes: null
+    notes: activation state unspecified; not resolvable to M1 (CL:0000863) or M2 (CL:0000890)
   12_Alveolar_Epithelial_Cells:
     n_cells: 3790
     n_samples: 1
     cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000322
     review_status: pending
     notes: null
   12_Effector_T_Lymphocytes:
@@ -220,7 +222,7 @@ labels:
     n_samples: 1
     cleaned_label: Effector T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000911
     review_status: pending
     notes: null
   12_Endothelial_Cells:
@@ -228,7 +230,7 @@ labels:
     n_samples: 1
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   12_Mast_Cells:
@@ -236,7 +238,7 @@ labels:
     n_samples: 1
     cleaned_label: Mast Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000097
     review_status: pending
     notes: null
   12_Tumor_Cells:
@@ -244,15 +246,15 @@ labels:
     n_samples: 2
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   13_Adipocytes:
     n_cells: 1916
     n_samples: 2
     cleaned_label: Adipocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000136
     review_status: pending
     notes: null
   13_Lymphatic_Endothelial_Cells:
@@ -260,7 +262,7 @@ labels:
     n_samples: 1
     cleaned_label: Lymphatic Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0002138
     review_status: pending
     notes: null
   13_MMP9+_Myeloid_Cells:
@@ -268,7 +270,7 @@ labels:
     n_samples: 1
     cleaned_label: MMP9+ Myeloid Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000763
     review_status: pending
     notes: null
   13_Plasma_Cells:
@@ -276,7 +278,7 @@ labels:
     n_samples: 1
     cleaned_label: Plasma Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000786
     review_status: pending
     notes: null
   13_Stromal_Cells:
@@ -284,7 +286,7 @@ labels:
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   13_Tumor_Cells:
@@ -292,23 +294,23 @@ labels:
     n_samples: 1
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   14_Normal_Myoepithelial_Cells:
     n_cells: 10679
     n_samples: 1
     cleaned_label: Normal Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
-    notes: null
+    notes: '''normal'' qualifier dropped'
   14_Stromal_Cells:
     n_cells: 1016
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   14_Tumor_Cells:
@@ -316,23 +318,23 @@ labels:
     n_samples: 1
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   15_Tumor_Cells:
     n_cells: 2338
     n_samples: 2
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   1_Alveolar_Epithelial_Cells:
     n_cells: 49732
     n_samples: 1
     cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000322
     review_status: pending
     notes: null
   1_Epithelial_&_Tumor_Cells:
@@ -342,13 +344,14 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: composite of normal epithelium and malignant cells; no single CL term covers
+      both, and their common ancestor is uninformative
   1_Macrophages:
     n_cells: 52669
     n_samples: 2
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   1_Proliferating_Tumor_Cells:
@@ -356,15 +359,15 @@ labels:
     n_samples: 1
     cleaned_label: Proliferating Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   1_Stromal_Cells:
     n_cells: 69677
     n_samples: 2
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   1_Tumor_Cells:
@@ -372,15 +375,15 @@ labels:
     n_samples: 5
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   2_Macrophages:
     n_cells: 60312
     n_samples: 2
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   2_Myoepithelial:
@@ -388,7 +391,7 @@ labels:
     n_samples: 1
     cleaned_label: Myoepithelial
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
     notes: null
   2_Myoepithelial_Cells:
@@ -396,7 +399,7 @@ labels:
     n_samples: 2
     cleaned_label: Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
     notes: null
   2_Stromal_Cells:
@@ -404,7 +407,7 @@ labels:
     n_samples: 5
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   2_Tumor_Cells:
@@ -412,15 +415,15 @@ labels:
     n_samples: 2
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   3_B_Lymphocytes:
     n_cells: 40302
     n_samples: 1
     cleaned_label: B Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000236
     review_status: pending
     notes: null
   3_Endothelial_Cells:
@@ -428,7 +431,7 @@ labels:
     n_samples: 1
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   3_Macrophages:
@@ -436,7 +439,7 @@ labels:
     n_samples: 3
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   3_Myoepithelial_Cells:
@@ -444,7 +447,7 @@ labels:
     n_samples: 1
     cleaned_label: Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
     notes: null
   3_Perivascular_Cells:
@@ -452,7 +455,7 @@ labels:
     n_samples: 1
     cleaned_label: Perivascular Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:4033054
     review_status: pending
     notes: null
   3_Stromal_Cells:
@@ -460,7 +463,7 @@ labels:
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   3_T_Lymphocytes:
@@ -468,7 +471,7 @@ labels:
     n_samples: 1
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   3_Tumor_Cells:
@@ -476,15 +479,15 @@ labels:
     n_samples: 3
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   4_Alveolar_Epithelial_Cells:
     n_cells: 25846
     n_samples: 1
     cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000322
     review_status: pending
     notes: null
   4_Endothelial:
@@ -492,7 +495,7 @@ labels:
     n_samples: 1
     cleaned_label: Endothelial
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   4_Endothelial_Cells:
@@ -500,7 +503,7 @@ labels:
     n_samples: 2
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   4_Perivascular_Cells:
@@ -508,7 +511,7 @@ labels:
     n_samples: 1
     cleaned_label: Perivascular Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:4033054
     review_status: pending
     notes: null
   4_T_Lymphocytes:
@@ -516,7 +519,7 @@ labels:
     n_samples: 2
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   4_Tumor_Cells:
@@ -524,15 +527,15 @@ labels:
     n_samples: 5
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   5_Alveolar_Epithelial_Cells:
     n_cells: 21374
     n_samples: 1
     cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000322
     review_status: pending
     notes: null
   5_Endothelial_Cells:
@@ -540,7 +543,7 @@ labels:
     n_samples: 4
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   5_Macrophages:
@@ -548,7 +551,7 @@ labels:
     n_samples: 3
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   5_Myoepithelial_Cells:
@@ -556,7 +559,7 @@ labels:
     n_samples: 1
     cleaned_label: Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
     notes: null
   5_Stromal_Cells:
@@ -564,7 +567,7 @@ labels:
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   5_T_Lymphocytes:
@@ -572,7 +575,7 @@ labels:
     n_samples: 1
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   5_Tumor_Cells:
@@ -580,15 +583,15 @@ labels:
     n_samples: 1
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   6_B_Lymphocytes:
     n_cells: 18009
     n_samples: 1
     cleaned_label: B Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000236
     review_status: pending
     notes: null
   6_Dendritic_Cells:
@@ -596,7 +599,7 @@ labels:
     n_samples: 1
     cleaned_label: Dendritic Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000451
     review_status: pending
     notes: null
   6_Endothelial_Cells:
@@ -604,7 +607,7 @@ labels:
     n_samples: 1
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   6_Epithelial_&_Tumor_Cells:
@@ -614,13 +617,14 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: composite of normal epithelium and malignant cells; no single CL term covers
+      both, and their common ancestor is uninformative
   6_Macrophages:
     n_cells: 15660
     n_samples: 1
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   6_Proliferating_Tumor_Cells:
@@ -628,15 +632,15 @@ labels:
     n_samples: 1
     cleaned_label: Proliferating Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   6_Stromal_Cells:
     n_cells: 20841
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   6_T_Lymphocytes:
@@ -644,7 +648,7 @@ labels:
     n_samples: 1
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   6_Tumor_Cells:
@@ -652,15 +656,15 @@ labels:
     n_samples: 4
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   7_Ductal_Epithelial_Cells:
     n_cells: 9588
     n_samples: 1
     cleaned_label: Ductal Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000068
     review_status: pending
     notes: null
   7_Endothelial_Cells:
@@ -668,7 +672,7 @@ labels:
     n_samples: 2
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   7_Epithelial_&_Tumor_Cells:
@@ -678,13 +682,14 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: composite of normal epithelium and malignant cells; no single CL term covers
+      both, and their common ancestor is uninformative
   7_Macrophages:
     n_cells: 14248
     n_samples: 1
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   7_Myeloid_Cells:
@@ -692,7 +697,7 @@ labels:
     n_samples: 1
     cleaned_label: Myeloid Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000763
     review_status: pending
     notes: null
   7_Proliferative_Tumor_Cells:
@@ -700,15 +705,15 @@ labels:
     n_samples: 1
     cleaned_label: Proliferative Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   7_T_Lymphocytes:
     n_cells: 22609
     n_samples: 2
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   7_Tumor_Cells:
@@ -716,9 +721,9 @@ labels:
     n_samples: 3
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   8_Epithelial_&_Tumor_Cells:
     n_cells: 7361
     n_samples: 1
@@ -726,21 +731,22 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: composite of normal epithelium and malignant cells; no single CL term covers
+      both, and their common ancestor is uninformative
   8_MMP11+_CAFs:
     n_cells: 7772
     n_samples: 1
     cleaned_label: MMP11+ CAFs
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000057
     review_status: pending
-    notes: null
+    notes: CL has no cancer-associated fibroblast term; the CAF distinction is lost
   8_Myeloid_Cells:
     n_cells: 13182
     n_samples: 1
     cleaned_label: Myeloid Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000763
     review_status: pending
     notes: null
   8_Perivascular_Cells:
@@ -748,7 +754,7 @@ labels:
     n_samples: 1
     cleaned_label: Perivascular Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:4033054
     review_status: pending
     notes: null
   8_Plasma_Cells:
@@ -756,7 +762,7 @@ labels:
     n_samples: 1
     cleaned_label: Plasma Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000786
     review_status: pending
     notes: null
   8_Proliferative_Tumor_Cells:
@@ -764,15 +770,15 @@ labels:
     n_samples: 1
     cleaned_label: Proliferative Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   8_Stromal_Cells:
     n_cells: 4353
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   8_T_Lymphocytes:
@@ -780,7 +786,7 @@ labels:
     n_samples: 1
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   8_Tumor_Cells:
@@ -788,39 +794,40 @@ labels:
     n_samples: 4
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   9_Activated_Macrophages:
     n_cells: 2618
     n_samples: 1
     cleaned_label: Activated Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
-    notes: null
+    notes: activation state unspecified; not resolvable to M1 (CL:0000863) or M2 (CL:0000890)
   9_CXCL14+_CAFs:
     n_cells: 14279
     n_samples: 2
     cleaned_label: CXCL14+ CAFs
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000057
     review_status: pending
-    notes: null
+    notes: CL has no cancer-associated fibroblast term; the CAF distinction is lost
   9_Epithelial_&_Myoepithelial_Cells:
     n_cells: 4453
     n_samples: 1
     cleaned_label: Epithelial & Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000066
     review_status: pending
-    notes: null
+    notes: composite; myoepithelial cell is a descendant of epithelial cell, so the
+      parent term covers both members
   9_Myoepithelial_Cells:
     n_cells: 16558
     n_samples: 1
     cleaned_label: Myoepithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000185
     review_status: pending
     notes: null
   9_Necrotic_Cells:
@@ -830,21 +837,21 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: CL has no necrotic cell term
   9_Proliferative_Tumor_Cells:
     n_cells: 3693
     n_samples: 1
     cleaned_label: Proliferative Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   9_Stromal_Cells:
     n_cells: 5148
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   9_T_Lymphocytes:
@@ -852,7 +859,7 @@ labels:
     n_samples: 1
     cleaned_label: T Lymphocytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   9_Tumor_Cells:
@@ -860,15 +867,15 @@ labels:
     n_samples: 3
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   Acinar:
     n_cells: 18685
     n_samples: 1
     cleaned_label: Acinar
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000622
     review_status: pending
     notes: null
   B Cell:
@@ -876,7 +883,7 @@ labels:
     n_samples: 1
     cleaned_label: B Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000236
     review_status: pending
     notes: null
   B Cells:
@@ -884,7 +891,7 @@ labels:
     n_samples: 1
     cleaned_label: B Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000236
     review_status: pending
     notes: null
   CD141+ Myeloid Dendritic Cell:
@@ -892,7 +899,7 @@ labels:
     n_samples: 1
     cleaned_label: CD141+ Myeloid Dendritic Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0002394
     review_status: pending
     notes: null
   CD1c+ Myeloid Dendritic Cell:
@@ -900,7 +907,7 @@ labels:
     n_samples: 1
     cleaned_label: CD1c+ Myeloid Dendritic Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0002399
     review_status: pending
     notes: null
   CD4+ αβ Memory T Cell:
@@ -908,7 +915,7 @@ labels:
     n_samples: 1
     cleaned_label: CD4+ αβ Memory T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000897
     review_status: pending
     notes: null
   CD8+ αβ Memory T Cell:
@@ -916,7 +923,7 @@ labels:
     n_samples: 1
     cleaned_label: CD8+ αβ Memory T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000909
     review_status: pending
     notes: null
   CFTR- Tumor Cells:
@@ -924,9 +931,9 @@ labels:
     n_samples: 1
     cleaned_label: CFTR- Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   CXCL9/10 Cells:
     n_cells: 3440
     n_samples: 1
@@ -934,13 +941,13 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: marker-only label, lineage not stated in the source annotation
   Ciliated Epithelial Cells:
     n_cells: 1987
     n_samples: 1
     cleaned_label: Ciliated Epithelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000067
     review_status: pending
     notes: null
   Classical Monocyte:
@@ -948,7 +955,7 @@ labels:
     n_samples: 1
     cleaned_label: Classical Monocyte
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000860
     review_status: pending
     notes: null
   Ductal:
@@ -956,7 +963,7 @@ labels:
     n_samples: 1
     cleaned_label: Ductal
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000068
     review_status: pending
     notes: null
   Effector CD4+ αβ T Cell:
@@ -964,7 +971,7 @@ labels:
     n_samples: 1
     cleaned_label: Effector CD4+ αβ T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001044
     review_status: pending
     notes: null
   Effector CD8+ αβ T Cell:
@@ -972,7 +979,7 @@ labels:
     n_samples: 1
     cleaned_label: Effector CD8+ αβ T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001050
     review_status: pending
     notes: null
   Endocrine 1:
@@ -980,23 +987,23 @@ labels:
     n_samples: 1
     cleaned_label: Endocrine 1
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000163
     review_status: pending
-    notes: null
+    notes: numbered cluster; the endocrine subtype cannot be recovered
   Endocrine 2:
     n_cells: 9185
     n_samples: 1
     cleaned_label: Endocrine 2
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000163
     review_status: pending
-    notes: null
+    notes: numbered cluster; the endocrine subtype cannot be recovered
   Endothelial:
     n_cells: 10331
     n_samples: 1
     cleaned_label: Endothelial
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   Endothelial Cell:
@@ -1004,7 +1011,7 @@ labels:
     n_samples: 1
     cleaned_label: Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   Erythrocyte:
@@ -1012,7 +1019,7 @@ labels:
     n_samples: 1
     cleaned_label: Erythrocyte
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000232
     review_status: pending
     notes: null
   Fallopian Tube Epithelium:
@@ -1020,7 +1027,7 @@ labels:
     n_samples: 1
     cleaned_label: Fallopian Tube Epithelium
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:4052018
     review_status: pending
     notes: null
   Fibroblasts:
@@ -1028,7 +1035,7 @@ labels:
     n_samples: 1
     cleaned_label: Fibroblasts
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000057
     review_status: pending
     notes: null
   Hematopoietic Stem Cell:
@@ -1036,7 +1043,7 @@ labels:
     n_samples: 1
     cleaned_label: Hematopoietic Stem Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000037
     review_status: pending
     notes: null
   Inflammatory Tumor Cells:
@@ -1044,15 +1051,15 @@ labels:
     n_samples: 1
     cleaned_label: Inflammatory Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   Innate Lymphoid Cell:
     n_cells: 31405
     n_samples: 1
     cleaned_label: Innate Lymphoid Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001065
     review_status: pending
     notes: null
   Intermediate Monocyte:
@@ -1060,7 +1067,7 @@ labels:
     n_samples: 1
     cleaned_label: Intermediate Monocyte
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0002393
     review_status: pending
     notes: null
   Lymphatic Endothelial Cells:
@@ -1068,7 +1075,7 @@ labels:
     n_samples: 1
     cleaned_label: Lymphatic Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0002138
     review_status: pending
     notes: null
   Macrophage:
@@ -1076,7 +1083,7 @@ labels:
     n_samples: 1
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   Macrophages:
@@ -1084,7 +1091,7 @@ labels:
     n_samples: 2
     cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   Malignant Cells Lining Cyst:
@@ -1092,15 +1099,15 @@ labels:
     n_samples: 1
     cleaned_label: Malignant Cells Lining Cyst
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   Mast Cell:
     n_cells: 3185
     n_samples: 1
     cleaned_label: Mast Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000097
     review_status: pending
     notes: null
   Mast Cells:
@@ -1108,7 +1115,7 @@ labels:
     n_samples: 1
     cleaned_label: Mast Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000097
     review_status: pending
     notes: null
   Mature Conventional Dendritic Cell:
@@ -1116,7 +1123,7 @@ labels:
     n_samples: 1
     cleaned_label: Mature Conventional Dendritic Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000841
     review_status: pending
     notes: null
   Mature NK T Cell:
@@ -1124,7 +1131,7 @@ labels:
     n_samples: 1
     cleaned_label: Mature NK T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000814
     review_status: pending
     notes: null
   Memory B Cell:
@@ -1132,7 +1139,7 @@ labels:
     n_samples: 1
     cleaned_label: Memory B Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000787
     review_status: pending
     notes: null
   Metaplastic Cells:
@@ -1142,13 +1149,13 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: CL has no metaplastic cell term
   Naive B Cell:
     n_cells: 12372
     n_samples: 1
     cleaned_label: Naive B Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000788
     review_status: pending
     notes: null
   Naive Thymus Derived CD4+ αβ T Cell:
@@ -1156,7 +1163,7 @@ labels:
     n_samples: 1
     cleaned_label: Naive Thymus Derived CD4+ αβ T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000895
     review_status: pending
     notes: null
   Neutrophil:
@@ -1164,7 +1171,7 @@ labels:
     n_samples: 1
     cleaned_label: Neutrophil
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000775
     review_status: pending
     notes: null
   Non Classical Monocyte:
@@ -1172,7 +1179,7 @@ labels:
     n_samples: 1
     cleaned_label: Non Classical Monocyte
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000875
     review_status: pending
     notes: null
   Pericytes:
@@ -1180,7 +1187,7 @@ labels:
     n_samples: 1
     cleaned_label: Pericytes
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000669
     review_status: pending
     notes: null
   Plasma Cell:
@@ -1188,7 +1195,7 @@ labels:
     n_samples: 1
     cleaned_label: Plasma Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000786
     review_status: pending
     notes: null
   Plasmacytoid Dendritic Cell:
@@ -1196,7 +1203,7 @@ labels:
     n_samples: 1
     cleaned_label: Plasmacytoid Dendritic Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000784
     review_status: pending
     notes: null
   Proliferative Tumor Cells:
@@ -1204,15 +1211,15 @@ labels:
     n_samples: 1
     cleaned_label: Proliferative Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   Regulatory T Cell:
     n_cells: 47902
     n_samples: 1
     cleaned_label: Regulatory T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000815
     review_status: pending
     notes: null
   SOX2-OT+ Tumor Cells:
@@ -1220,15 +1227,15 @@ labels:
     n_samples: 1
     cleaned_label: SOX2-OT+ Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   Smooth Muscle Cells:
     n_cells: 63448
     n_samples: 2
     cleaned_label: Smooth Muscle Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000192
     review_status: pending
     notes: null
   Stromal Associated Endothelial Cells:
@@ -1236,7 +1243,7 @@ labels:
     n_samples: 1
     cleaned_label: Stromal Associated Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   Stromal Associated Fibroblasts:
@@ -1244,15 +1251,15 @@ labels:
     n_samples: 1
     cleaned_label: Stromal Associated Fibroblasts
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000057
     review_status: pending
-    notes: null
+    notes: CL has no cancer-associated fibroblast term; the CAF distinction is lost
   Stromal Cell:
     n_cells: 58591
     n_samples: 1
     cleaned_label: Stromal Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000499
     review_status: pending
     notes: null
   T Cell:
@@ -1260,7 +1267,7 @@ labels:
     n_samples: 1
     cleaned_label: T Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   T Cells:
@@ -1268,7 +1275,7 @@ labels:
     n_samples: 1
     cleaned_label: T Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000084
     review_status: pending
     notes: null
   T and NK Cells:
@@ -1276,15 +1283,15 @@ labels:
     n_samples: 1
     cleaned_label: T and NK Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000542
     review_status: pending
-    notes: null
+    notes: composite T + NK; lymphocyte is the nearest common ancestor
   Tumor Associated Endothelial Cells:
     n_cells: 3813
     n_samples: 1
     cleaned_label: Tumor Associated Endothelial Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000115
     review_status: pending
     notes: null
   Tumor Associated Fibroblasts:
@@ -1292,23 +1299,23 @@ labels:
     n_samples: 1
     cleaned_label: Tumor Associated Fibroblasts
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000057
     review_status: pending
-    notes: null
+    notes: CL has no cancer-associated fibroblast term; the CAF distinction is lost
   Tumor Cells:
     n_cells: 122454
     n_samples: 2
     cleaned_label: Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term
   Type I NK T Cell:
     n_cells: 1747
     n_samples: 1
     cleaned_label: Type I NK T Cell
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000921
     review_status: pending
     notes: null
   Unassigned:
@@ -1318,20 +1325,20 @@ labels:
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: not a cell type
   Urothelial-like Cells:
     n_cells: 1961
     n_samples: 1
     cleaned_label: Urothelial-like Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000731
     review_status: pending
-    notes: null
+    notes: '''-like'' implies resemblance, not identity; verify before approving'
   VEGFA+ Tumor Cells:
     n_cells: 10088
     n_samples: 1
     cleaned_label: VEGFA+ Tumor Cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0001064
     review_status: pending
-    notes: null
+    notes: no CL term for tumour subtypes; malignant cell is the nearest term

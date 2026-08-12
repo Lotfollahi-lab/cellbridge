@@ -7,40 +7,40 @@ labels:
   bcell:
     n_cells: 480900
     n_samples: 40
-    cleaned_label: null
+    cleaned_label: B cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000236
     review_status: pending
     notes: null
   cd4:
     n_cells: 952929
     n_samples: 40
-    cleaned_label: null
+    cleaned_label: CD4+ T cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000624
     review_status: pending
     notes: null
   cd8:
     n_cells: 467395
     n_samples: 40
-    cleaned_label: null
+    cleaned_label: CD8+ T cells
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000625
     review_status: pending
     notes: null
   macrophage:
     n_cells: 381594
     n_samples: 40
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
-    cell_ontology_id: null
+    cell_ontology_id: CL:0000235
     review_status: pending
     notes: null
   other:
     n_cells: 4565636
     n_samples: 40
-    cleaned_label: null
+    cleaned_label: Other
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
-    notes: null
+    notes: catch-all class, not a cell type
