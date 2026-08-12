@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORKSPACE="$(cd "$ROOT/../.." && pwd)"
 TERRA_ENV="${TERRA_ENV:-$WORKSPACE/envs/terra-dev}"
+HEST_ENV="${HEST_ENV:-/software/conda/users/$USER/hest}"
 SPATIALWHISPERER_REPO="${SPATIALWHISPERER_REPO:-$WORKSPACE/repos/spatialwhisperer}"
 
 if [ "$#" -lt 3 ]; then
@@ -30,6 +31,14 @@ if [ "$runtime" = core ]; then
   exec "$TERRA_ENV/bin/python" "${arguments[@]:1}"
 fi
 
+if [ "$runtime" = uni ] || [ "$runtime" = cellbridge ]; then
+  [ -x "$HEST_ENV/bin/python" ] || {
+    echo "HEST environment not found: $HEST_ENV" >&2
+    exit 1
+  }
+  exec env PYTHONNOUSERSITE=1 "$HEST_ENV/bin/python" "${arguments[@]:1}"
+fi
+
 if [ "$runtime" = spatialwhisperer ]; then
   PIXI_BIN="${PIXI_BIN:-$HOME/.pixi/bin/pixi}"
   [ -x "$PIXI_BIN" ] || { echo "pixi not found: $PIXI_BIN" >&2; exit 1; }
@@ -37,6 +46,7 @@ if [ "$runtime" = spatialwhisperer ]; then
     echo "SpatialWhisperer pixi.toml not found: $SPATIALWHISPERER_REPO" >&2
     exit 1
   }
+  export PYTHONNOUSERSITE=1
   exec "$PIXI_BIN" run --manifest-path "$SPATIALWHISPERER_REPO/pixi.toml" \
     "${arguments[@]}"
 fi
@@ -49,9 +59,6 @@ module load cellgen/uv
 source "$TERRA_ENV/bin/activate"
 
 case "$runtime" in
-  uni|cellbridge)
-    packages=(--with lmdb)
-    ;;
   past)
     packages=(
       --with lmdb

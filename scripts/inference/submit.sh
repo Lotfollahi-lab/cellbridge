@@ -58,8 +58,9 @@ for method in "${methods[@]}"; do
 done
 job="$("$SUBMIT" submit "$CONFIG" \
   --job "${dataset}_evaluate" --log-prefix evaluate \
-  --queue "${INFERENCE_CPU_QUEUE:-auto}" \
-  --memory "${INFERENCE_CPU_MEM_GB:-128}" \
+  --queue "${INFERENCE_CPU_QUEUE:-training-normal}" \
+  --gmem "${INFERENCE_EVAL_GMEM_MB:-1000}" \
+  --memory "${INFERENCE_CPU_MEM_GB:-64}" \
   --cores "${INFERENCE_CPU_NCORES:-16}" --environment none \
   --dependency "${dependency%&&}" -- \
   "$RUNNER" core evaluate "$CONFIG" "${evaluate_arguments[@]}")"
