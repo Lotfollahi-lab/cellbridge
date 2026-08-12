@@ -10,7 +10,7 @@ labels:
   0_Epithelial_&_Tumor_Cells:
     n_cells: 57208
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Epithelial & Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -18,7 +18,7 @@ labels:
   0_Perivascular_Cells:
     n_cells: 51131
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Perivascular Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -26,7 +26,7 @@ labels:
   0_Proliferative_Tumor_Cells:
     n_cells: 24811
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferative Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -34,7 +34,7 @@ labels:
   0_Stromal_Cells:
     n_cells: 101180
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -42,7 +42,7 @@ labels:
   0_T_Lymphocytes:
     n_cells: 76424
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -50,7 +50,7 @@ labels:
   0_Tumor_Cells:
     n_cells: 388866
     n_samples: 6
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -58,7 +58,7 @@ labels:
   10_Alveolar_Epithelial_Cells:
     n_cells: 4558
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -66,7 +66,7 @@ labels:
   10_Endothelial_Cells:
     n_cells: 4930
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -74,7 +74,7 @@ labels:
   10_Inflammatory_Tumor_Cells:
     n_cells: 6606
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Inflammatory Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -82,7 +82,7 @@ labels:
   10_MMP9+_Myeloid_Cells:
     n_cells: 2483
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: MMP9+ Myeloid Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -90,7 +90,7 @@ labels:
   10_Myoepithelial_Cells:
     n_cells: 15230
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -98,7 +98,7 @@ labels:
   10_Perivascular_Cells:
     n_cells: 7624
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Perivascular Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -106,7 +106,7 @@ labels:
   10_Tumor_Adjacent_Myoepithelial_Cells:
     n_cells: 1517
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Tumor Adjacent Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -114,7 +114,7 @@ labels:
   10_Tumor_Cells:
     n_cells: 13749
     n_samples: 3
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -122,7 +122,7 @@ labels:
   11_Activated_Lymphoid_Cells:
     n_cells: 1742
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Activated Lymphoid Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -130,7 +130,7 @@ labels:
   11_Activated_Macrophages:
     n_cells: 8949
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Activated Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -138,7 +138,7 @@ labels:
   11_Adipocytes:
     n_cells: 517
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Adipocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -146,7 +146,7 @@ labels:
   11_Epithelial_&_Myoepithelial_Cells:
     n_cells: 1535
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Epithelial & Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -154,7 +154,7 @@ labels:
   11_Mast_Cells:
     n_cells: 3038
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Mast Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -162,7 +162,7 @@ labels:
   11_Normal_Epithelial_Cells:
     n_cells: 6184
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Normal Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -170,7 +170,7 @@ labels:
   11_Plasma_Cells:
     n_cells: 4051
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Plasma Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -178,7 +178,7 @@ labels:
   11_Proliferative_Tumor Cells:
     n_cells: 3947
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferative Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -186,7 +186,7 @@ labels:
   11_Stromal_Cells:
     n_cells: 5762
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -194,7 +194,7 @@ labels:
   11_Tumor_Cells:
     n_cells: 5106
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -202,7 +202,7 @@ labels:
   12_Activated_Macrophages:
     n_cells: 3081
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Activated Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -210,7 +210,7 @@ labels:
   12_Alveolar_Epithelial_Cells:
     n_cells: 3790
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -218,7 +218,7 @@ labels:
   12_Effector_T_Lymphocytes:
     n_cells: 7276
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Effector T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -226,7 +226,7 @@ labels:
   12_Endothelial_Cells:
     n_cells: 3222
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -234,7 +234,7 @@ labels:
   12_Mast_Cells:
     n_cells: 1088
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Mast Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -242,7 +242,7 @@ labels:
   12_Tumor_Cells:
     n_cells: 8060
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -250,7 +250,7 @@ labels:
   13_Adipocytes:
     n_cells: 1916
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Adipocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -258,7 +258,7 @@ labels:
   13_Lymphatic_Endothelial_Cells:
     n_cells: 827
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Lymphatic Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -266,7 +266,7 @@ labels:
   13_MMP9+_Myeloid_Cells:
     n_cells: 7170
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: MMP9+ Myeloid Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -274,7 +274,7 @@ labels:
   13_Plasma_Cells:
     n_cells: 4658
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Plasma Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -282,7 +282,7 @@ labels:
   13_Stromal_Cells:
     n_cells: 341
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -290,7 +290,7 @@ labels:
   13_Tumor_Cells:
     n_cells: 2864
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -298,7 +298,7 @@ labels:
   14_Normal_Myoepithelial_Cells:
     n_cells: 10679
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Normal Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -306,7 +306,7 @@ labels:
   14_Stromal_Cells:
     n_cells: 1016
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -314,7 +314,7 @@ labels:
   14_Tumor_Cells:
     n_cells: 6983
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -322,7 +322,7 @@ labels:
   15_Tumor_Cells:
     n_cells: 2338
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -330,7 +330,7 @@ labels:
   1_Alveolar_Epithelial_Cells:
     n_cells: 49732
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -338,7 +338,7 @@ labels:
   1_Epithelial_&_Tumor_Cells:
     n_cells: 52654
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Epithelial & Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -346,7 +346,7 @@ labels:
   1_Macrophages:
     n_cells: 52669
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -354,7 +354,7 @@ labels:
   1_Proliferating_Tumor_Cells:
     n_cells: 33695
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferating Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -362,7 +362,7 @@ labels:
   1_Stromal_Cells:
     n_cells: 69677
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -370,7 +370,7 @@ labels:
   1_Tumor_Cells:
     n_cells: 263945
     n_samples: 5
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -378,7 +378,7 @@ labels:
   2_Macrophages:
     n_cells: 60312
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -386,7 +386,7 @@ labels:
   2_Myoepithelial:
     n_cells: 37296
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Myoepithelial
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -394,7 +394,7 @@ labels:
   2_Myoepithelial_Cells:
     n_cells: 87092
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -402,7 +402,7 @@ labels:
   2_Stromal_Cells:
     n_cells: 168189
     n_samples: 5
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -410,7 +410,7 @@ labels:
   2_Tumor_Cells:
     n_cells: 60078
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -418,7 +418,7 @@ labels:
   3_B_Lymphocytes:
     n_cells: 40302
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: B Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -426,7 +426,7 @@ labels:
   3_Endothelial_Cells:
     n_cells: 31260
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -434,7 +434,7 @@ labels:
   3_Macrophages:
     n_cells: 109267
     n_samples: 3
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -442,7 +442,7 @@ labels:
   3_Myoepithelial_Cells:
     n_cells: 27687
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -450,7 +450,7 @@ labels:
   3_Perivascular_Cells:
     n_cells: 17000
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Perivascular Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -458,7 +458,7 @@ labels:
   3_Stromal_Cells:
     n_cells: 45363
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -466,7 +466,7 @@ labels:
   3_T_Lymphocytes:
     n_cells: 30105
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -474,7 +474,7 @@ labels:
   3_Tumor_Cells:
     n_cells: 71587
     n_samples: 3
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -482,7 +482,7 @@ labels:
   4_Alveolar_Epithelial_Cells:
     n_cells: 25846
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -490,7 +490,7 @@ labels:
   4_Endothelial:
     n_cells: 31227
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endothelial
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -498,7 +498,7 @@ labels:
   4_Endothelial_Cells:
     n_cells: 53582
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -506,7 +506,7 @@ labels:
   4_Perivascular_Cells:
     n_cells: 22286
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Perivascular Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -514,7 +514,7 @@ labels:
   4_T_Lymphocytes:
     n_cells: 47157
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -522,7 +522,7 @@ labels:
   4_Tumor_Cells:
     n_cells: 123249
     n_samples: 5
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -530,7 +530,7 @@ labels:
   5_Alveolar_Epithelial_Cells:
     n_cells: 21374
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Alveolar Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -538,7 +538,7 @@ labels:
   5_Endothelial_Cells:
     n_cells: 60973
     n_samples: 4
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -546,7 +546,7 @@ labels:
   5_Macrophages:
     n_cells: 74260
     n_samples: 3
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -554,7 +554,7 @@ labels:
   5_Myoepithelial_Cells:
     n_cells: 18347
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -562,7 +562,7 @@ labels:
   5_Stromal_Cells:
     n_cells: 32038
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -570,7 +570,7 @@ labels:
   5_T_Lymphocytes:
     n_cells: 21794
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -578,7 +578,7 @@ labels:
   5_Tumor_Cells:
     n_cells: 21582
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -586,7 +586,7 @@ labels:
   6_B_Lymphocytes:
     n_cells: 18009
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: B Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -594,7 +594,7 @@ labels:
   6_Dendritic_Cells:
     n_cells: 28828
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Dendritic Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -602,7 +602,7 @@ labels:
   6_Endothelial_Cells:
     n_cells: 17337
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -610,7 +610,7 @@ labels:
   6_Epithelial_&_Tumor_Cells:
     n_cells: 17772
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Epithelial & Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -618,7 +618,7 @@ labels:
   6_Macrophages:
     n_cells: 15660
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -626,7 +626,7 @@ labels:
   6_Proliferating_Tumor_Cells:
     n_cells: 16843
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferating Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -634,7 +634,7 @@ labels:
   6_Stromal_Cells:
     n_cells: 20841
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -642,7 +642,7 @@ labels:
   6_T_Lymphocytes:
     n_cells: 15762
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -650,7 +650,7 @@ labels:
   6_Tumor_Cells:
     n_cells: 54510
     n_samples: 4
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -658,7 +658,7 @@ labels:
   7_Ductal_Epithelial_Cells:
     n_cells: 9588
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Ductal Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -666,7 +666,7 @@ labels:
   7_Endothelial_Cells:
     n_cells: 38459
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -674,7 +674,7 @@ labels:
   7_Epithelial_&_Tumor_Cells:
     n_cells: 16140
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Epithelial & Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -682,7 +682,7 @@ labels:
   7_Macrophages:
     n_cells: 14248
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -690,7 +690,7 @@ labels:
   7_Myeloid_Cells:
     n_cells: 12198
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Myeloid Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -698,7 +698,7 @@ labels:
   7_Proliferative_Tumor_Cells:
     n_cells: 7400
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferative Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -706,7 +706,7 @@ labels:
   7_T_Lymphocytes:
     n_cells: 22609
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -714,7 +714,7 @@ labels:
   7_Tumor_Cells:
     n_cells: 47060
     n_samples: 3
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -722,7 +722,7 @@ labels:
   8_Epithelial_&_Tumor_Cells:
     n_cells: 7361
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Epithelial & Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -730,7 +730,7 @@ labels:
   8_MMP11+_CAFs:
     n_cells: 7772
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: MMP11+ CAFs
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -738,7 +738,7 @@ labels:
   8_Myeloid_Cells:
     n_cells: 13182
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Myeloid Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -746,7 +746,7 @@ labels:
   8_Perivascular_Cells:
     n_cells: 6983
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Perivascular Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -754,7 +754,7 @@ labels:
   8_Plasma_Cells:
     n_cells: 5504
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Plasma Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -762,7 +762,7 @@ labels:
   8_Proliferative_Tumor_Cells:
     n_cells: 13414
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferative Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -770,7 +770,7 @@ labels:
   8_Stromal_Cells:
     n_cells: 4353
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -778,7 +778,7 @@ labels:
   8_T_Lymphocytes:
     n_cells: 7499
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -786,7 +786,7 @@ labels:
   8_Tumor_Cells:
     n_cells: 49845
     n_samples: 4
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -794,7 +794,7 @@ labels:
   9_Activated_Macrophages:
     n_cells: 2618
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Activated Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -802,7 +802,7 @@ labels:
   9_CXCL14+_CAFs:
     n_cells: 14279
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: CXCL14+ CAFs
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -810,7 +810,7 @@ labels:
   9_Epithelial_&_Myoepithelial_Cells:
     n_cells: 4453
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Epithelial & Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -818,7 +818,7 @@ labels:
   9_Myoepithelial_Cells:
     n_cells: 16558
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Myoepithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -826,7 +826,7 @@ labels:
   9_Necrotic_Cells:
     n_cells: 13037
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Necrotic Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -834,7 +834,7 @@ labels:
   9_Proliferative_Tumor_Cells:
     n_cells: 3693
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferative Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -842,7 +842,7 @@ labels:
   9_Stromal_Cells:
     n_cells: 5148
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -850,7 +850,7 @@ labels:
   9_T_Lymphocytes:
     n_cells: 5966
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Lymphocytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -858,7 +858,7 @@ labels:
   9_Tumor_Cells:
     n_cells: 24820
     n_samples: 3
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -866,7 +866,7 @@ labels:
   Acinar:
     n_cells: 18685
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Acinar
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -874,7 +874,7 @@ labels:
   B Cell:
     n_cells: 36453
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: B Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -882,7 +882,7 @@ labels:
   B Cells:
     n_cells: 3222
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: B Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -890,7 +890,7 @@ labels:
   CD141+ Myeloid Dendritic Cell:
     n_cells: 13051
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: CD141+ Myeloid Dendritic Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -898,7 +898,7 @@ labels:
   CD1c+ Myeloid Dendritic Cell:
     n_cells: 10688
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: CD1c+ Myeloid Dendritic Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -906,7 +906,7 @@ labels:
   CD4+ αβ Memory T Cell:
     n_cells: 28000
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: CD4+ αβ Memory T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -914,7 +914,7 @@ labels:
   CD8+ αβ Memory T Cell:
     n_cells: 19028
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: CD8+ αβ Memory T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -922,7 +922,7 @@ labels:
   CFTR- Tumor Cells:
     n_cells: 18592
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: CFTR- Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -930,7 +930,7 @@ labels:
   CXCL9/10 Cells:
     n_cells: 3440
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: CXCL9/10 Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -938,7 +938,7 @@ labels:
   Ciliated Epithelial Cells:
     n_cells: 1987
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Ciliated Epithelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -946,7 +946,7 @@ labels:
   Classical Monocyte:
     n_cells: 957
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Classical Monocyte
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -954,7 +954,7 @@ labels:
   Ductal:
     n_cells: 4562
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Ductal
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -962,7 +962,7 @@ labels:
   Effector CD4+ αβ T Cell:
     n_cells: 31823
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Effector CD4+ αβ T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -970,7 +970,7 @@ labels:
   Effector CD8+ αβ T Cell:
     n_cells: 5195
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Effector CD8+ αβ T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -978,7 +978,7 @@ labels:
   Endocrine 1:
     n_cells: 9232
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endocrine 1
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -986,7 +986,7 @@ labels:
   Endocrine 2:
     n_cells: 9185
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endocrine 2
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -994,7 +994,7 @@ labels:
   Endothelial:
     n_cells: 10331
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endothelial
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1002,7 +1002,7 @@ labels:
   Endothelial Cell:
     n_cells: 120608
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1010,7 +1010,7 @@ labels:
   Erythrocyte:
     n_cells: 591
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Erythrocyte
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1018,7 +1018,7 @@ labels:
   Fallopian Tube Epithelium:
     n_cells: 3034
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Fallopian Tube Epithelium
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1026,7 +1026,7 @@ labels:
   Fibroblasts:
     n_cells: 27535
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Fibroblasts
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1034,7 +1034,7 @@ labels:
   Hematopoietic Stem Cell:
     n_cells: 24642
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Hematopoietic Stem Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1042,7 +1042,7 @@ labels:
   Inflammatory Tumor Cells:
     n_cells: 2158
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Inflammatory Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1050,7 +1050,7 @@ labels:
   Innate Lymphoid Cell:
     n_cells: 31405
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Innate Lymphoid Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1058,7 +1058,7 @@ labels:
   Intermediate Monocyte:
     n_cells: 5203
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Intermediate Monocyte
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1066,7 +1066,7 @@ labels:
   Lymphatic Endothelial Cells:
     n_cells: 1740
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Lymphatic Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1074,7 +1074,7 @@ labels:
   Macrophage:
     n_cells: 39797
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1082,7 +1082,7 @@ labels:
   Macrophages:
     n_cells: 55963
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Macrophages
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1090,7 +1090,7 @@ labels:
   Malignant Cells Lining Cyst:
     n_cells: 2534
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Malignant Cells Lining Cyst
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1098,7 +1098,7 @@ labels:
   Mast Cell:
     n_cells: 3185
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Mast Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1106,7 +1106,7 @@ labels:
   Mast Cells:
     n_cells: 2959
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Mast Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1114,7 +1114,7 @@ labels:
   Mature Conventional Dendritic Cell:
     n_cells: 5609
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Mature Conventional Dendritic Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1122,7 +1122,7 @@ labels:
   Mature NK T Cell:
     n_cells: 4662
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Mature NK T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1130,7 +1130,7 @@ labels:
   Memory B Cell:
     n_cells: 90051
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Memory B Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1138,7 +1138,7 @@ labels:
   Metaplastic Cells:
     n_cells: 19476
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Metaplastic Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1146,7 +1146,7 @@ labels:
   Naive B Cell:
     n_cells: 12372
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Naive B Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1154,7 +1154,7 @@ labels:
   Naive Thymus Derived CD4+ αβ T Cell:
     n_cells: 62350
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Naive Thymus Derived CD4+ αβ T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1162,7 +1162,7 @@ labels:
   Neutrophil:
     n_cells: 1045
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Neutrophil
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1170,7 +1170,7 @@ labels:
   Non Classical Monocyte:
     n_cells: 3895
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Non Classical Monocyte
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1178,7 +1178,7 @@ labels:
   Pericytes:
     n_cells: 4828
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Pericytes
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1186,7 +1186,7 @@ labels:
   Plasma Cell:
     n_cells: 24775
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Plasma Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1194,7 +1194,7 @@ labels:
   Plasmacytoid Dendritic Cell:
     n_cells: 15152
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Plasmacytoid Dendritic Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1202,7 +1202,7 @@ labels:
   Proliferative Tumor Cells:
     n_cells: 50118
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Proliferative Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1210,7 +1210,7 @@ labels:
   Regulatory T Cell:
     n_cells: 47902
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Regulatory T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1218,7 +1218,7 @@ labels:
   SOX2-OT+ Tumor Cells:
     n_cells: 39355
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: SOX2-OT+ Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1226,7 +1226,7 @@ labels:
   Smooth Muscle Cells:
     n_cells: 63448
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Smooth Muscle Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1234,7 +1234,7 @@ labels:
   Stromal Associated Endothelial Cells:
     n_cells: 18249
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Associated Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1242,7 +1242,7 @@ labels:
   Stromal Associated Fibroblasts:
     n_cells: 24604
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Associated Fibroblasts
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1250,7 +1250,7 @@ labels:
   Stromal Cell:
     n_cells: 58591
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Stromal Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1258,7 +1258,7 @@ labels:
   T Cell:
     n_cells: 10206
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1266,7 +1266,7 @@ labels:
   T Cells:
     n_cells: 12705
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1274,7 +1274,7 @@ labels:
   T and NK Cells:
     n_cells: 9999
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: T and NK Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1282,7 +1282,7 @@ labels:
   Tumor Associated Endothelial Cells:
     n_cells: 3813
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Tumor Associated Endothelial Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1290,7 +1290,7 @@ labels:
   Tumor Associated Fibroblasts:
     n_cells: 39332
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Tumor Associated Fibroblasts
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1298,7 +1298,7 @@ labels:
   Tumor Cells:
     n_cells: 122454
     n_samples: 2
-    cleaned_label: null
+    cleaned_label: Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1306,7 +1306,7 @@ labels:
   Type I NK T Cell:
     n_cells: 1747
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Type I NK T Cell
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1314,7 +1314,7 @@ labels:
   Unassigned:
     n_cells: 1984
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Unassigned
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1322,7 +1322,7 @@ labels:
   Urothelial-like Cells:
     n_cells: 1961
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: Urothelial-like Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
@@ -1330,7 +1330,7 @@ labels:
   VEGFA+ Tumor Cells:
     n_cells: 10088
     n_samples: 1
-    cleaned_label: null
+    cleaned_label: VEGFA+ Tumor Cells
     grouped_label: null
     cell_ontology_id: null
     review_status: pending
