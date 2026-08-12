@@ -22,7 +22,7 @@ class LoraEmbedder(TorchEmbedder):
 
 def load(checkpoint, *, device=None, encoder_weights=None) -> LoraEmbedder:
     """Load one trained CellBridge checkpoint for embedding inference."""
-    from cellbridge.lora.model import load_checkpoint
+    from cellbridge.train.lora.model import load_checkpoint
 
     device = resolve_device(device)
     loaded = load_checkpoint(
