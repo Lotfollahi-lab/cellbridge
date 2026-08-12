@@ -1,0 +1,14 @@
+method: volta
+
+load:
+  checkpoint: ${CELLBRIDGE_REPOS_ROOT}/VOLTA/pretrained_weights/ovarian/checkpoint.pth.tar
+  repository: ${CELLBRIDGE_REPOS_ROOT}/VOLTA
+
+crop:
+  kind: instance_bbox
+  scale_factor: 1.0
+
+extraction:
+  batch_size: 256
+  num_workers: 4
+  storage_dtype: float16

@@ -1,0 +1,24 @@
+dataset: lizard
+
+data:
+  lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/lizard_lmdb
+  metadata: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/lizard_info.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/splits/lizard_default_train_test_val_split.csv
+  tile_size: 224
+  value_scale: 1
+  source_mpp: 0.25
+
+methods: [uni, cellbridge, past, volta, spatialwhisperer]
+
+probe:
+  tasks: [all]
+  methods: [linear, knn]
+  pca_components: 256
+  seed: 0
+  linear:
+    Cs: [0.1, 1, 10]
+    max_iter: 2000
+  knn:
+    n_neighbors: 20
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/lizard

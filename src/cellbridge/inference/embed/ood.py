@@ -81,7 +81,12 @@ def iter_lmdb_samples(path) -> Iterator[tuple[str, dict[int, dict]]]:
         environment.close()
 
 
-def load_metadata(metadata_path, split_path) -> pd.DataFrame:
+def load_metadata(
+    metadata_path,
+    split_path,
+    *,
+    require_all_samples: bool = True,
+) -> pd.DataFrame:
     """Load cells in CSV order and attach their normalized official split."""
     metadata_path = Path(metadata_path)
     metadata = pd.read_csv(metadata_path)
@@ -131,11 +136,13 @@ def load_metadata(metadata_path, split_path) -> pd.DataFrame:
     sample_ids = metadata["sample_id"].astype(str)
     observed = set(sample_ids)
     expected = set(split_by_sample)
-    if observed != expected:
+    metadata_only = observed - expected
+    split_only = expected - observed
+    if metadata_only or (require_all_samples and split_only):
         raise ValueError(
             "metadata and official split contain different samples: "
-            f"metadata_only={sorted(observed - expected)[:5]}, "
-            f"split_only={sorted(expected - observed)[:5]}"
+            f"metadata_only={sorted(metadata_only)[:5]}, "
+            f"split_only={sorted(split_only)[:5]}"
         )
 
     resolved = sample_ids.map(split_by_sample)
@@ -287,20 +294,30 @@ def iter_samples(
     *,
     image_shape=None,
     tile_size: int = 224,
-    value_scale: float = 250,
+    value_scale: float = 1,
     skip_missing: bool = False,
+    allow_unlabeled_samples: bool = False,
 ) -> Iterator[OodSample]:
     """Yield fully reconstructed, officially annotated samples one at a time."""
-    metadata = load_metadata(metadata_path, split_path)
+    metadata = load_metadata(
+        metadata_path,
+        split_path,
+        require_all_samples=not allow_unlabeled_samples,
+    )
     expected = set(metadata["sample_id"].astype(str))
+    official = set(pd.read_csv(split_path)["sample_name"].astype(str))
     seen = set()
     for sample_id, entries in iter_lmdb_samples(lmdb_path):
         sample_id = str(sample_id)
         if sample_id in seen:
             raise ValueError(f"LMDB contains non-consecutive entries for {sample_id!r}")
-        if sample_id not in expected:
+        if sample_id not in official:
             raise ValueError(f"LMDB contains unknown sample {sample_id!r}")
         seen.add(sample_id)
+        if sample_id not in expected:
+            if allow_unlabeled_samples:
+                continue
+            raise ValueError(f"{sample_id}: no cell metadata")
         yield load_sample(
             sample_id,
             entries,

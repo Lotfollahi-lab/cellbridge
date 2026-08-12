@@ -1,0 +1,16 @@
+method: cellbridge
+
+load:
+  checkpoint: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/contrastive_k0/best.pt
+
+# Match the 224 pixels at 0.5 microns/pixel used during CellBridge training.
+crop:
+  kind: center
+  fov_um: 112.0
+  target_size: 224
+  fill: 255
+
+extraction:
+  batch_size: 64
+  num_workers: 4
+  storage_dtype: float16

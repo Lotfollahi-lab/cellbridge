@@ -1,0 +1,14 @@
+method: spatialwhisperer
+
+load:
+  hf_repo: Good-Lab/spatialwhisperer
+
+crop:
+  kind: center
+  source_size: 224
+  fill: 255
+
+extraction:
+  batch_size: 64
+  num_workers: 4
+  storage_dtype: float16

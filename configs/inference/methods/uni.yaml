@@ -1,0 +1,14 @@
+method: uni
+
+load:
+  encoder: uni_v2
+
+crop:
+  kind: center
+  source_size: 224
+  fill: 255
+
+extraction:
+  batch_size: 128
+  num_workers: 4
+  storage_dtype: float16

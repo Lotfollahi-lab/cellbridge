@@ -1,0 +1,27 @@
+dataset: pannuke
+
+data:
+  lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_lmdb
+  metadata: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
+  image_shape: [256, 256]
+  tile_size: 224
+  value_scale: 1
+  source_mpp: 0.25
+  allow_unlabeled_samples: true
+  skip_missing_cells: true
+
+methods: [uni, cellbridge, past, volta, spatialwhisperer]
+
+probe:
+  tasks: [all]
+  methods: [linear, knn]
+  pca_components: 256
+  seed: 0
+  linear:
+    Cs: [0.1, 1, 10]
+    max_iter: 2000
+  knn:
+    n_neighbors: 20
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/pannuke
