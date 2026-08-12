@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 from cellbridge import lsf
-from cellbridge.cohorts import cohort_in_split
+from cellbridge.helpers.cohorts import cohort_in_split
 from cellbridge.config import config_value, load_config
 
 ROOT = Path(__file__).resolve().parents[2]

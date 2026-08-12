@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from cellbridge.cohorts import cohort_in_split
+from cellbridge.helpers.cohorts import cohort_in_split
 from cellbridge.evaluation.artifacts import file_identity
 
 

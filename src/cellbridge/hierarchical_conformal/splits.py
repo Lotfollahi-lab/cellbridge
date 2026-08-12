@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from cellbridge.cohorts import load_split_table
+from cellbridge.helpers.cohorts import load_split_table
 
 ROLES = ("breast_train", "breast_val", "breast_test", "cross_organ_test")
 

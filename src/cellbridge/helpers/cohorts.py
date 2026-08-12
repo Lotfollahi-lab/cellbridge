@@ -7,8 +7,6 @@ from pathlib import Path
 
 import pandas as pd
 
-SPLITS = ("distill_train", "distill_val", "label_test")
-
 
 def _normalizer(function):
     return str if function is None else function
@@ -51,18 +49,6 @@ def samples_in_split(path, split, *, normalize_id=None, required=True) -> list[s
     if required and not samples:
         raise ValueError(f"{path}: split {split!r} is empty")
     return samples
-
-
-def split_groups(path, names=SPLITS, *, normalize_id=None) -> dict[str, list[str]]:
-    table = load_split_table(
-        path,
-        required_splits=names,
-        normalize_id=normalize_id,
-    )
-    return {
-        name: table.loc[table["split"] == name, "sample_id"].tolist()
-        for name in names
-    }
 
 
 def load_cohort(path, *, normalize_id=None, expected_count=None) -> list[str]:

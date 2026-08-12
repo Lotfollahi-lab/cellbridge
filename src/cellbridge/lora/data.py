@@ -17,7 +17,7 @@ import torch
 from PIL import Image
 from torch.utils.data import Dataset, Sampler
 
-from cellbridge.cohorts import cohort_in_split, samples_in_split
+from cellbridge.helpers.cohorts import cohort_in_split, samples_in_split
 
 TARGET_PATCH_SIZE = 224
 DST_PIXEL_SIZE_UM = 0.5

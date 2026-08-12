@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from cellbridge.cohorts import cohort_in_split
+from cellbridge.helpers.cohorts import cohort_in_split
 
 
 def label_test_fast_samples(hest_cfg):
