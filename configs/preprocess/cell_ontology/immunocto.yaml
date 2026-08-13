@@ -1,0 +1,69 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: immunocto
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/eval/immunocto/prepared/metadata.csv
+  label_column: label
+  sample_column: sample_id
+labels:
+  b cell:
+    source_labels:
+    - bcell
+    n_cells: 480900
+    ontology_id: CL:0000236
+    ontology_name: B cell
+    parents:
+    - id: CL:0000945
+      name: lymphocyte of B lineage
+  cd4-positive t cell:
+    source_labels:
+    - cd4
+    n_cells: 952929
+    ontology_id: CL:0000624
+    ontology_name: CD4-positive, alpha-beta T cell
+    parents:
+    - id: CL:0000791
+      name: mature alpha-beta T cell
+    note: The abbreviated source class is mapped to the corresponding conventional
+      alpha-beta T-cell term.
+  cd8-positive t cell:
+    source_labels:
+    - cd8
+    n_cells: 467395
+    ontology_id: CL:0000625
+    ontology_name: CD8-positive, alpha-beta T cell
+    parents:
+    - id: CL:0000791
+      name: mature alpha-beta T cell
+    note: The abbreviated source class is mapped to the corresponding conventional
+      alpha-beta T-cell term.
+  macrophage:
+    source_labels:
+    - macrophage
+    n_cells: 381594
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  other cell:
+    source_labels:
+    - other
+    n_cells: 4565636
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: Catch-all class, not a cell type.

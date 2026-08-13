@@ -1,0 +1,126 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: hest
+sample_id: TENX193
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX193/TENX193_granular_cell_labels.csv
+  label_column: group
+labels:
+  cxcl14-positive cancer-associated fibroblast:
+    source_labels:
+    - 9_CXCL14+_CAFs
+    n_cells: 7493
+    ontology_id: CL:0000057
+    ontology_name: fibroblast
+    parents:
+    - id: CL:0000499
+      name: stromal cell
+  endothelial cell:
+    source_labels:
+    - 4_Endothelial_Cells
+    n_cells: 25944
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  lymphatic endothelial cell:
+    source_labels:
+    - 13_Lymphatic_Endothelial_Cells
+    n_cells: 827
+    ontology_id: CL:0002138
+    ontology_name: endothelial cell of lymphatic vessel
+    parents:
+    - id: CL:0002139
+      name: endothelial cell of vascular tree
+  mast cell:
+    source_labels:
+    - 12_Mast_Cells
+    n_cells: 1088
+    ontology_id: CL:0000097
+    ontology_name: mast cell
+    parents:
+    - id: CL:0000766
+      name: myeloid leukocyte
+    - id: CL:0002274
+      name: histamine secreting cell
+  mmp11-positive cancer-associated fibroblast:
+    source_labels:
+    - 8_MMP11+_CAFs
+    n_cells: 7772
+    ontology_id: CL:0000057
+    ontology_name: fibroblast
+    parents:
+    - id: CL:0000499
+      name: stromal cell
+  myeloid cell:
+    source_labels:
+    - 7_Myeloid_Cells
+    n_cells: 12198
+    ontology_id: CL:0000763
+    ontology_name: myeloid cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+    - id: CL:0000988
+      name: hematopoietic cell
+    note: Broad source label; retained only to the myeloid lineage.
+  myoepithelial cell:
+    source_labels:
+    - 3_Myoepithelial_Cells
+    n_cells: 27687
+    ontology_id: CL:0000185
+    ontology_name: myoepithelial cell
+    parents:
+    - id: CL:0000075
+      name: columnar/cuboidal epithelial cell
+    - id: CL:0000183
+      name: contractile cell
+  proliferating tumor cell:
+    source_labels:
+    - 1_Proliferating_Tumor_Cells
+    n_cells: 33695
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  stromal cell:
+    source_labels:
+    - 11_Stromal_Cells
+    - 2_Stromal_Cells
+    n_cells: 33586
+    ontology_id: CL:0000499
+    ontology_name: stromal cell
+    parents:
+    - id: CL:0002320
+      name: connective tissue cell
+    note: Broad source label; retained only to the stromal lineage.
+  t cell:
+    source_labels:
+    - 5_T_Lymphocytes
+    n_cells: 21794
+    ontology_id: CL:0000084
+    ontology_name: T cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
+  tumor cell:
+    source_labels:
+    - 0_Tumor_Cells
+    - 10_Tumor_Cells
+    - 6_Tumor_Cells
+    n_cells: 80748
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell

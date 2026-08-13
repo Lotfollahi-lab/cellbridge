@@ -1,0 +1,299 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: hest
+sample_id: TENX143
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX143/TENX143_granular_cell_labels.csv
+  label_column: group
+labels:
+  b cell:
+    source_labels:
+    - B Cell
+    n_cells: 36453
+    ontology_id: CL:0000236
+    ontology_name: B cell
+    parents:
+    - id: CL:0000945
+      name: lymphocyte of B lineage
+  cd141-positive myeloid dendritic cell:
+    source_labels:
+    - CD141+ Myeloid Dendritic Cell
+    n_cells: 13051
+    ontology_id: CL:0002394
+    ontology_name: CD141-positive myeloid dendritic cell
+    parents:
+    - id: CL:0000782
+      name: myeloid dendritic cell
+    - id: CL:0000784
+      name: plasmacytoid dendritic cell
+  cd1c-positive myeloid dendritic cell:
+    source_labels:
+    - CD1c+ Myeloid Dendritic Cell
+    n_cells: 10688
+    ontology_id: CL:0002399
+    ontology_name: CD1c-positive myeloid dendritic cell
+    parents:
+    - id: CL:0000782
+      name: myeloid dendritic cell
+  cd4-positive alpha-beta memory t cell:
+    source_labels:
+    - CD4+ αβ Memory T Cell
+    n_cells: 28000
+    ontology_id: CL:0000897
+    ontology_name: CD4-positive, alpha-beta memory T cell
+    parents:
+    - id: CL:0000624
+      name: CD4-positive, alpha-beta T cell
+    - id: CL:0000813
+      name: memory T cell
+  cd8-positive alpha-beta memory t cell:
+    source_labels:
+    - CD8+ αβ Memory T Cell
+    n_cells: 19028
+    ontology_id: CL:0000909
+    ontology_name: CD8-positive, alpha-beta memory T cell
+    parents:
+    - id: CL:0000625
+      name: CD8-positive, alpha-beta T cell
+    - id: CL:0000813
+      name: memory T cell
+  classical monocyte:
+    source_labels:
+    - Classical Monocyte
+    n_cells: 957
+    ontology_id: CL:0000860
+    ontology_name: classical monocyte
+    parents:
+    - id: CL:0000576
+      name: monocyte
+  effector cd4-positive alpha-beta t cell:
+    source_labels:
+    - Effector CD4+ αβ T Cell
+    n_cells: 31823
+    ontology_id: CL:0001044
+    ontology_name: effector CD4-positive, alpha-beta T cell
+    parents:
+    - id: CL:0000624
+      name: CD4-positive, alpha-beta T cell
+    - id: CL:0000911
+      name: effector T cell
+  effector cd8-positive alpha-beta t cell:
+    source_labels:
+    - Effector CD8+ αβ T Cell
+    n_cells: 5195
+    ontology_id: CL:0001050
+    ontology_name: effector CD8-positive, alpha-beta T cell
+    parents:
+    - id: CL:0000625
+      name: CD8-positive, alpha-beta T cell
+    - id: CL:0000911
+      name: effector T cell
+  endothelial cell:
+    source_labels:
+    - Endothelial Cell
+    n_cells: 120608
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  erythrocyte:
+    source_labels:
+    - Erythrocyte
+    n_cells: 591
+    ontology_id: CL:0000232
+    ontology_name: erythrocyte
+    parents:
+    - id: CL:0000081
+      name: blood cell
+    - id: CL:0000329
+      name: oxygen accumulating cell
+    - id: CL:0000764
+      name: erythroid lineage cell
+  hematopoietic stem cell:
+    source_labels:
+    - Hematopoietic Stem Cell
+    n_cells: 24642
+    ontology_id: CL:0000037
+    ontology_name: hematopoietic stem cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+    - id: CL:0000723
+      name: somatic stem cell
+    - id: CL:0008001
+      name: hematopoietic precursor cell
+    - id: CL:0011026
+      name: progenitor cell
+  innate lymphoid cell:
+    source_labels:
+    - Innate Lymphoid Cell
+    n_cells: 31405
+    ontology_id: CL:0001065
+    ontology_name: innate lymphoid cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
+  intermediate monocyte:
+    source_labels:
+    - Intermediate Monocyte
+    n_cells: 5203
+    ontology_id: CL:0002393
+    ontology_name: intermediate monocyte
+    parents:
+    - id: CL:0000576
+      name: monocyte
+  macrophage:
+    source_labels:
+    - Macrophage
+    n_cells: 39797
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  mast cell:
+    source_labels:
+    - Mast Cell
+    n_cells: 3185
+    ontology_id: CL:0000097
+    ontology_name: mast cell
+    parents:
+    - id: CL:0000766
+      name: myeloid leukocyte
+    - id: CL:0002274
+      name: histamine secreting cell
+  mature conventional dendritic cell:
+    source_labels:
+    - Mature Conventional Dendritic Cell
+    n_cells: 5609
+    ontology_id: CL:0000841
+    ontology_name: mature conventional dendritic cell
+    parents:
+    - id: CL:0000766
+      name: myeloid leukocyte
+    - id: CL:0000990
+      name: conventional dendritic cell
+  mature nk t cell:
+    source_labels:
+    - Mature NK T Cell
+    n_cells: 4662
+    ontology_id: CL:0000814
+    ontology_name: mature NK T cell
+    parents:
+    - id: CL:0000791
+      name: mature alpha-beta T cell
+  memory b cell:
+    source_labels:
+    - Memory B Cell
+    n_cells: 90051
+    ontology_id: CL:0000787
+    ontology_name: memory B cell
+    parents:
+    - id: CL:0000785
+      name: mature B cell
+  naive b cell:
+    source_labels:
+    - Naive B Cell
+    n_cells: 12372
+    ontology_id: CL:0000788
+    ontology_name: naive B cell
+    parents:
+    - id: CL:0000785
+      name: mature B cell
+  naive thymus derived cd4-positive alpha-beta t cell:
+    source_labels:
+    - Naive Thymus Derived CD4+ αβ T Cell
+    n_cells: 62350
+    ontology_id: CL:0000895
+    ontology_name: naive thymus-derived CD4-positive, alpha-beta T cell
+    parents:
+    - id: CL:0000624
+      name: CD4-positive, alpha-beta T cell
+    - id: CL:0000898
+      name: naive T cell
+  neutrophil:
+    source_labels:
+    - Neutrophil
+    n_cells: 1045
+    ontology_id: CL:0000775
+    ontology_name: neutrophil
+    parents:
+    - id: CL:0000094
+      name: granulocyte
+  non-classical monocyte:
+    source_labels:
+    - Non Classical Monocyte
+    n_cells: 3895
+    ontology_id: CL:0000875
+    ontology_name: non-classical monocyte
+    parents:
+    - id: CL:0000576
+      name: monocyte
+  plasma cell:
+    source_labels:
+    - Plasma Cell
+    n_cells: 24775
+    ontology_id: CL:0000786
+    ontology_name: plasma cell
+    parents:
+    - id: CL:0000946
+      name: antibody secreting cell
+  plasmacytoid dendritic cell:
+    source_labels:
+    - Plasmacytoid Dendritic Cell
+    n_cells: 15152
+    ontology_id: CL:0000784
+    ontology_name: plasmacytoid dendritic cell
+    parents:
+    - id: CL:0000451
+      name: dendritic cell
+  regulatory t cell:
+    source_labels:
+    - Regulatory T Cell
+    n_cells: 47902
+    ontology_id: CL:0000815
+    ontology_name: regulatory T cell
+    parents:
+    - id: CL:0002419
+      name: mature T cell
+  stromal cell:
+    source_labels:
+    - Stromal Cell
+    n_cells: 58591
+    ontology_id: CL:0000499
+    ontology_name: stromal cell
+    parents:
+    - id: CL:0002320
+      name: connective tissue cell
+    note: Broad source label; retained only to the stromal lineage.
+  t cell:
+    source_labels:
+    - T Cell
+    n_cells: 10206
+    ontology_id: CL:0000084
+    ontology_name: T cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
+  type i nk t cell:
+    source_labels:
+    - Type I NK T Cell
+    n_cells: 1747
+    ontology_id: CL:0000921
+    ontology_name: type I NK T cell
+    parents:
+    - id: CL:0000814
+      name: mature NK T cell

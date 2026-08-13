@@ -1,0 +1,194 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: hest
+sample_id: TENX187
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX187/TENX187_granular_cell_labels.csv
+  label_column: group
+labels:
+  ciliated epithelial cell:
+    source_labels:
+    - Ciliated Epithelial Cells
+    n_cells: 1987
+    ontology_id: CL:0000067
+    ontology_name: ciliated epithelial cell
+    parents:
+    - id: CL:0000064
+      name: ciliated cell
+    - id: CL:0000066
+      name: epithelial cell
+  fallopian tube epithelial cell:
+    source_labels:
+    - Fallopian Tube Epithelium
+    n_cells: 3034
+    ontology_id: CL:4052018
+    ontology_name: fallopian tube epithelial cell
+    parents:
+    - id: CL:0000066
+      name: epithelial cell
+  inflammatory tumor cell:
+    source_labels:
+    - Inflammatory Tumor Cells
+    n_cells: 2158
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  macrophage:
+    source_labels:
+    - Macrophages
+    n_cells: 27415
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  malignant cell lining cyst:
+    source_labels:
+    - Malignant Cells Lining Cyst
+    n_cells: 2534
+    ontology_id: CL:0001064
+    ontology_name: malignant cell
+    parents:
+    - id: CL:0001063
+      name: neoplastic cell
+  pericyte:
+    source_labels:
+    - Pericytes
+    n_cells: 4828
+    ontology_id: CL:0000669
+    ontology_name: pericyte
+    parents:
+    - id: CL:0000183
+      name: contractile cell
+    - id: CL:0000630
+      name: supporting cell
+    - id: CL:0002320
+      name: connective tissue cell
+    - id: CL:0008034
+      name: mural cell
+  proliferating tumor cell:
+    source_labels:
+    - Proliferative Tumor Cells
+    n_cells: 50118
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  smooth muscle cell:
+    source_labels:
+    - Smooth Muscle Cells
+    n_cells: 61545
+    ontology_id: CL:0000192
+    ontology_name: smooth muscle cell
+    parents:
+    - id: CL:0008000
+      name: non-striated muscle cell
+    - id: CL:0008007
+      name: visceral muscle cell
+  sox2-ot-positive tumor cell:
+    source_labels:
+    - SOX2-OT+ Tumor Cells
+    n_cells: 39355
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  stromal associated endothelial cell:
+    source_labels:
+    - Stromal Associated Endothelial Cells
+    n_cells: 18249
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  stromal associated fibroblast:
+    source_labels:
+    - Stromal Associated Fibroblasts
+    n_cells: 24604
+    ontology_id: CL:0000057
+    ontology_name: fibroblast
+    parents:
+    - id: CL:0000499
+      name: stromal cell
+  t/nk cell:
+    source_labels:
+    - T and NK Cells
+    n_cells: 9999
+    ontology_id: CL:0000542
+    ontology_name: lymphocyte
+    parents:
+    - id: CL:0000842
+      name: mononuclear leukocyte
+    note: Composite label; retained only to the lymphoid lineage.
+  tumor associated endothelial cell:
+    source_labels:
+    - Tumor Associated Endothelial Cells
+    n_cells: 3813
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  tumor associated fibroblast:
+    source_labels:
+    - Tumor Associated Fibroblasts
+    n_cells: 39332
+    ontology_id: CL:0000057
+    ontology_name: fibroblast
+    parents:
+    - id: CL:0000499
+      name: stromal cell
+  tumor cell:
+    source_labels:
+    - Tumor Cells
+    n_cells: 103607
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  unassigned:
+    source_labels:
+    - Unassigned
+    n_cells: 1984
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: No source identity was assigned.
+  urothelial-like cell:
+    source_labels:
+    - Urothelial-like Cells
+    n_cells: 1961
+    ontology_id: CL:0000066
+    ontology_name: epithelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+    note: Similarity wording is not treated as an exact urothelial identity.
+  vegfa-positive tumor cell:
+    source_labels:
+    - VEGFA+ Tumor Cells
+    n_cells: 10088
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell

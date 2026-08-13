@@ -1,0 +1,167 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: hest
+sample_id: TENX116
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX116/TENX116_granular_cell_labels.csv
+  label_column: group
+labels:
+  acinar cell:
+    source_labels:
+    - Acinar
+    n_cells: 18685
+    ontology_id: CL:0002064
+    ontology_name: pancreatic acinar cell
+    parents:
+    - id: CL:0000622
+      name: acinar cell
+    - id: CL:1001599
+      name: pancreas exocrine glandular cell
+  b cell:
+    source_labels:
+    - B Cells
+    n_cells: 3222
+    ontology_id: CL:0000236
+    ontology_name: B cell
+    parents:
+    - id: CL:0000945
+      name: lymphocyte of B lineage
+  cftr-negative tumor cell:
+    source_labels:
+    - CFTR- Tumor Cells
+    n_cells: 18592
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  cxcl9/10 cell:
+    source_labels:
+    - CXCL9/10 Cells
+    n_cells: 3440
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: Marker-only label with no defensible cell identity.
+  ductal cell:
+    source_labels:
+    - Ductal
+    n_cells: 4562
+    ontology_id: CL:0002079
+    ontology_name: pancreatic ductal cell
+    parents:
+    - id: CL:0000069
+      name: branched duct epithelial cell
+    - id: CL:1001433
+      name: epithelial cell of exocrine pancreas
+  endocrine cell:
+    source_labels:
+    - Endocrine 1
+    - Endocrine 2
+    n_cells: 18417
+    ontology_id: CL:0008024
+    ontology_name: pancreatic endocrine cell
+    parents:
+    - id: CL:0000083
+      name: epithelial cell of pancreas
+    - id: CL:0000164
+      name: enteroendocrine cell
+  endothelial cell:
+    source_labels:
+    - Endothelial
+    n_cells: 10331
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  fibroblast:
+    source_labels:
+    - Fibroblasts
+    n_cells: 27535
+    ontology_id: CL:0000057
+    ontology_name: fibroblast
+    parents:
+    - id: CL:0000499
+      name: stromal cell
+  lymphatic endothelial cell:
+    source_labels:
+    - Lymphatic Endothelial Cells
+    n_cells: 1740
+    ontology_id: CL:0002138
+    ontology_name: endothelial cell of lymphatic vessel
+    parents:
+    - id: CL:0002139
+      name: endothelial cell of vascular tree
+  macrophage:
+    source_labels:
+    - Macrophages
+    n_cells: 28548
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  mast cell:
+    source_labels:
+    - Mast Cells
+    n_cells: 2959
+    ontology_id: CL:0000097
+    ontology_name: mast cell
+    parents:
+    - id: CL:0000766
+      name: myeloid leukocyte
+    - id: CL:0002274
+      name: histamine secreting cell
+  metaplastic cell:
+    source_labels:
+    - Metaplastic Cells
+    n_cells: 19476
+    ontology_id: CL:0000066
+    ontology_name: epithelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+    note: A state label without a defensible finer epithelial identity.
+  smooth muscle cell:
+    source_labels:
+    - Smooth Muscle Cells
+    n_cells: 1903
+    ontology_id: CL:0000192
+    ontology_name: smooth muscle cell
+    parents:
+    - id: CL:0008000
+      name: non-striated muscle cell
+    - id: CL:0008007
+      name: visceral muscle cell
+  t cell:
+    source_labels:
+    - T Cells
+    n_cells: 12705
+    ontology_id: CL:0000084
+    ontology_name: T cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
+  tumor cell:
+    source_labels:
+    - Tumor Cells
+    n_cells: 18847
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell

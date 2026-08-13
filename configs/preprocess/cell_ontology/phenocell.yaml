@@ -1,0 +1,157 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: phenocell
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/eval/phenocell/phenocell_info.csv
+  label_column: label
+  sample_column: sample_id
+labels:
+  adipocyte:
+    source_labels:
+    - Adipocytes
+    n_cells: 1850
+    ontology_id: CL:0000136
+    ontology_name: adipocyte
+    parents:
+    - id: CL:0000325
+      name: stuff accumulating cell
+    - id: CL:0002320
+      name: connective tissue cell
+  b cell:
+    source_labels:
+    - B cells
+    n_cells: 15176
+    ontology_id: CL:0000236
+    ontology_name: B cell
+    parents:
+    - id: CL:0000945
+      name: lymphocyte of B lineage
+  dendritic cell:
+    source_labels:
+    - Dendritic cells
+    n_cells: 438
+    ontology_id: CL:0000451
+    ontology_name: dendritic cell
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+  granulocyte:
+    source_labels:
+    - Granulocytes
+    n_cells: 22247
+    ontology_id: CL:0000094
+    ontology_name: granulocyte
+    parents:
+    - id: CL:0000081
+      name: blood cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  macrophage/monocyte:
+    source_labels:
+    - Macrophages/Monocytes
+    n_cells: 46186
+    ontology_id: CL:0000113
+    ontology_name: mononuclear phagocyte
+    parents:
+    - id: CL:0000518
+      name: phagocyte (sensu Vertebrata)
+    - id: CL:0000842
+      name: mononuclear leukocyte
+    note: Mononuclear phagocyte is the nearest common CL parent.
+  natural killer cell:
+    source_labels:
+    - NK cells
+    n_cells: 374
+    ontology_id: CL:0000623
+    ontology_name: natural killer cell
+    parents:
+    - id: CL:0001067
+      name: group 1 innate lymphoid cell
+  nerve:
+    source_labels:
+    - Nerves
+    n_cells: 683
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: Tissue structure; the segmented cell may be a neuron or a glial cell.
+  other cell:
+    source_labels:
+    - Other cells
+    n_cells: 13925
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: Catch-all class, not a cell type.
+  plasma cell:
+    source_labels:
+    - Plasma cells
+    n_cells: 8937
+    ontology_id: CL:0000786
+    ontology_name: plasma cell
+    parents:
+    - id: CL:0000946
+      name: antibody secreting cell
+  smooth muscle cell:
+    source_labels:
+    - Smooth muscle
+    n_cells: 28926
+    ontology_id: CL:0000192
+    ontology_name: smooth muscle cell
+    parents:
+    - id: CL:0008000
+      name: non-striated muscle cell
+    - id: CL:0008007
+      name: visceral muscle cell
+  stromal cell:
+    source_labels:
+    - Stroma
+    n_cells: 21091
+    ontology_id: CL:0000499
+    ontology_name: stromal cell
+    parents:
+    - id: CL:0002320
+      name: connective tissue cell
+    note: Tissue-level source label interpreted at its stated stromal-cell level.
+  t cell:
+    source_labels:
+    - T cells
+    n_cells: 43547
+    ontology_id: CL:0000084
+    ontology_name: T cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
+  tumor cell:
+    source_labels:
+    - Tumor cells
+    n_cells: 49045
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+    note: Mapped conservatively to neoplastic cell; malignancy is not encoded by the
+      source label.
+  vascular/lymphatic endothelial cell:
+    source_labels:
+    - Vasculature/Lymphatics
+    n_cells: 13205
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+    note: Endothelial cell is the common CL parent of blood and lymphatic endothelium.

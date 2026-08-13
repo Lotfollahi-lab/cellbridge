@@ -1,0 +1,129 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: hest
+sample_id: TENX191
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX191/TENX191_granular_cell_labels.csv
+  label_column: group
+labels:
+  endothelial cell:
+    source_labels:
+    - 5_Endothelial_Cells
+    n_cells: 15947
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  macrophage:
+    source_labels:
+    - 1_Macrophages
+    n_cells: 20524
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  normal epithelial cell:
+    source_labels:
+    - 11_Normal_Epithelial_Cells
+    n_cells: 6184
+    ontology_id: CL:0002327
+    ontology_name: mammary gland epithelial cell
+    parents:
+    - id: CL:0000066
+      name: epithelial cell
+  normal myoepithelial cell:
+    source_labels:
+    - 14_Normal_Myoepithelial_Cells
+    n_cells: 10679
+    ontology_id: CL:0000185
+    ontology_name: myoepithelial cell
+    parents:
+    - id: CL:0000075
+      name: columnar/cuboidal epithelial cell
+    - id: CL:0000183
+      name: contractile cell
+  perivascular cell:
+    source_labels:
+    - 3_Perivascular_Cells
+    n_cells: 17000
+    ontology_id: CL:4033054
+    ontology_name: perivascular cell
+    parents:
+    - id: CL:0000000
+      name: cell
+  plasma cell:
+    source_labels:
+    - 13_Plasma_Cells
+    n_cells: 4658
+    ontology_id: CL:0000786
+    ontology_name: plasma cell
+    parents:
+    - id: CL:0000946
+      name: antibody secreting cell
+  proliferating tumor cell:
+    source_labels:
+    - 0_Proliferative_Tumor_Cells
+    n_cells: 24811
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  stromal cell:
+    source_labels:
+    - 2_Stromal_Cells
+    n_cells: 20164
+    ontology_id: CL:0000499
+    ontology_name: stromal cell
+    parents:
+    - id: CL:0002320
+      name: connective tissue cell
+    note: Broad source label; retained only to the stromal lineage.
+  t cell:
+    source_labels:
+    - 6_T_Lymphocytes
+    n_cells: 15762
+    ontology_id: CL:0000084
+    ontology_name: T cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
+  tumor adjacent myoepithelial cell:
+    source_labels:
+    - 10_Tumor_Adjacent_Myoepithelial_Cells
+    n_cells: 1517
+    ontology_id: CL:0000185
+    ontology_name: myoepithelial cell
+    parents:
+    - id: CL:0000075
+      name: columnar/cuboidal epithelial cell
+    - id: CL:0000183
+      name: contractile cell
+  tumor cell:
+    source_labels:
+    - 12_Tumor_Cells
+    - 15_Tumor_Cells
+    - 4_Tumor_Cells
+    - 7_Tumor_Cells
+    - 8_Tumor_Cells
+    - 9_Tumor_Cells
+    n_cells: 63427
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell

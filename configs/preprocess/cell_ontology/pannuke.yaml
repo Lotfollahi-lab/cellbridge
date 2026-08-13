@@ -1,0 +1,70 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: pannuke
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_info.csv
+  label_column: label
+  sample_column: sample_id
+labels:
+  connective/soft tissue cell:
+    source_labels:
+    - Connective/Soft tissue cells
+    n_cells: 59798
+    ontology_id: CL:0002320
+    ontology_name: connective tissue cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+    note: Broad source class represented by connective tissue cell.
+  dead cell:
+    source_labels:
+    - Dead Cells
+    n_cells: 3171
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: Dead or necrotic material is not a cell type in CL.
+  epithelial cell:
+    source_labels:
+    - Epithelial
+    n_cells: 31614
+    ontology_id: CL:0000066
+    ontology_name: epithelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  inflammatory cell:
+    source_labels:
+    - Inflammatory
+    n_cells: 36913
+    ontology_id: CL:0000738
+    ontology_name: leukocyte
+    parents:
+    - id: CL:0000219
+      name: motile cell
+    - id: CL:0000255
+      name: eukaryotic cell
+    - id: CL:0000988
+      name: hematopoietic cell
+    - id: CL:0002242
+      name: nucleate cell
+    note: PanNuke uses this class for infiltrating immune cells; leukocyte is the
+      nearest common CL term.
+  neoplastic cell:
+    source_labels:
+    - Neoplastic cells
+    n_cells: 93675
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell

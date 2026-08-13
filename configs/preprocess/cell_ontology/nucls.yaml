@@ -1,0 +1,140 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: nucls
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/eval/nucls/nucls_info.csv
+  label_column: label
+  sample_column: sample_id
+labels:
+  apoptotic body:
+    source_labels:
+    - apoptotic_body
+    n_cells: 396
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: Cell fragment, not a cell type.
+  duct epithelial cell:
+    source_labels:
+    - ductal_epithelium
+    n_cells: 498
+    ontology_id: CL:0000068
+    ontology_name: duct epithelial cell
+    parents:
+    - id: CL:0000066
+      name: epithelial cell
+  endothelial cell:
+    source_labels:
+    - vascular_endothelium
+    n_cells: 512
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  eosinophil:
+    source_labels:
+    - eosinophil
+    n_cells: 3
+    ontology_id: CL:0000771
+    ontology_name: eosinophil
+    parents:
+    - id: CL:0000094
+      name: granulocyte
+  fibroblast:
+    source_labels:
+    - fibroblast
+    n_cells: 8620
+    ontology_id: CL:0000057
+    ontology_name: fibroblast
+    parents:
+    - id: CL:0000499
+      name: stromal cell
+  lymphocyte:
+    source_labels:
+    - lymphocyte
+    n_cells: 13630
+    ontology_id: CL:0000542
+    ontology_name: lymphocyte
+    parents:
+    - id: CL:0000842
+      name: mononuclear leukocyte
+  macrophage:
+    source_labels:
+    - macrophage
+    n_cells: 1354
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  mitotic figure:
+    source_labels:
+    - mitotic_figure
+    n_cells: 229
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: Morphologic cell state, not a cell identity.
+  myoepithelial cell:
+    source_labels:
+    - myoepithelium
+    n_cells: 54
+    ontology_id: CL:0000185
+    ontology_name: myoepithelial cell
+    parents:
+    - id: CL:0000075
+      name: columnar/cuboidal epithelial cell
+    - id: CL:0000183
+      name: contractile cell
+  neutrophil:
+    source_labels:
+    - neutrophil
+    n_cells: 45
+    ontology_id: CL:0000775
+    ontology_name: neutrophil
+    parents:
+    - id: CL:0000094
+      name: granulocyte
+  plasma cell:
+    source_labels:
+    - plasma_cell
+    n_cells: 5562
+    ontology_id: CL:0000786
+    ontology_name: plasma cell
+    parents:
+    - id: CL:0000946
+      name: antibody secreting cell
+  tumor cell:
+    source_labels:
+    - tumor
+    n_cells: 21067
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+    note: Mapped conservatively to neoplastic cell.
+  unlabeled:
+    source_labels:
+    - unlabeled
+    n_cells: 7515
+    ontology_id: null
+    ontology_name: null
+    parents: []
+    excluded: true
+    note: No source identity was assigned.

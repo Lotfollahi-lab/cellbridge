@@ -1,0 +1,111 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: hest
+sample_id: TENX192
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX192/TENX192_granular_cell_labels.csv
+  label_column: group
+labels:
+  adipocyte:
+    source_labels:
+    - 13_Adipocytes
+    n_cells: 1499
+    ontology_id: CL:0000136
+    ontology_name: adipocyte
+    parents:
+    - id: CL:0000325
+      name: stuff accumulating cell
+    - id: CL:0002320
+      name: connective tissue cell
+  endothelial cell:
+    source_labels:
+    - 4_Endothelial_Cells
+    n_cells: 27638
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  inflammatory tumor cell:
+    source_labels:
+    - 10_Inflammatory_Tumor_Cells
+    n_cells: 6606
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  macrophage:
+    source_labels:
+    - 7_Macrophages
+    n_cells: 14248
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  myoepithelial cell:
+    source_labels:
+    - 2_Myoepithelial_Cells
+    n_cells: 41479
+    ontology_id: CL:0000185
+    ontology_name: myoepithelial cell
+    parents:
+    - id: CL:0000075
+      name: columnar/cuboidal epithelial cell
+    - id: CL:0000183
+      name: contractile cell
+  proliferating tumor cell:
+    source_labels:
+    - 8_Proliferative_Tumor_Cells
+    n_cells: 13414
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell
+  stromal cell:
+    source_labels:
+    - 6_Stromal_Cells
+    n_cells: 20841
+    ontology_id: CL:0000499
+    ontology_name: stromal cell
+    parents:
+    - id: CL:0002320
+      name: connective tissue cell
+    note: Broad source label; retained only to the stromal lineage.
+  t cell:
+    source_labels:
+    - 3_T_Lymphocytes
+    n_cells: 30105
+    ontology_id: CL:0000084
+    ontology_name: T cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
+  tumor cell:
+    source_labels:
+    - 0_Tumor_Cells
+    - 11_Tumor_Cells
+    - 12_Tumor_Cells
+    - 1_Tumor_Cells
+    - 5_Tumor_Cells
+    - 9_Tumor_Cells
+    n_cells: 201047
+    ontology_id: CL:0001063
+    ontology_name: neoplastic cell
+    parents:
+    - id: CL:0001061
+      name: abnormal cell

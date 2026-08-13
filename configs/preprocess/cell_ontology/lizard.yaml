@@ -1,0 +1,72 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: lizard
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/lizard_info.csv
+  label_column: label
+  sample_column: sample_id
+labels:
+  connective tissue cell:
+    source_labels:
+    - Connective tissue
+    n_cells: 105471
+    ontology_id: CL:0002320
+    ontology_name: connective tissue cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+    note: Tissue-level source class represented by connective tissue cell.
+  eosinophil:
+    source_labels:
+    - Eosinophil
+    n_cells: 3246
+    ontology_id: CL:0000771
+    ontology_name: eosinophil
+    parents:
+    - id: CL:0000094
+      name: granulocyte
+  epithelial cell:
+    source_labels:
+    - Epithelial
+    n_cells: 231526
+    ontology_id: CL:0000066
+    ontology_name: epithelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  lymphocyte:
+    source_labels:
+    - Lymphocyte
+    n_cells: 97666
+    ontology_id: CL:0000542
+    ontology_name: lymphocyte
+    parents:
+    - id: CL:0000842
+      name: mononuclear leukocyte
+  neutrophil:
+    source_labels:
+    - Neutrophil
+    n_cells: 4465
+    ontology_id: CL:0000775
+    ontology_name: neutrophil
+    parents:
+    - id: CL:0000094
+      name: granulocyte
+  plasma cell:
+    source_labels:
+    - Plasma
+    n_cells: 26499
+    ontology_id: CL:0000786
+    ontology_name: plasma cell
+    parents:
+    - id: CL:0000946
+      name: antibody secreting cell
+    note: The source label 'Plasma' denotes plasma cells.

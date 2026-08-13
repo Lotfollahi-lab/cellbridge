@@ -1,0 +1,103 @@
+# Normalized labels are lowercase and singular. Parents are the asserted
+# direct is_a parents in the pinned Cell Ontology release.
+dataset: hest
+sample_id: TENX194
+ontology:
+  release: '2026-06-08'
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
+  sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  root:
+    id: CL:0000255
+    name: eukaryotic cell
+source:
+  path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX194/TENX194_granular_cell_labels.csv
+  label_column: group
+labels:
+  alveolar epithelial cell:
+    source_labels:
+    - 10_Alveolar_Epithelial_Cells
+    - 12_Alveolar_Epithelial_Cells
+    - 1_Alveolar_Epithelial_Cells
+    - 4_Alveolar_Epithelial_Cells
+    - 5_Alveolar_Epithelial_Cells
+    n_cells: 105300
+    ontology_id: CL:0002327
+    ontology_name: mammary gland epithelial cell
+    parents:
+    - id: CL:0000066
+      name: epithelial cell
+  ductal epithelial cell:
+    source_labels:
+    - 7_Ductal_Epithelial_Cells
+    n_cells: 9588
+    ontology_id: CL:0002326
+    ontology_name: luminal epithelial cell of mammary gland
+    parents:
+    - id: CL:0000069
+      name: branched duct epithelial cell
+    - id: CL:0002327
+      name: mammary gland epithelial cell
+  endothelial cell:
+    source_labels:
+    - 3_Endothelial_Cells
+    n_cells: 31260
+    ontology_id: CL:0000115
+    ontology_name: endothelial cell
+    parents:
+    - id: CL:0000255
+      name: eukaryotic cell
+  macrophage:
+    source_labels:
+    - 6_Macrophages
+    n_cells: 15660
+    ontology_id: CL:0000235
+    ontology_name: macrophage
+    parents:
+    - id: CL:0000113
+      name: mononuclear phagocyte
+    - id: CL:0000145
+      name: professional antigen presenting cell
+    - id: CL:0000766
+      name: myeloid leukocyte
+  myoepithelial cell:
+    source_labels:
+    - 2_Myoepithelial
+    n_cells: 37296
+    ontology_id: CL:0000185
+    ontology_name: myoepithelial cell
+    parents:
+    - id: CL:0000075
+      name: columnar/cuboidal epithelial cell
+    - id: CL:0000183
+      name: contractile cell
+  plasma cell:
+    source_labels:
+    - 11_Plasma_Cells
+    n_cells: 4051
+    ontology_id: CL:0000786
+    ontology_name: plasma cell
+    parents:
+    - id: CL:0000946
+      name: antibody secreting cell
+  stromal cell:
+    source_labels:
+    - 0_Stromal_Cells
+    - 13_Stromal_Cells
+    - 9_Stromal_Cells
+    n_cells: 67252
+    ontology_id: CL:0000499
+    ontology_name: stromal cell
+    parents:
+    - id: CL:0002320
+      name: connective tissue cell
+    note: Broad source label; retained only to the stromal lineage.
+  t cell:
+    source_labels:
+    - 8_T_Lymphocytes
+    n_cells: 7499
+    ontology_id: CL:0000084
+    ontology_name: T cell
+    parents:
+    - id: CL:0000542
+      name: lymphocyte
