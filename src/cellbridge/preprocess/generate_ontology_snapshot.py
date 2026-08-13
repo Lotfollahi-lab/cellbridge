@@ -3,9 +3,13 @@
 Example:
     PYTHONPATH=src python -m \
       cellbridge.preprocess.generate_ontology_snapshot cl-base.json \
-      configs/preprocess/cell_ontology/*.yaml \
+      configs/preprocess/cell_ontology/immunocto.yaml \
+      configs/preprocess/cell_ontology/lizard.yaml \
+      configs/preprocess/cell_ontology/nucls.yaml \
+      configs/preprocess/cell_ontology/pannuke.yaml \
+      configs/preprocess/cell_ontology/phenocell.yaml \
       configs/preprocess/cell_ontology/hest/*.yaml \
-      --output configs/ontology/cl-2026-06-08.yaml
+      --output configs/preprocess/cell_ontology/cl-2026-06-08.yaml
 """
 
 from __future__ import annotations

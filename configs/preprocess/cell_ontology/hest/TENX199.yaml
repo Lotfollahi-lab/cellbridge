@@ -7,7 +7,7 @@ ontology:
   browser: https://www.ebi.ac.uk/ols4/ontologies/cl
   source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
   sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
-  snapshot: ${CELLBRIDGE_ROOT}/configs/ontology/cl-2026-06-08.yaml
+  snapshot: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/cl-2026-06-08.yaml
   root:
     id: CL:0000000
     name: cell
