@@ -31,6 +31,10 @@ done
 "$RUNNER" core check "$CONFIG" "${check_arguments[@]}"
 
 dataset="$("$SUBMIT" value "$CONFIG" dataset)"
+case "$dataset" in
+  immunocto) evaluation_memory="${INFERENCE_CPU_MEM_GB:-256}" ;;
+  *) evaluation_memory="${INFERENCE_CPU_MEM_GB:-64}" ;;
+esac
 jobs=()
 for method in "${methods[@]}"; do
   case "$method" in
@@ -60,7 +64,7 @@ job="$("$SUBMIT" submit "$CONFIG" \
   --job "${dataset}_evaluate" --log-prefix evaluate \
   --queue "${INFERENCE_CPU_QUEUE:-training-normal}" \
   --gmem "${INFERENCE_EVAL_GMEM_MB:-1000}" \
-  --memory "${INFERENCE_CPU_MEM_GB:-64}" \
+  --memory "$evaluation_memory" \
   --cores "${INFERENCE_CPU_NCORES:-16}" --environment none \
   --dependency "${dependency%&&}" -- \
   "$RUNNER" core evaluate "$CONFIG" "${evaluate_arguments[@]}")"
