@@ -189,6 +189,8 @@ def _check_ontology(config: dict, path: Path) -> None:
     root = config["ontology"]["root"]
     if names.get(root["id"]) != root["name"]:
         raise ValueError("ontology root ID and name disagree")
+    if parents[root["id"]]:
+        raise ValueError(f"configured ontology root {root['id']} has a parent")
 
     for normalized, entry in config["labels"].items():
         term_id = entry.get("ontology_id")
@@ -196,6 +198,15 @@ def _check_ontology(config: dict, path: Path) -> None:
             continue
         if names.get(term_id) != entry.get("ontology_name"):
             raise ValueError(f"{normalized!r}: ontology ID and name disagree")
+        ancestors = {term_id}
+        pending = [term_id]
+        while pending:
+            current = pending.pop()
+            unseen = parents[current] - ancestors
+            ancestors.update(unseen)
+            pending.extend(unseen)
+        if root["id"] not in ancestors:
+            raise ValueError(f"{normalized!r}: ontology term does not reach root")
         configured_parents = {
             (parent["id"], parent["name"]) for parent in entry["parents"]
         }

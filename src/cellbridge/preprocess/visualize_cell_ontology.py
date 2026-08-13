@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 from cellbridge.config import load_config
+from cellbridge.ontology import Ontology, load_mapping, load_ontology
 
 _OUTPUT_FORMATS = {".pdf": "pdf", ".png": "png", ".svg": "svg"}
 
@@ -35,19 +36,35 @@ def _label_text(normalized: str, entry: dict) -> str:
     return "\n".join(lines)
 
 
-def mapping_to_dot(config: dict) -> str:
-    """Return a DOT graph for the mappings and direct parents in a config."""
-    root = config["ontology"]["root"]
-    terms = {root["id"]: root["name"]}
-    mapped_terms = set()
-    ontology_edges = set()
+def _ancestor_graph(mapping: dict, ontology: Ontology):
+    """Return mapped terms and their complete ancestor subgraph."""
+    root = {"id": ontology.root, "name": ontology.names[ontology.root]}
+    if mapping["ontology"]["root"] != root:
+        raise ValueError("mapping and ontology root disagree")
+
+    mapped_terms = {
+        entry["ontology_id"]
+        for entry in mapping["labels"].values()
+        if entry.get("ontology_id") is not None
+    }
+    nodes = {ontology.root}
+    for term_id in mapped_terms:
+        nodes.update(ontology.ancestors(term_id))
+    names = {term_id: ontology.names[term_id] for term_id in nodes}
+    edges = {
+        (term_id, parent)
+        for term_id in nodes
+        for parent in ontology.parents[term_id]
+        if parent in nodes
+    }
+    return root, names, edges, mapped_terms
+
+
+def mapping_to_dot(config: dict, ontology: Ontology) -> str:
+    """Return a DOT graph through every asserted ancestor to the root."""
+    root, terms, ontology_edges, mapped_terms = _ancestor_graph(config, ontology)
     mapped_labels = []
     excluded_labels = []
-
-    def add_term(term_id: str, name: str) -> None:
-        previous = terms.setdefault(term_id, name)
-        if previous != name:
-            raise ValueError(f"conflicting names for {term_id}: {previous!r}, {name!r}")
 
     for normalized, entry in config["labels"].items():
         term_id = entry.get("ontology_id")
@@ -55,26 +72,23 @@ def mapping_to_dot(config: dict) -> str:
             excluded_labels.append((normalized, entry))
             continue
 
-        add_term(term_id, entry["ontology_name"])
-        mapped_terms.add(term_id)
+        if terms[term_id] != entry["ontology_name"]:
+            raise ValueError(f"mapping and ontology name disagree for {term_id}")
         mapped_labels.append((normalized, entry, term_id))
-        for parent in entry["parents"]:
-            add_term(parent["id"], parent["name"])
-            ontology_edges.add((term_id, parent["id"]))
 
     dataset = str(config["dataset"])
     if config.get("sample_id"):
         dataset += f" / {config['sample_id']}"
     title = (
         f"{dataset}\nCell Ontology {config['ontology']['release']}\n"
-        "normalized labels → CL terms → asserted direct parents"
+        "normalized labels → CL terms → complete asserted is_a ancestry"
     )
 
     lines = [
         "digraph cell_ontology_mapping {",
         "  graph ["
         + _attributes(
-            rankdir="LR",
+            rankdir="BT",
             bgcolor="white",
             label=title,
             labelloc="t",
@@ -106,7 +120,7 @@ def mapping_to_dot(config: dict) -> str:
     for child, parent in sorted(ontology_edges):
         lines.append(
             f"  {_quote(f'term:{child}')} -> {_quote(f'term:{parent}')} "
-            f"[{_attributes(label='is_a', color='#64748b')}];"
+            f"[{_attributes(color='#64748b', tooltip='is_a')}];"
         )
 
     for index, (normalized, entry, term_id) in enumerate(mapped_labels):
@@ -163,7 +177,9 @@ def render_mapping(config_path, output_path) -> Path:
     config = load_config(config_path)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    dot_source = mapping_to_dot(config)
+    ontology = load_ontology(config["ontology"]["snapshot"])
+    load_mapping(config_path).validate_ontology(ontology)
+    dot_source = mapping_to_dot(config, ontology)
 
     if output_path.suffix.lower() == ".dot":
         output_path.write_text(dot_source)

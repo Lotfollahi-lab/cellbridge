@@ -4,12 +4,13 @@ dataset: hest
 sample_id: TENX197
 ontology:
   release: '2026-06-08'
-  browser: https://www.ebi.ac.uk/ols4/ontologies/cl/classes/http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCL_0000255
+  browser: https://www.ebi.ac.uk/ols4/ontologies/cl
   source: https://github.com/obophenotype/cell-ontology/releases/download/v2026-06-08/cl-base.json
   sha256: e07aa201fcc72c186005e9ab2ddb0e6f49333bcff3d458d5ad8b0ee67c1c0f08
+  snapshot: ${CELLBRIDGE_ROOT}/configs/ontology/cl-2026-06-08.yaml
   root:
-    id: CL:0000255
-    name: eukaryotic cell
+    id: CL:0000000
+    name: cell
 source:
   path: ${CELLBRIDGE_DATA_ROOT}/train/hest/TENX197/TENX197_granular_cell_labels.csv
   label_column: group
