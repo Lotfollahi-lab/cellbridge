@@ -19,4 +19,9 @@ probe:
     Cs: [0.1, 1, 10]
     max_iter: 2000
 
+conformal:
+  alpha: 0.1
+  mapping: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/immunocto.yaml
+  ontology: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/cl-2026-06-08.yaml
+
 output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/immunocto

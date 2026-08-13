@@ -22,4 +22,9 @@ probe:
   knn:
     n_neighbors: 20
 
+conformal:
+  alpha: 0.1
+  mapping: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/nucls.yaml
+  ontology: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/cl-2026-06-08.yaml
+
 output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/nucls
