@@ -48,25 +48,30 @@ terms:
     - CL:0000066
   CL:0000081:
     name: blood cell
-    parents: []
+    parents:
+    - CL:0000988
   CL:0000082:
     name: epithelial cell of lung
     parents:
     - CL:0002632
   CL:0000084:
     name: T cell
-    parents: []
+    parents:
+    - CL:0000542
   CL:0000094:
     name: granulocyte
     parents:
     - CL:0000081
+    - CL:0000766
   CL:0000097:
     name: mast cell
     parents:
+    - CL:0000766
     - CL:0002274
   CL:0000113:
     name: mononuclear phagocyte
     parents:
+    - CL:0000518
     - CL:0000842
   CL:0000115:
     name: endothelial cell
@@ -136,14 +141,22 @@ terms:
     parents:
     - CL:0000081
     - CL:0000329
+    - CL:0000764
+  CL:0000234:
+    name: phagocyte
+    parents:
+    - CL:0000219
+    - CL:0000325
   CL:0000235:
     name: macrophage
     parents:
     - CL:0000113
     - CL:0000145
+    - CL:0000766
   CL:0000236:
     name: B cell
-    parents: []
+    parents:
+    - CL:0000945
   CL:0000244:
     name: transitional epithelial cell
     parents:
@@ -181,6 +194,11 @@ terms:
     name: stromal cell
     parents:
     - CL:0002320
+  CL:0000518:
+    name: phagocyte (sensu Vertebrata)
+    parents:
+    - CL:0000234
+    - CL:0000255
   CL:0000542:
     name: lymphocyte
     parents:
@@ -189,6 +207,7 @@ terms:
     name: monocyte
     parents:
     - CL:0000113
+    - CL:0000766
     - CL:0011026
   CL:0000622:
     name: acinar cell
@@ -201,10 +220,12 @@ terms:
     - CL:0001067
   CL:0000624:
     name: CD4-positive, alpha-beta T cell
-    parents: []
+    parents:
+    - CL:0000791
   CL:0000625:
     name: CD8-positive, alpha-beta T cell
-    parents: []
+    parents:
+    - CL:0000791
   CL:0000630:
     name: supporting cell
     parents:
@@ -230,59 +251,99 @@ terms:
     parents:
     - CL:0000219
     - CL:0000255
+    - CL:0000988
     - CL:0002242
   CL:0000763:
     name: myeloid cell
     parents:
     - CL:0000255
+    - CL:0000988
+  CL:0000764:
+    name: erythroid lineage cell
+    parents:
+    - CL:0000763
   CL:0000766:
     name: myeloid leukocyte
     parents:
+    - CL:0000738
     - CL:0000763
   CL:0000771:
     name: eosinophil
-    parents: []
+    parents:
+    - CL:0000094
   CL:0000775:
     name: neutrophil
-    parents: []
+    parents:
+    - CL:0000094
+  CL:0000782:
+    name: myeloid dendritic cell
+    parents:
+    - CL:0000766
+    - CL:0000990
   CL:0000784:
     name: plasmacytoid dendritic cell
-    parents: []
+    parents:
+    - CL:0000451
+  CL:0000785:
+    name: mature B cell
+    parents:
+    - CL:0000145
+    - CL:0001201
   CL:0000786:
     name: plasma cell
-    parents: []
+    parents:
+    - CL:0000946
   CL:0000787:
     name: memory B cell
-    parents: []
+    parents:
+    - CL:0000785
   CL:0000788:
     name: naive B cell
-    parents: []
+    parents:
+    - CL:0000785
+  CL:0000789:
+    name: alpha-beta T cell
+    parents:
+    - CL:0000084
+  CL:0000791:
+    name: mature alpha-beta T cell
+    parents:
+    - CL:0000789
+    - CL:0002419
   CL:0000813:
     name: memory T cell
-    parents: []
+    parents:
+    - CL:0002419
   CL:0000814:
     name: mature NK T cell
-    parents: []
+    parents:
+    - CL:0000791
   CL:0000815:
     name: regulatory T cell
-    parents: []
+    parents:
+    - CL:0002419
   CL:0000841:
     name: mature conventional dendritic cell
     parents:
     - CL:0000766
+    - CL:0000990
   CL:0000842:
     name: mononuclear leukocyte
     parents:
     - CL:0000226
+    - CL:0000738
   CL:0000860:
     name: classical monocyte
-    parents: []
+    parents:
+    - CL:0000576
   CL:0000875:
     name: non-classical monocyte
-    parents: []
+    parents:
+    - CL:0000576
   CL:0000895:
     name: naive thymus-derived CD4-positive, alpha-beta T cell
     parents:
+    - CL:0000624
     - CL:0000898
   CL:0000897:
     name: CD4-positive, alpha-beta memory T cell
@@ -291,7 +352,8 @@ terms:
     - CL:0000813
   CL:0000898:
     name: naive T cell
-    parents: []
+    parents:
+    - CL:0002419
   CL:0000909:
     name: CD8-positive, alpha-beta memory T cell
     parents:
@@ -299,14 +361,28 @@ terms:
     - CL:0000813
   CL:0000911:
     name: effector T cell
-    parents: []
+    parents:
+    - CL:0002419
   CL:0000921:
     name: type I NK T cell
-    parents: []
+    parents:
+    - CL:0000814
+  CL:0000945:
+    name: lymphocyte of B lineage
+    parents:
+    - CL:0000542
+  CL:0000946:
+    name: antibody secreting cell
+    parents:
+    - CL:0000945
   CL:0000988:
     name: hematopoietic cell
     parents:
     - CL:0000000
+  CL:0000990:
+    name: conventional dendritic cell
+    parents:
+    - CL:0000451
   CL:0001044:
     name: effector CD4-positive, alpha-beta T cell
     parents:
@@ -337,13 +413,27 @@ terms:
     name: group 1 innate lymphoid cell
     parents:
     - CL:0001065
+  CL:0001200:
+    name: lymphocyte of B lineage, CD19-positive
+    parents:
+    - CL:0000945
+  CL:0001201:
+    name: B cell, CD19-positive
+    parents:
+    - CL:0000236
+    - CL:0001200
   CL:0002076:
     name: endo-epithelial cell
     parents:
     - CL:0000066
   CL:0002138:
     name: endothelial cell of lymphatic vessel
-    parents: []
+    parents:
+    - CL:0002139
+  CL:0002139:
+    name: endothelial cell of vascular tree
+    parents:
+    - CL:0000115
   CL:0002242:
     name: nucleate cell
     parents:
@@ -367,10 +457,16 @@ terms:
   CL:0002394:
     name: CD141-positive myeloid dendritic cell
     parents:
+    - CL:0000782
     - CL:0000784
   CL:0002399:
     name: CD1c-positive myeloid dendritic cell
-    parents: []
+    parents:
+    - CL:0000782
+  CL:0002419:
+    name: mature T cell
+    parents:
+    - CL:0000084
   CL:0002632:
     name: epithelial cell of lower respiratory tract
     parents:
