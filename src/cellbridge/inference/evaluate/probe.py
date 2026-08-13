@@ -29,7 +29,9 @@ class ProbeResult:
     classes: np.ndarray
 
 
-def _fit(task, probe, settings):
+def fit(task: Task, probe, settings=None):
+    """Fit one configured probe and return its estimator and fit details."""
+    settings = settings or {}
     if probe == "linear":
         fitted = linear.fit(
             task,
@@ -70,7 +72,7 @@ def _macro_auroc(y_true, probabilities, classes) -> float:
 def evaluate(task: Task, probe, settings=None) -> ProbeResult:
     """Fit one probe and score its predictions on the fixed test split."""
     settings = settings or {}
-    model, details = _fit(task, probe, settings)
+    model, details = fit(task, probe, settings)
 
     features = np.asarray(task.features, dtype=np.float32)
     labels = np.asarray(task.labels)

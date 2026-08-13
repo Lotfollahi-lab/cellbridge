@@ -15,8 +15,10 @@ from cellbridge.inference.embed.artifacts import (
     write_manifests,
 )
 from cellbridge.inference.embed.sources.common import cell_uids
+from cellbridge.inference.evaluate import conformal as conformal_api
 from cellbridge.inference.evaluate import ood
 from cellbridge.inference.evaluate import probe as probe_api
+from cellbridge.ontology import load_mapping, load_ontology
 
 TASKS = ("all", "immune")
 
@@ -48,6 +50,28 @@ def _select(requested, configured, allowed, kind):
     return selected
 
 
+def _load_conformal(config):
+    settings = config.get("conformal")
+    if not isinstance(settings, dict):
+        raise ValueError("conformal settings must be a mapping")
+    missing = {"mapping", "ontology"} - set(settings)
+    if missing:
+        raise ValueError(f"conformal settings are missing {sorted(missing)}")
+
+    mapping = load_mapping(settings["mapping"])
+    ontology = load_ontology(settings["ontology"])
+    if mapping.dataset != str(config["dataset"]):
+        raise ValueError(
+            f"mapping dataset {mapping.dataset!r} does not match "
+            f"{config['dataset']!r}"
+        )
+    mapping.validate_ontology(ontology)
+    alpha = float(settings.get("alpha", 0.1))
+    if not 0 < alpha < 1:
+        raise ValueError("conformal alpha must be between zero and one")
+    return mapping, ontology, alpha
+
+
 def check(config, profiles, methods, probes, tasks) -> None:
     """Validate suite paths and settings without loading a model."""
     data = config["data"]
@@ -68,6 +92,16 @@ def check(config, profiles, methods, probes, tasks) -> None:
             value = profile.get("load", {}).get(key)
             if value is not None and not Path(value).exists():
                 raise FileNotFoundError(f"{method}: {key} does not exist: {value}")
+
+    if "conformal" in config:
+        mapping, _, alpha = _load_conformal(config)
+        _, included = mapping.map_labels(metadata["label"])
+        if not included.any():
+            raise ValueError("dataset has no ontology-mapped cells")
+        print(
+            f"Conformal: alpha={alpha:g}, "
+            f"{int(included.sum()):,}/{len(included):,} mapped cells"
+        )
 
     print(
         f"{config['dataset']}: {len(metadata):,} cells, "
@@ -188,9 +222,73 @@ def evaluate(config, methods, probes, tasks) -> None:
                     )
 
 
+def evaluate_conformal(config, methods, probes, tasks) -> None:
+    """Run split and graph conformal evaluation for every extracted arm."""
+    mapping, ontology, alpha = _load_conformal(config)
+    probe_config = config["probe"]
+    embedding_dir = Path(config["output_dir"]) / "embeddings"
+    evaluation_dir = Path(config["output_dir"]) / "evaluation"
+    seed = int(probe_config.get("seed", 0))
+    pca_components = int(probe_config.get("pca_components", 256))
+
+    for method in methods:
+        for arm in embedding_methods.arms(method):
+            manifest = embedding_dir / method / arm / "manifest.csv"
+            loaded = load_manifest(manifest)
+            metadata = _align_metadata(config, loaded)
+            for task_name in tasks:
+                task = conformal_api.prepare_task(
+                    loaded.embeddings,
+                    metadata,
+                    mapping,
+                    task=task_name,
+                    arm=arm,
+                    pca_components=pca_components,
+                    seed=seed,
+                )
+                for probe in probes:
+                    settings = dict(probe_config.get(probe, {}))
+                    settings.setdefault("seed", seed)
+                    result = conformal_api.evaluate(
+                        task,
+                        probe,
+                        settings,
+                        mapping,
+                        ontology,
+                        alpha=alpha,
+                    )
+                    context = {
+                        "dataset": config["dataset"],
+                        "method": method,
+                        "arm": arm,
+                        "task": task_name,
+                        "probe": probe,
+                    }
+                    result = replace(
+                        result,
+                        metrics=tuple({**context, **row} for row in result.metrics),
+                        per_class_coverage=tuple(
+                            {**context, **row} for row in result.per_class_coverage
+                        ),
+                    )
+                    output = (
+                        evaluation_dir / method / arm / task_name / probe / "conformal"
+                    )
+                    conformal_api.save_result(output, result)
+                    graph_metrics = result.metrics[1]
+                    print(
+                        f"[{method}/{arm}/{task_name}/{probe}/conformal] "
+                        f"coverage={graph_metrics['marginal_coverage']:.4f}, "
+                        f"size={graph_metrics['mean_prediction_set_size']:.2f}"
+                    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("check", "extract", "evaluate", "run"))
+    parser.add_argument(
+        "command",
+        choices=("check", "extract", "evaluate", "conformal", "run"),
+    )
     parser.add_argument("--config", required=True)
     parser.add_argument("--method", action="append", choices=embedding_methods.METHODS)
     parser.add_argument("--probe", action="append", choices=probe_api.PROBES)
@@ -212,10 +310,14 @@ def main():
         extract(config, profiles, methods, args.device)
     elif args.command == "evaluate":
         evaluate(config, methods, probes, tasks)
+    elif args.command == "conformal":
+        evaluate_conformal(config, methods, probes, tasks)
     else:
         check(config, profiles, methods, probes, tasks)
         extract(config, profiles, methods, args.device)
         evaluate(config, methods, probes, tasks)
+        if "conformal" in config:
+            evaluate_conformal(config, methods, probes, tasks)
 
 
 if __name__ == "__main__":
