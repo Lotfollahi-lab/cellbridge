@@ -4,7 +4,7 @@ from pathlib import Path
 
 from cellbridge.inference.embed.methods.base import TorchEmbedder, resolve_device
 
-ARMS = ("uni_original", "lora_adapted", "lora_projected")
+ARMS = ("lora_adapted", "lora_projected")
 
 
 class LoraEmbedder(TorchEmbedder):
@@ -14,7 +14,6 @@ class LoraEmbedder(TorchEmbedder):
         adapted = self.model.encode_images(images, use_lora=True)
         projected = self.model.apply_heads(adapted)["projected"]
         return {
-            "uni_original": self.model.encode_base(images),
             "lora_adapted": adapted,
             "lora_projected": self.model.probe_projection(projected),
         }

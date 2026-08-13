@@ -10,7 +10,7 @@ from cellbridge.helpers.io import load_coords
 from cellbridge.helpers.splits import spatial_split
 from cellbridge.inference.evaluate import Task
 
-PCA_ARMS = frozenset({"uni_original", "lora_adapted"})
+PCA_ARMS = frozenset({"uni", "lora_adapted"})
 
 
 def _read_labels(path, id_column, label_column) -> pd.DataFrame:
