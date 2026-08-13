@@ -2,27 +2,19 @@
 
 import argparse
 from dataclasses import replace
-from functools import partial
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
 
 from cellbridge.config import load_config
-from cellbridge.inference.embed import embed
+from cellbridge.inference.embed import embed, sources
 from cellbridge.inference.embed import methods as embedding_methods
 from cellbridge.inference.embed.artifacts import (
     load_manifest,
     save_sample,
     write_manifests,
 )
-from cellbridge.inference.embed.methods.volta import patch2cell_crop
-from cellbridge.inference.embed.ood import (
-    OodCrops,
-    center_cell_crop,
-    iter_samples,
-    load_metadata,
-)
+from cellbridge.inference.embed.sources.common import cell_uids
 from cellbridge.inference.evaluate import ood
 from cellbridge.inference.evaluate import probe as probe_api
 
@@ -56,86 +48,16 @@ def _select(requested, configured, allowed, kind):
     return selected
 
 
-def _center_crop(image, cell, *, source_size, target_size, fill):
-    crop = center_cell_crop(image, cell, size=source_size, fill=fill)
-    if target_size is not None and crop.size != (target_size, target_size):
-        crop = crop.resize((target_size, target_size), Image.Resampling.BILINEAR)
-    return crop
-
-
-def _instance_crop(image, cell, *, scale_factor):
-    bounds = [cell[name] for name in ("x0", "y0", "x1", "y1")]
-    return patch2cell_crop(image, bounds, scale_factor=scale_factor)
-
-
-def _cropper(profile, data):
-    settings = profile.get("crop", {})
-    kind = settings.get("kind")
-    if kind == "center":
-        has_pixels = "source_size" in settings
-        has_fov = "fov_um" in settings
-        if has_pixels == has_fov:
-            raise ValueError(
-                "center crop requires exactly one of source_size or fov_um"
-            )
-        if has_fov:
-            source_mpp = float(data.get("source_mpp", 0))
-            if source_mpp <= 0:
-                raise ValueError("physical crops require positive data.source_mpp")
-            source_size = round(float(settings["fov_um"]) / source_mpp)
-        else:
-            source_size = int(settings["source_size"])
-        target_size = settings.get("target_size")
-        target_size = None if target_size is None else int(target_size)
-        fill = int(settings.get("fill", 255))
-        if source_size < 1 or (target_size is not None and target_size < 1):
-            raise ValueError("crop sizes must be positive")
-        if not 0 <= fill <= 255:
-            raise ValueError("crop fill must be between 0 and 255")
-        return partial(
-            _center_crop,
-            source_size=source_size,
-            target_size=target_size,
-            fill=fill,
-        )
-    if kind == "instance_bbox":
-        scale_factor = float(settings.get("scale_factor", 1.0))
-        if scale_factor < 0:
-            raise ValueError("scale_factor must be non-negative")
-        return partial(_instance_crop, scale_factor=scale_factor)
-    raise ValueError(f"unknown crop kind {kind!r}")
-
-
-def _data_arguments(config):
-    data = config["data"]
-    return {
-        "lmdb_path": data["lmdb"],
-        "metadata_path": data["metadata"],
-        "split_path": data["split"],
-        "image_shape": data.get("image_shape"),
-        "tile_size": int(data.get("tile_size", 224)),
-        "value_scale": float(data.get("value_scale", 1)),
-        "allow_unlabeled_samples": bool(data.get("allow_unlabeled_samples", False)),
-        "skip_missing": bool(data.get("skip_missing_cells", False)),
-    }
-
-
 def check(config, profiles, methods, probes, tasks) -> None:
     """Validate suite paths and settings without loading a model."""
     data = config["data"]
-    for key in ("lmdb", "metadata", "split"):
-        if not Path(data[key]).exists():
-            raise FileNotFoundError(f"data.{key} does not exist: {data[key]}")
-    metadata = load_metadata(
-        data["metadata"],
-        data["split"],
-        require_all_samples=not data.get("allow_unlabeled_samples", False),
-    )
+    source = sources.load(data)
+    metadata = source.check(data)
 
     for method in methods:
         profile = profiles[method]
         embedding_methods.arms(method)
-        _cropper(profile, data)
+        source.make_cropper(profile, data)
         extraction = profile.get("extraction", {})
         if int(extraction.get("batch_size", 0)) < 1:
             raise ValueError(f"{method}: batch_size must be positive")
@@ -161,15 +83,20 @@ def _extract_method(config, profile, method, device) -> None:
     load_settings = dict(profile.get("load", {}))
     load_settings["device"] = device
     embedder = embedding_methods.load(method, **load_settings)
-    cropper = _cropper(profile, config["data"])
+    data = config["data"]
+    source = sources.load(data)
+    cropper = source.make_cropper(profile, data)
     extraction = profile["extraction"]
     output_dir = Path(config["output_dir"]) / "embeddings"
 
     records = []
-    for sample in iter_samples(**_data_arguments(config)):
-        crops = OodCrops(sample, transform=embedder.transform, cropper=cropper)
+    for sample in source.iter_samples(
+        data,
+        transform=embedder.transform,
+        cropper=cropper,
+    ):
         result = embed(
-            crops,
+            sample.dataset,
             embedder,
             batch_size=int(extraction["batch_size"]),
             num_workers=int(extraction.get("num_workers", 0)),
@@ -179,12 +106,12 @@ def _extract_method(config, profile, method, device) -> None:
                 output_dir,
                 method,
                 sample.sample_id,
-                sample.cells["row_id"].to_numpy(),
+                sample.row_ids,
                 result,
                 storage_dtype=extraction.get("storage_dtype", "float16"),
             )
         )
-        print(f"[{method}] {sample.sample_id}: {len(sample.cells):,} cells")
+        print(f"[{method}] {sample.sample_id}: {len(sample.dataset):,} cells")
     write_manifests(output_dir, method, records)
 
 
@@ -196,12 +123,9 @@ def extract(config, profiles, methods, device=None) -> None:
 
 def _align_metadata(config, loaded):
     data = config["data"]
+    source = sources.load(data)
     allow_unlabeled = bool(data.get("allow_unlabeled_samples", False))
-    metadata = load_metadata(
-        data["metadata"],
-        data["split"],
-        require_all_samples=not allow_unlabeled,
-    )
+    metadata = source.load_metadata(data)
     indexed = metadata.set_index("row_id", drop=False)
     missing = set(loaded.row_ids) - set(indexed.index)
     if missing:
@@ -209,14 +133,7 @@ def _align_metadata(config, loaded):
             f"embedding artifacts contain unknown row IDs: {sorted(missing)[:5]}"
         )
     aligned = indexed.loc[loaded.row_ids].reset_index(drop=True)
-    cell_ids = (
-        aligned["sample_id"].astype(str)
-        + "/"
-        + aligned["tile_id"].astype(str)
-        + "/"
-        + aligned["cell_id"].astype(str)
-    ).to_numpy()
-    if not np.array_equal(cell_ids, loaded.cell_ids):
+    if not np.array_equal(cell_uids(aligned), loaded.cell_ids):
         raise ValueError("embedding cell IDs do not match dataset metadata")
     if not np.array_equal(aligned["sample_id"].astype(str), loaded.sample_ids):
         raise ValueError("embedding sample IDs do not match dataset metadata")

@@ -1,0 +1,22 @@
+dataset: immunocto
+
+data:
+  format: immunocto
+  metadata: ${CELLBRIDGE_DATA_ROOT}/eval/immunocto/prepared/metadata.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/eval/immunocto/prepared/split.csv
+  shards: ${CELLBRIDGE_DATA_ROOT}/eval/immunocto/prepared/shards
+  image_shape: [64, 64]
+  source_mpp: 0.25
+
+methods: [uni, cellbridge, past, volta, spatialwhisperer]
+
+probe:
+  tasks: [all]
+  methods: [linear]
+  pca_components: 256
+  seed: 0
+  linear:
+    Cs: [0.1, 1, 10]
+    max_iter: 2000
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/immunocto

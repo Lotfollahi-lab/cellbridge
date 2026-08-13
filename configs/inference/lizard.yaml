@@ -1,6 +1,7 @@
 dataset: lizard
 
 data:
+  format: tiled_lmdb
   lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/lizard_lmdb
   metadata: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/lizard_info.csv
   split: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/splits/lizard_default_train_test_val_split.csv

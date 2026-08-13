@@ -1,0 +1,25 @@
+dataset: nucls
+
+data:
+  format: nucls
+  images: ${CELLBRIDGE_DATA_ROOT}/eval/nucls/raw/rgb
+  metadata: ${CELLBRIDGE_DATA_ROOT}/eval/nucls/nucls_info.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/eval/nucls/splits/train_test_val_split.csv
+  source_mpp: 0.2
+  exclude_labels: [unlabeled]
+  allow_unlabeled_samples: true
+
+methods: [uni, cellbridge, past, volta, spatialwhisperer]
+
+probe:
+  tasks: [all]
+  methods: [linear, knn]
+  pca_components: 256
+  seed: 0
+  linear:
+    Cs: [0.1, 1, 10]
+    max_iter: 2000
+  knn:
+    n_neighbors: 20
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/nucls

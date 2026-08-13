@@ -1,6 +1,7 @@
 dataset: pannuke
 
 data:
+  format: tiled_lmdb
   lmdb: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_lmdb
   metadata: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/pannuke_info.csv
   split: ${CELLBRIDGE_DATA_ROOT}/eval/pannuke/splits/train_test_val_split.csv
