@@ -2,10 +2,25 @@
 
 from functools import partial
 
+import numpy as np
 from PIL import Image
 
 from cellbridge.inference.embed.methods.volta import patch2cell_crop
-from cellbridge.inference.embed.ood import center_cell_crop
+
+
+def center_cell_crop(image, cell, *, size=224, fill=255):
+    """Return a centered RGB crop with constant boundary padding."""
+    x, y = cell["x"], cell["y"]
+    x0, y0 = round(x) - size // 2, round(y) - size // 2
+    x1, y1 = x0 + size, y0 + size
+    height, width = image.shape[:2]
+    sx0, sy0 = max(x0, 0), max(y0, 0)
+    sx1, sy1 = min(x1, width), min(y1, height)
+
+    crop = np.full((size, size, 3), fill, dtype=np.uint8)
+    if sx1 > sx0 and sy1 > sy0:
+        crop[sy0 - y0 : sy1 - y0, sx0 - x0 : sx1 - x0] = image[sy0:sy1, sx0:sx1]
+    return Image.fromarray(crop)
 
 
 def _center_crop(image, cell, *, source_size, target_size, fill):

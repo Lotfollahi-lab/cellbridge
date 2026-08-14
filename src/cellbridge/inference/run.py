@@ -16,7 +16,7 @@ from cellbridge.inference.embed.artifacts import (
     save_sample,
     write_manifests,
 )
-from cellbridge.inference.embed.sources.common import cell_uids
+from cellbridge.inference.embed.sources.metadata import cell_uids
 from cellbridge.inference.evaluate import conformal as conformal_api
 from cellbridge.inference.evaluate import hest as hest_api
 from cellbridge.inference.evaluate import ood
