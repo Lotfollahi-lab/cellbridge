@@ -119,7 +119,7 @@ def open_wsi(path):
 
     try:
         store = tifffile.imread(path, aszarr=True, level=0)
-    except (IndexError, TypeError):
+    except (IndexError, TypeError, RuntimeError):
         store = tifffile.imread(path, aszarr=True, key=0)
     return zarr.open(store, mode="r")
 
