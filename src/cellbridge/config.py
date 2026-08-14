@@ -37,7 +37,9 @@ def _expand(value, environment):
         try:
             return Template(value).substitute(environment)
         except KeyError as error:
-            raise ValueError(f"undefined configuration variable: {error.args[0]}") from error
+            raise ValueError(
+                f"undefined configuration variable: {error.args[0]}"
+            ) from error
     if isinstance(value, list):
         return [_expand(item, environment) for item in value]
     if isinstance(value, Mapping):
@@ -45,18 +47,33 @@ def _expand(value, environment):
     return value
 
 
-def load_config(path, *, overlay=None) -> dict:
-    """Load YAML, merge a local overlay, and expand ``$VARS`` recursively.
-
-    ``CELLBRIDGE_CONFIG_OVERLAY`` supplies a machine-local overlay when the
-    caller does not pass one explicitly. Shared paths have portable defaults
-    inferred from this checkout and can be overridden by environment variables.
-    """
-    path = Path(path)
+def _read_config(path: Path) -> dict:
     with open(path) as handle:
         config = yaml.safe_load(handle)
     if not isinstance(config, dict):
-        raise ValueError(f"{path}: configuration must be a YAML mapping")
+        raise TypeError(f"{path}: configuration must be a YAML mapping")
+
+    defaults = config.pop("defaults", None)
+    if defaults is not None:
+        if not isinstance(defaults, str):
+            raise TypeError(f"{path}: defaults must be a path")
+        defaults_path = Path(defaults)
+        if not defaults_path.is_absolute():
+            defaults_path = path.parent / defaults_path
+        config = _merge(_read_config(defaults_path), config)
+    return config
+
+
+def load_config(path, *, overlay=None) -> dict:
+    """Load YAML defaults and overlays, then expand ``$VARS`` recursively.
+
+    A relative ``defaults`` path is resolved from the referring configuration.
+    ``CELLBRIDGE_CONFIG_OVERLAY`` then supplies a machine-local overlay when the
+    caller does not pass one explicitly. Shared paths have portable environment
+    defaults inferred from this checkout.
+    """
+    path = Path(path)
+    config = _read_config(path)
 
     overlay = overlay or os.environ.get("CELLBRIDGE_CONFIG_OVERLAY")
     if overlay:

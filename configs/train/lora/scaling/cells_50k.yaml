@@ -1,0 +1,5 @@
+defaults: ../defaults.yaml
+run_name: lora_clip_cells_50k
+max_cells_per_sample: 50000
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/scaling/cells_50k
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/scaling/cells_50k
