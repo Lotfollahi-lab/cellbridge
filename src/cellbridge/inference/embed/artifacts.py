@@ -121,8 +121,7 @@ def write_manifests(output_dir, method, records) -> dict[str, Path]:
     return paths
 
 
-def load_manifest(path) -> ArmEmbeddings:
-    """Load and concatenate one arm in its recorded sample order."""
+def _read_manifest(path):
     path = Path(path)
     table = pd.read_csv(
         path,
@@ -133,28 +132,39 @@ def load_manifest(path) -> ArmEmbeddings:
         raise ValueError(f"{path} is empty or missing {sorted(missing)}")
     if table["method"].nunique() != 1 or table["arm"].nunique() != 1:
         raise ValueError(f"{path} must describe exactly one method and arm")
+    return path, table
+
+
+def _load_record(path, row):
+    with np.load(path.parent / row.path, allow_pickle=False) as data:
+        if not {"cell_ids", "row_ids", "embeddings"} <= set(data.files):
+            raise ValueError(f"{row.path} is missing artifact arrays")
+        sample_cells = data["cell_ids"].astype(str)
+        sample_rows = np.asarray(data["row_ids"])
+        values = np.asarray(data["embeddings"])
+    if (
+        sample_cells.ndim != 1
+        or sample_rows.ndim != 1
+        or values.shape != (row.n_cells, row.n_features)
+        or len(sample_cells) != row.n_cells
+        or len(sample_rows) != row.n_cells
+        or not np.isfinite(values).all()
+    ):
+        raise ValueError(f"{row.path} does not match its manifest")
+    return sample_cells, sample_rows, values.astype(np.float32)
+
+
+def load_manifest(path) -> ArmEmbeddings:
+    """Load and concatenate one arm in its recorded sample order."""
+    path, table = _read_manifest(path)
 
     sample_ids, cell_ids, row_ids, embeddings = [], [], [], []
     for row in table.itertuples(index=False):
-        with np.load(path.parent / row.path, allow_pickle=False) as data:
-            if not {"cell_ids", "row_ids", "embeddings"} <= set(data.files):
-                raise ValueError(f"{row.path} is missing artifact arrays")
-            sample_cells = data["cell_ids"].astype(str)
-            sample_rows = np.asarray(data["row_ids"])
-            values = np.asarray(data["embeddings"])
-        if (
-            sample_cells.ndim != 1
-            or sample_rows.ndim != 1
-            or values.shape != (row.n_cells, row.n_features)
-            or len(sample_cells) != row.n_cells
-            or len(sample_rows) != row.n_cells
-            or not np.isfinite(values).all()
-        ):
-            raise ValueError(f"{row.path} does not match its manifest")
+        sample_cells, sample_rows, values = _load_record(path, row)
         sample_ids.append(np.repeat(row.sample_id, row.n_cells))
         cell_ids.append(sample_cells)
         row_ids.append(sample_rows)
-        embeddings.append(values.astype(np.float32))
+        embeddings.append(values)
 
     loaded = ArmEmbeddings(
         method=table["method"].iloc[0],
@@ -168,4 +178,29 @@ def load_manifest(path) -> ArmEmbeddings:
         raise ValueError(f"{path} contains duplicate cell IDs")
     if len(np.unique(loaded.row_ids)) != len(loaded.row_ids):
         raise ValueError(f"{path} contains duplicate row IDs")
+    return loaded
+
+
+def load_manifest_sample(path, sample_id) -> ArmEmbeddings:
+    """Load one sample from an arm manifest without concatenating the cohort."""
+    path, table = _read_manifest(path)
+    selected = table.loc[table["sample_id"] == str(sample_id)]
+    if len(selected) != 1:
+        raise ValueError(
+            f"{path} contains {len(selected)} rows for sample {sample_id!r}"
+        )
+    row = next(selected.itertuples(index=False))
+    cell_ids, row_ids, embeddings = _load_record(path, row)
+    loaded = ArmEmbeddings(
+        method=row.method,
+        arm=row.arm,
+        sample_ids=np.repeat(row.sample_id, row.n_cells),
+        cell_ids=cell_ids,
+        row_ids=row_ids,
+        embeddings=embeddings,
+    )
+    if len(np.unique(loaded.cell_ids)) != len(loaded.cell_ids):
+        raise ValueError(f"{path} contains duplicate cell IDs for {sample_id}")
+    if len(np.unique(loaded.row_ids)) != len(loaded.row_ids):
+        raise ValueError(f"{path} contains duplicate row IDs for {sample_id}")
     return loaded

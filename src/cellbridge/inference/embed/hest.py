@@ -53,6 +53,7 @@ class HestSample:
     pixel_size_um: float
     cell_ids: np.ndarray
     centers: np.ndarray
+    bounds: np.ndarray | None = None
 
 
 def load_sample(

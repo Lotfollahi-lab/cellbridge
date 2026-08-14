@@ -5,17 +5,20 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from cellbridge.config import load_config
 from cellbridge.inference.embed import embed, sources
 from cellbridge.inference.embed import methods as embedding_methods
 from cellbridge.inference.embed.artifacts import (
     load_manifest,
+    load_manifest_sample,
     save_sample,
     write_manifests,
 )
 from cellbridge.inference.embed.sources.common import cell_uids
 from cellbridge.inference.evaluate import conformal as conformal_api
+from cellbridge.inference.evaluate import hest as hest_api
 from cellbridge.inference.evaluate import ood
 from cellbridge.inference.evaluate import probe as probe_api
 from cellbridge.ontology import load_mapping, load_ontology
@@ -179,8 +182,112 @@ def _align_metadata(config, loaded):
     return aligned
 
 
+def _align_hest_metadata(source, data, loaded, sample_id):
+    metadata = source.sample_metadata(data, sample_id)
+    indexed = metadata.set_index("row_id", drop=False)
+    missing = set(loaded.row_ids) - set(indexed.index)
+    if missing:
+        raise ValueError(
+            f"{sample_id}: embedding artifacts contain unknown row IDs "
+            f"{sorted(missing)[:5]}"
+        )
+    aligned = indexed.loc[loaded.row_ids].reset_index(drop=True)
+    if not np.array_equal(cell_uids(aligned), loaded.cell_ids):
+        raise ValueError(f"{sample_id}: embedding cell IDs do not match HEST metadata")
+    if not np.all(loaded.sample_ids == str(sample_id)):
+        raise ValueError(f"{sample_id}: embedding manifest contains another sample")
+    return aligned
+
+
+def _save_hest_metrics(output, rows):
+    output.mkdir(parents=True, exist_ok=True)
+    table = pd.DataFrame(rows)
+    table.to_csv(output / "metrics.csv", index=False)
+
+    summary = {
+        name: table[name].iloc[0]
+        for name in ("dataset", "method", "arm", "task", "probe")
+    }
+    summary["n_samples"] = len(table)
+    for name in (
+        "accuracy",
+        "balanced_accuracy",
+        "macro_f1",
+        "weighted_f1",
+        "macro_auroc",
+    ):
+        summary[f"{name}_mean"] = table[name].mean()
+        summary[f"{name}_std"] = table[name].std()
+    pd.DataFrame([summary]).to_csv(output / "summary.csv", index=False)
+
+
+def _evaluate_hest(config, methods, probes, tasks) -> None:
+    if tasks != ["all"]:
+        raise ValueError("HEST supports only the all-cell-type task")
+
+    data = config["data"]
+    source = sources.load(data)
+    sample_ids = source.sample_ids(data)
+    probe_config = config["probe"]
+    embedding_dir = Path(config["output_dir"]) / "embeddings"
+    evaluation_dir = Path(config["output_dir"]) / "evaluation"
+    seed = int(probe_config.get("seed", 0))
+
+    for method in methods:
+        for arm in embedding_methods.arms(method):
+            manifest = embedding_dir / method / arm / "manifest.csv"
+            metrics = {probe: [] for probe in probes}
+            for sample_id in sample_ids:
+                loaded = load_manifest_sample(manifest, sample_id)
+                metadata = _align_hest_metadata(source, data, loaded, sample_id)
+                labels, coordinates = source.evaluation_paths(data, sample_id)
+                task = hest_api.prepare_task(
+                    loaded.embeddings,
+                    metadata["cell_id"].to_numpy(),
+                    labels,
+                    coordinates,
+                    id_column=probe_config.get("label_id_column", "cell_id"),
+                    label_column=probe_config.get("label_column", "group"),
+                    min_class_count=int(probe_config.get("min_class_count", 25)),
+                    test_fraction=float(probe_config.get("test_fraction", 0.2)),
+                    split_axis=probe_config.get("split_axis", "y"),
+                    arm=arm,
+                    pca_components=int(probe_config.get("pca_components", 256)),
+                    seed=seed,
+                )
+                for probe in probes:
+                    settings = dict(probe_config.get(probe, {}))
+                    settings.setdefault("seed", seed)
+                    result = probe_api.evaluate(task, probe, settings)
+                    result = replace(
+                        result,
+                        metrics={
+                            "dataset": config["dataset"],
+                            "sample_id": sample_id,
+                            "method": method,
+                            "arm": arm,
+                            "task": "all",
+                            **result.metrics,
+                        },
+                    )
+                    output = evaluation_dir / method / arm / "all" / probe / sample_id
+                    probe_api.save_result(output, result)
+                    metrics[probe].append(result.metrics)
+                    print(
+                        f"[{method}/{arm}/{sample_id}/{probe}] "
+                        f"macro_f1={result.metrics['macro_f1']:.4f}"
+                    )
+            for probe, rows in metrics.items():
+                output = evaluation_dir / method / arm / "all" / probe
+                _save_hest_metrics(output, rows)
+
+
 def evaluate(config, methods, probes, tasks) -> None:
     """Evaluate every arm of the selected extracted methods."""
+    if config["data"].get("format") == "hest":
+        _evaluate_hest(config, methods, probes, tasks)
+        return
+
     probe_config = config["probe"]
     embedding_dir = Path(config["output_dir"]) / "embeddings"
     evaluation_dir = Path(config["output_dir"]) / "evaluation"
@@ -224,6 +331,9 @@ def evaluate(config, methods, probes, tasks) -> None:
 
 def evaluate_conformal(config, methods, probes, tasks) -> None:
     """Run split and graph conformal evaluation for every extracted arm."""
+    if config["data"].get("format") == "hest":
+        raise ValueError("conformal evaluation is not configured for HEST")
+
     mapping, ontology, alpha = _load_conformal(config)
     probe_config = config["probe"]
     embedding_dir = Path(config["output_dir"]) / "embeddings"

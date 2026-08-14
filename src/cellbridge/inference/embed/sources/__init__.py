@@ -1,15 +1,16 @@
-"""Dataset sources for shared OOD embedding inference."""
+"""Dataset sources for shared embedding inference."""
 
 from dataclasses import dataclass
 from importlib import import_module
 
 import numpy as np
 
-FORMATS = ("tiled_lmdb", "immunocto", "nucls")
+FORMATS = ("tiled_lmdb", "immunocto", "nucls", "hest")
 _MODULES = {
     "tiled_lmdb": "lmdb",
     "immunocto": "immunocto",
     "nucls": "nucls",
+    "hest": "hest",
 }
 
 

@@ -15,7 +15,7 @@ class LoraEmbedder(TorchEmbedder):
         projected = self.model.apply_heads(adapted)["projected"]
         return {
             "lora_adapted": adapted,
-            "lora_projected": self.model.probe_projection(projected),
+            "lora_projected": projected,
         }
 
 

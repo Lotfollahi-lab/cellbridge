@@ -6,6 +6,7 @@ load:
 crop:
   kind: center
   source_size: 224
+  target_mpp: 0.5
   fill: 255
 
 extraction:

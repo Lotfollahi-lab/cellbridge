@@ -1,0 +1,28 @@
+dataset: hest
+
+data:
+  format: hest
+  root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+  manifest: ${CELLBRIDGE_DATA_ROOT}/train/hest/manifest.csv
+  split: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+  cohort: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  cohort_split: label_test
+  expected_samples: 5
+
+methods: [uni, cellbridge, past, volta, spatialwhisperer]
+
+probe:
+  tasks: [all]
+  methods: [linear, knn]
+  min_class_count: 25
+  test_fraction: 0.2
+  split_axis: y
+  pca_components: 256
+  seed: 0
+  linear:
+    Cs: [0.1, 1, 10]
+    max_iter: 2000
+  knn:
+    n_neighbors: 20
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/hest

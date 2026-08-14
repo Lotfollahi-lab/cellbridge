@@ -47,9 +47,14 @@ def align_by_cell_id(pairs):
 
 def load_coords(adata_path, key="spatial"):
     """Return ``(coords, cell_ids)`` from ``adata.obsm[key]`` for the spatial split."""
-    adata = ad.read_h5ad(adata_path)
-    if key not in adata.obsm:
-        raise KeyError(f"{adata_path}: obsm['{key}'] missing (have {list(adata.obsm)})")
-    coords = np.asarray(adata.obsm[key], dtype=np.float64)
-    cell_ids = np.asarray(adata.obs_names).astype(str)
+    adata = ad.read_h5ad(adata_path, backed="r")
+    try:
+        if key not in adata.obsm:
+            raise KeyError(
+                f"{adata_path}: obsm['{key}'] missing (have {list(adata.obsm)})"
+            )
+        coords = np.asarray(adata.obsm[key], dtype=np.float64)
+        cell_ids = np.asarray(adata.obs_names).astype(str)
+    finally:
+        adata.file.close()
     return coords, cell_ids
