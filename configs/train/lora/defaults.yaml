@@ -2,6 +2,8 @@ distill_version: lora
 
 data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
 splits_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+max_cells_per_sample: 5000
+max_val_cells_per_sample: 5000
 
 wandb:
   enabled: true

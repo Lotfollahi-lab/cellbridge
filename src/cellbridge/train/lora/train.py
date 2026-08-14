@@ -34,6 +34,7 @@ def load_config(path):
 
     cfg.setdefault("sampling_seed", 0)
     cfg.setdefault("max_cells_per_sample", 5_000)
+    cfg.setdefault("max_val_cells_per_sample", 5_000)
     cfg.setdefault("max_open_wsis", 64)
     cfg.setdefault("terra_key", "cell_emb")
 

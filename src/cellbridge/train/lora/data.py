@@ -380,7 +380,6 @@ def build_datasets(cfg, transform):
         ),
         "splits_path": cfg["splits_path"],
         "transform": transform,
-        "max_cells_per_sample": cfg["max_cells_per_sample"],
         "seed": int(cfg["sampling_seed"]),
         "terra_key": cfg["terra_key"],
         "target_size": int(crop["target_size"]),
@@ -388,6 +387,14 @@ def build_datasets(cfg, transform):
         "max_open_wsis": int(cfg["max_open_wsis"]),
     }
     return (
-        HESTCellDataset(split="distill_train", **common),
-        HESTCellDataset(split="distill_val", **common),
+        HESTCellDataset(
+            split="distill_train",
+            max_cells_per_sample=cfg["max_cells_per_sample"],
+            **common,
+        ),
+        HESTCellDataset(
+            split="distill_val",
+            max_cells_per_sample=cfg["max_val_cells_per_sample"],
+            **common,
+        ),
     )
