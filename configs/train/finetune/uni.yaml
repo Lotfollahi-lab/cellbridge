@@ -1,0 +1,15 @@
+# Supervised OOD control initialized from original UNI2-h.
+profile: ${CELLBRIDGE_ROOT}/configs/inference/methods/uni.yaml
+weights_path: null
+
+training:
+  batch_size: 48
+  max_epochs: 8
+  patience: 2
+  backbone_lr: 1.0e-5
+  head_lr: 3.0e-4
+  weight_decay: 0.05
+  num_workers: 8
+  seed: 0
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/train/finetune/uni
