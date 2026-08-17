@@ -29,7 +29,7 @@ def _probabilities(values, n_classes: int) -> np.ndarray:
     if not np.isfinite(values).all() or np.any(values < 0):
         raise ValueError("probabilities must be finite and non-negative")
     sums = values.sum(axis=1)
-    if not np.allclose(sums, 1.0, atol=1e-7, rtol=0.0):
+    if not np.allclose(sums, 1.0, atol=1e-6, rtol=0.0):
         raise ValueError("probability rows must sum to one")
     return values / sums[:, None]
 
