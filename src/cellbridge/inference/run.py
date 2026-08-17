@@ -404,9 +404,22 @@ def main():
     parser.add_argument("--probe", action="append", choices=probe_api.PROBES)
     parser.add_argument("--task", action="append", choices=TASKS)
     parser.add_argument("--device")
+    parser.add_argument(
+        "--checkpoint",
+        help="Override the CellBridge checkpoint without changing a suite",
+    )
+    parser.add_argument("--output-dir", help="Write this run to a separate directory")
     args = parser.parse_args()
 
     config, profiles = _load_suite(args.config)
+    if args.output_dir:
+        config["output_dir"] = args.output_dir
+    if args.checkpoint:
+        if "cellbridge" not in profiles:
+            raise ValueError(
+                "--checkpoint requires cellbridge in the configured methods"
+            )
+        profiles["cellbridge"].setdefault("load", {})["checkpoint"] = args.checkpoint
     methods = _select(
         args.method, config["methods"], embedding_methods.METHODS, "methods"
     )
