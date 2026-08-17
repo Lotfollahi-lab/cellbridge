@@ -450,12 +450,31 @@ def main(argv=None):
     profile = load_config(config["profile"])
     source = sources.load(dataset_config["data"])
     metadata = source.check(dataset_config["data"])
+    available_row_ids = None
+    if dataset_config["data"].get("skip_missing_cells", False):
+        available_row_ids = source.available_row_ids(dataset_config["data"])
+        unavailable = metadata.loc[~metadata["row_id"].isin(available_row_ids)]
+        if len(unavailable):
+            counts = (
+                unavailable["split"]
+                .replace({"valid": "val"})
+                .value_counts()
+                .sort_index()
+            )
+            details = ", ".join(
+                f"{split_name}={count:,}" for split_name, count in counts.items()
+            )
+            print(
+                f"{dataset_config['dataset']}: excluding {len(unavailable):,} "
+                f"cells missing from LMDB masks ({details})"
+            )
     task = prepare_task(
         dataset_config["data"],
         profile,
         task=args.task,
         metadata=metadata,
         source=source,
+        available_row_ids=available_row_ids,
     )
     counts = task.counts
     print(

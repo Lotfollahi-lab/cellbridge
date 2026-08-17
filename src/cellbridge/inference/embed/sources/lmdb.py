@@ -351,6 +351,30 @@ def _load_sample(
     return OodSample(sample_id, image, cells, layout)
 
 
+def _iter_labeled_entries(data, metadata):
+    expected = set(metadata["sample_id"].astype(str))
+    official = set(pd.read_csv(data["split"])["sample_name"].astype(str))
+    allow_unlabeled = bool(data.get("allow_unlabeled_samples", False))
+    seen = set()
+
+    for sample_id, entries in _iter_entries(data["lmdb"]):
+        sample_id = str(sample_id)
+        if sample_id in seen:
+            raise ValueError(f"LMDB contains non-consecutive entries for {sample_id!r}")
+        if sample_id not in official:
+            raise ValueError(f"LMDB contains unknown sample {sample_id!r}")
+        seen.add(sample_id)
+        if sample_id not in expected:
+            if allow_unlabeled:
+                continue
+            raise ValueError(f"{sample_id}: no cell metadata")
+        yield sample_id, entries
+
+    missing = expected - seen
+    if missing:
+        raise ValueError(f"LMDB is missing samples: {sorted(missing)[:5]}")
+
+
 Cropper = Callable[[np.ndarray, pd.Series], Image.Image]
 
 
@@ -405,26 +429,31 @@ def check(data):
     return load_metadata(data)
 
 
+def available_row_ids(data):
+    """Return metadata rows whose instances can be located in the LMDB masks."""
+    metadata = load_metadata(data)
+    row_ids = []
+    for sample_id, entries in _iter_labeled_entries(data, metadata):
+        cells = metadata.loc[metadata["sample_id"].astype(str) == sample_id].copy()
+        layout = _layout(
+            entries,
+            data.get("image_shape"),
+            int(data.get("tile_size", 224)),
+        )
+        cells = _locate_cells(
+            cells,
+            entries,
+            layout,
+            skip_missing=bool(data.get("skip_missing_cells", False)),
+        )
+        row_ids.extend(cells["row_id"].tolist())
+    return np.asarray(row_ids, dtype=metadata["row_id"].to_numpy().dtype)
+
+
 def iter_samples(data, *, transform, cropper):
     """Yield aligned crop datasets in existing LMDB sample order."""
     metadata = load_metadata(data)
-    expected = set(metadata["sample_id"].astype(str))
-    official = set(pd.read_csv(data["split"])["sample_name"].astype(str))
-    allow_unlabeled = bool(data.get("allow_unlabeled_samples", False))
-    seen = set()
-
-    for sample_id, entries in _iter_entries(data["lmdb"]):
-        sample_id = str(sample_id)
-        if sample_id in seen:
-            raise ValueError(f"LMDB contains non-consecutive entries for {sample_id!r}")
-        if sample_id not in official:
-            raise ValueError(f"LMDB contains unknown sample {sample_id!r}")
-        seen.add(sample_id)
-        if sample_id not in expected:
-            if allow_unlabeled:
-                continue
-            raise ValueError(f"{sample_id}: no cell metadata")
-
+    for sample_id, entries in _iter_labeled_entries(data, metadata):
         sample = _load_sample(
             sample_id,
             entries,
@@ -439,7 +468,3 @@ def iter_samples(data, *, transform, cropper):
             row_ids=sample.cells["row_id"].to_numpy(),
             dataset=OodCrops(sample, transform=transform, cropper=cropper),
         )
-
-    missing = expected - seen
-    if missing:
-        raise ValueError(f"LMDB is missing samples: {sorted(missing)[:5]}")

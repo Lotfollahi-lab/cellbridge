@@ -44,6 +44,7 @@ def prepare_task(
     task: str = "all",
     metadata: pd.DataFrame | None = None,
     source=None,
+    available_row_ids=None,
 ) -> OODFineTuneTask:
     """Validate labels and preserve the official train/val/test split."""
     if task not in TASKS:
@@ -60,6 +61,14 @@ def prepare_task(
         raise ValueError("metadata contains null task fields")
     if metadata["row_id"].duplicated().any():
         raise ValueError("metadata contains duplicate row IDs")
+    if available_row_ids is not None:
+        available = pd.Index(available_row_ids)
+        if available.has_duplicates:
+            raise ValueError("source contains duplicate row IDs")
+        unknown = available.difference(metadata["row_id"])
+        if len(unknown):
+            raise ValueError(f"source contains unknown row IDs: {list(unknown[:5])}")
+        metadata = metadata.loc[metadata["row_id"].isin(available)].copy()
 
     metadata["label"] = metadata["label"].astype(str)
     metadata["split"] = metadata["split"].replace({"valid": "val"}).astype(str)
