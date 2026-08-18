@@ -1,0 +1,11 @@
+defaults: cells_5k.yaml
+
+run_name: lora_clip_cells_5k_epoch1
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/scaling/epoch1/cells_5k
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/scaling/epoch1/cells_5k
+
+training:
+  max_steps: 18408
+  eval_every: 1000
+  patience: 100

@@ -1,0 +1,11 @@
+defaults: cells_10k.yaml
+
+run_name: lora_clip_cells_10k_epoch1
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/scaling/epoch1/cells_10k
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/scaling/epoch1/cells_10k
+
+training:
+  max_steps: 36875
+  eval_every: 2000
+  patience: 100
