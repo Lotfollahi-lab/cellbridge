@@ -48,6 +48,32 @@ class TaskGraph:
         return self.distances[column]
 
 
+def assign_ontology_branches(
+    mapping: OntologyMapping,
+    ontology: Ontology,
+    classes,
+    branch_roots,
+) -> dict[str, str]:
+    """Assign each class to the first configured ontology branch containing it."""
+    mapping.validate_ontology(ontology)
+    classes = tuple(map(str, classes))
+    roots = tuple(map(str, branch_roots))
+    if not roots or len(set(roots)) != len(roots):
+        raise ValueError("branch_roots must be non-empty and unique")
+    unknown = sorted(set(roots) - set(ontology.names))
+    if unknown:
+        raise ValueError(f"unknown ontology branch roots: {unknown}")
+
+    groups = {}
+    for class_label, term in mapping.class_terms(classes).items():
+        ancestors = set(ontology.ancestors(term))
+        groups[class_label] = next(
+            (root for root in roots if root in ancestors),
+            "other",
+        )
+    return groups
+
+
 def _topological_order(
     root: str,
     parents: dict[str, set[str]],

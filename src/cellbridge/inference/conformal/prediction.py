@@ -17,6 +17,15 @@ class GraphCalibration:
 
 
 @dataclass(frozen=True)
+class ConditionalCalibration:
+    class_groups: dict[str, str]
+    thresholds: dict[str, float]
+    counts: dict[str, int]
+    empirical_risks: dict[str, float]
+    corrected_risks: dict[str, float]
+
+
+@dataclass(frozen=True)
 class GraphPrediction:
     prediction_sets: np.ndarray
     anchor_nodes: np.ndarray
@@ -32,6 +41,15 @@ def _probabilities(values, n_classes: int) -> np.ndarray:
     if not np.allclose(sums, 1.0, atol=1e-6, rtol=0.0):
         raise ValueError("probability rows must sum to one")
     return values / sums[:, None]
+
+
+def _score_matrix(values, n_classes: int) -> np.ndarray:
+    values = np.asarray(values, dtype=np.float64)
+    if values.ndim != 2 or values.shape[1] != n_classes:
+        raise ValueError(f"scores must have shape [cells, {n_classes}]")
+    if not np.isfinite(values).all() or np.any(values < 0) or np.any(values > 1):
+        raise ValueError("scores must be finite and between zero and one")
+    return values
 
 
 def _label_columns(labels, classes, expected_rows: int) -> np.ndarray:
@@ -55,6 +73,14 @@ def _alpha(value) -> float:
     return value
 
 
+def _quantile(scores, alpha: float) -> float:
+    scores = np.asarray(scores, dtype=np.float64)
+    rank = int(np.ceil((len(scores) + 1) * (1.0 - alpha)))
+    if not len(scores) or rank > len(scores):
+        return 1.0
+    return float(np.partition(scores, rank - 1)[rank - 1])
+
+
 def calibrate_split(probabilities, labels, classes, alpha=0.1) -> float:
     """Return the finite-sample split-conformal nonconformity quantile."""
     classes = tuple(map(str, classes))
@@ -64,10 +90,7 @@ def calibrate_split(probabilities, labels, classes, alpha=0.1) -> float:
     columns = _label_columns(labels, classes, len(probabilities))
     alpha = _alpha(alpha)
     scores = 1.0 - probabilities[np.arange(len(probabilities)), columns]
-    rank = int(np.ceil((len(scores) + 1) * (1.0 - alpha)))
-    if rank > len(scores):
-        return 1.0
-    return float(np.partition(scores, rank - 1)[rank - 1])
+    return _quantile(scores, alpha)
 
 
 def predict_split(probabilities, q_hat) -> np.ndarray:
@@ -82,6 +105,73 @@ def predict_split(probabilities, q_hat) -> np.ndarray:
     return values >= 1.0 - q_hat
 
 
+def calibrate_conditional(
+    scores,
+    labels,
+    classes,
+    class_groups,
+    alpha=0.1,
+) -> ConditionalCalibration:
+    """Calibrate one finite-sample threshold per configured class group."""
+    classes = tuple(map(str, classes))
+    if len(set(classes)) != len(classes):
+        raise ValueError("classifier classes must be unique")
+    scores = _score_matrix(scores, len(classes))
+    labels = np.asarray(labels).astype(str)
+    columns = _label_columns(labels, classes, len(scores))
+    alpha = _alpha(alpha)
+    if set(class_groups) != set(classes):
+        raise ValueError(
+            "class_groups must contain every classifier class exactly once"
+        )
+    class_groups = {label: str(class_groups[label]) for label in classes}
+
+    true_scores = scores[np.arange(len(scores)), columns]
+    thresholds = {}
+    counts = {}
+    empirical_risks = {}
+    corrected_risks = {}
+    for group in sorted(set(class_groups.values())):
+        selected = np.asarray([class_groups[label] == group for label in labels])
+        group_scores = true_scores[selected]
+        threshold = _quantile(group_scores, alpha)
+        empirical_risk = (
+            float(np.mean(group_scores > threshold)) if len(group_scores) else 0.0
+        )
+        thresholds[group] = threshold
+        counts[group] = len(group_scores)
+        empirical_risks[group] = empirical_risk
+        corrected_risks[group] = (
+            float(
+                (len(group_scores) * empirical_risk + 1.0) / (len(group_scores) + 1.0)
+            )
+            if len(group_scores)
+            else 0.0
+        )
+    return ConditionalCalibration(
+        class_groups=class_groups,
+        thresholds=thresholds,
+        counts=counts,
+        empirical_risks=empirical_risks,
+        corrected_risks=corrected_risks,
+    )
+
+
+def predict_conditional(scores, classes, calibration: ConditionalCalibration):
+    """Include each candidate class using the threshold for its group."""
+    classes = tuple(map(str, classes))
+    scores = _score_matrix(scores, len(classes))
+    if set(calibration.class_groups) != set(classes):
+        raise ValueError("calibration classes do not match classifier classes")
+    thresholds = np.asarray(
+        [
+            calibration.thresholds[calibration.class_groups[class_label]]
+            for class_label in classes
+        ]
+    )
+    return scores <= thresholds[None, :]
+
+
 def _graph_set(
     probability: np.ndarray,
     graph: TaskGraph,
@@ -93,11 +183,16 @@ def _graph_set(
         node: round(float(probability[list(graph.descendant_columns[node])].sum()), 15)
         for node in distances
     }
+    scores[graph.root] = 1.0
     ordered = sorted(
         distances,
         key=lambda node: (scores[node], distances[node], node),
     )
-    selected = next((node for node in ordered if scores[node] >= lambda_hat), None)
+    selected = (
+        graph.root
+        if lambda_hat == 1.0
+        else next((node for node in ordered if scores[node] >= lambda_hat), None)
+    )
     if selected is None:
         raise RuntimeError(
             "task-graph root did not reach the requested probability mass"
@@ -133,21 +228,35 @@ def predict_graph(probabilities, graph: TaskGraph, lambda_hat) -> GraphPredictio
     )
 
 
+def _inclusion_scores(probability: np.ndarray, graph: TaskGraph) -> np.ndarray:
+    _, _, breakpoints = _graph_set(probability, graph, 0.0)
+    candidates = {0.0, 1.0}
+    candidates.update(
+        float(np.nextafter(score, np.inf))
+        for score in breakpoints
+        if 0.0 <= score < 1.0
+    )
+    thresholds = np.full(len(graph.classes), np.nan)
+    for candidate in sorted(candidates):
+        mask, _, _ = _graph_set(probability, graph, candidate)
+        thresholds[mask & np.isnan(thresholds)] = candidate
+        if np.isfinite(thresholds).all():
+            return thresholds
+    raise RuntimeError("task-graph root did not cover every class")
+
+
 def _inclusion_threshold(
     probability: np.ndarray,
     true_column: int,
     graph: TaskGraph,
 ) -> float:
-    _, _, scores = _graph_set(probability, graph, 0.0)
-    candidates = {0.0, 1.0}
-    candidates.update(
-        float(np.nextafter(score, np.inf)) for score in scores if 0.0 <= score < 1.0
-    )
-    for candidate in sorted(candidates):
-        mask, _, _ = _graph_set(probability, graph, candidate)
-        if mask[true_column]:
-            return candidate
-    raise RuntimeError("task-graph root did not cover the true class")
+    return float(_inclusion_scores(probability, graph)[true_column])
+
+
+def graph_inclusion_scores(probabilities, graph: TaskGraph) -> np.ndarray:
+    """Return the minimum graph mass needed to include every candidate class."""
+    probabilities = _probabilities(probabilities, len(graph.classes))
+    return np.asarray([_inclusion_scores(row, graph) for row in probabilities])
 
 
 def calibrate_graph(
@@ -160,21 +269,44 @@ def calibrate_graph(
     probabilities = _probabilities(probabilities, len(graph.classes))
     columns = _label_columns(labels, graph.classes, len(probabilities))
     alpha = _alpha(alpha)
-    n = len(probabilities)
-    allowed_risk = alpha - (1.0 - alpha) / n
-    if allowed_risk < 0:
-        raise ValueError("calibration set is too small for the requested alpha")
-
     thresholds = np.asarray(
         [
             _inclusion_threshold(row, column, graph)
             for row, column in zip(probabilities, columns)
         ]
     )
-    required_covered = int(np.ceil(n * (1.0 - allowed_risk)))
-    lambda_hat = float(
-        np.partition(thresholds, required_covered - 1)[required_covered - 1]
-    )
+    lambda_hat = _quantile(thresholds, alpha)
     empirical_risk = float(np.mean(thresholds > lambda_hat))
-    corrected_risk = float((n * empirical_risk + 1.0) / (n + 1.0))
+    corrected_risk = float(
+        (len(thresholds) * empirical_risk + 1.0) / (len(thresholds) + 1.0)
+    )
     return GraphCalibration(lambda_hat, empirical_risk, corrected_risk)
+
+
+def close_graph_sets(prediction_sets, graph: TaskGraph) -> GraphPrediction:
+    """Close arbitrary candidate sets to their smallest task-graph superset."""
+    prediction_sets = np.asarray(prediction_sets, dtype=bool)
+    if prediction_sets.ndim != 2 or prediction_sets.shape[1] != len(graph.classes):
+        raise ValueError(
+            f"prediction_sets must have shape [cells, {len(graph.classes)}]"
+        )
+
+    closed = np.zeros_like(prediction_sets)
+    anchors = []
+    for row, prediction_set in enumerate(prediction_sets):
+        columns = set(np.flatnonzero(prediction_set))
+        if not columns:
+            anchors.append("")
+            continue
+        candidates = [
+            node
+            for node, descendants in graph.descendant_columns.items()
+            if columns.issubset(descendants)
+        ]
+        anchor = min(
+            candidates,
+            key=lambda node: (len(graph.descendant_columns[node]), node),
+        )
+        closed[row, list(graph.descendant_columns[anchor])] = True
+        anchors.append(anchor)
+    return GraphPrediction(closed, np.asarray(anchors, dtype=str))

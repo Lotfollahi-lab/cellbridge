@@ -26,5 +26,12 @@ conformal:
   alpha: 0.1
   mapping: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/nucls.yaml
   ontology: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/cl-2026-06-08.yaml
+  branch_roots:
+    - CL:0000094
+    - CL:0000542
+    - CL:0000113
+    - CL:0000988
+    - CL:0001061
+  output_subdir: conditional_conformal
 
 output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/nucls

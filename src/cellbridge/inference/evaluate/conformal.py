@@ -9,10 +9,16 @@ import numpy as np
 import pandas as pd
 
 from cellbridge.inference.conformal import (
+    ConditionalCalibration,
     GraphCalibration,
+    assign_ontology_branches,
     build_task_graph,
+    calibrate_conditional,
     calibrate_graph,
     calibrate_split,
+    close_graph_sets,
+    graph_inclusion_scores,
+    predict_conditional,
     predict_graph,
     predict_split,
 )
@@ -23,10 +29,11 @@ from cellbridge.ontology import Ontology, OntologyMapping
 
 @dataclass(frozen=True)
 class ConformalResult:
-    """Metrics and row-aligned test predictions from both set methods."""
+    """Metrics and row-aligned test predictions from all set methods."""
 
     metrics: tuple[dict, ...]
     per_class_coverage: tuple[dict, ...]
+    calibration: tuple[dict, ...]
     ids: np.ndarray
     y_true: np.ndarray
     probabilities: np.ndarray
@@ -34,6 +41,8 @@ class ConformalResult:
     split_sets: np.ndarray
     graph_sets: np.ndarray
     graph_nodes: np.ndarray
+    conditional_sets: dict[str, np.ndarray]
+    conditional_nodes: dict[str, np.ndarray]
 
 
 def prepare_task(
@@ -102,6 +111,21 @@ def _coverage(prediction_sets, labels, classes) -> np.ndarray:
     return prediction_sets[np.arange(len(labels)), columns]
 
 
+def _calibration_risks(calibration):
+    if calibration is None:
+        return float("nan"), float("nan"), 1
+    if isinstance(calibration, GraphCalibration):
+        return calibration.empirical_risk, calibration.corrected_risk, 1
+    counts = np.asarray(list(calibration.counts.values()), dtype=float)
+    empirical = np.asarray(list(calibration.empirical_risks.values()), dtype=float)
+    corrected = np.asarray(list(calibration.corrected_risks.values()), dtype=float)
+    return (
+        float(np.average(empirical, weights=counts)),
+        float(corrected.max()),
+        len(counts),
+    )
+
+
 def _summary(
     method,
     prediction_sets,
@@ -113,14 +137,17 @@ def _summary(
     *,
     parameter,
     value,
-    calibration: GraphCalibration | None = None,
+    conditioning="global",
+    calibration=None,
     graph_nodes=None,
     root=None,
 ) -> dict:
     sizes = prediction_sets.sum(axis=1)
     covered = _coverage(prediction_sets, labels, classes)
+    empirical_risk, corrected_risk, n_groups = _calibration_risks(calibration)
     return {
         "conformal_method": method,
+        "conditioning": conditioning,
         "target_coverage": 1.0 - alpha,
         "marginal_coverage": float(covered.mean()),
         "mean_prediction_set_size": float(sizes.mean()),
@@ -132,12 +159,9 @@ def _summary(
         ),
         "parameter": parameter,
         "value": value,
-        "empirical_risk": (
-            float("nan") if calibration is None else calibration.empirical_risk
-        ),
-        "corrected_risk": (
-            float("nan") if calibration is None else calibration.corrected_risk
-        ),
+        "empirical_risk": empirical_risk,
+        "corrected_risk": corrected_risk,
+        "n_groups": n_groups,
         "n_classes": len(classes),
         **split_counts,
         **fit_details,
@@ -162,6 +186,58 @@ def _per_class(method, prediction_sets, labels, classes) -> tuple[dict, ...]:
     return tuple(rows)
 
 
+def _calibration_rows(
+    method: str,
+    calibration: ConditionalCalibration,
+) -> tuple[dict, ...]:
+    rows = []
+    for group, threshold in calibration.thresholds.items():
+        members = sorted(
+            label
+            for label, class_group in calibration.class_groups.items()
+            if class_group == group
+        )
+        rows.append(
+            {
+                "conformal_method": method,
+                "group": group,
+                "classes": ";".join(members),
+                "n_calibration": calibration.counts[group],
+                "threshold": threshold,
+                "empirical_risk": calibration.empirical_risks[group],
+                "corrected_risk": calibration.corrected_risks[group],
+            }
+        )
+    return tuple(rows)
+
+
+def _conditional_groups(
+    labels,
+    classes,
+    branch_groups,
+    alpha,
+) -> dict[str, dict[str, str]]:
+    class_groups = {label: f"class:{label}" for label in classes}
+    ontology_groups = {
+        label: f"branch:{branch_groups[label]}" for label in classes
+    }
+    minimum_count = int(np.ceil(1.0 / alpha) - 1)
+    counts = {label: int(np.sum(labels == label)) for label in classes}
+    hybrid_groups = {
+        label: (
+            class_groups[label]
+            if counts[label] >= minimum_count
+            else ontology_groups[label]
+        )
+        for label in classes
+    }
+    return {
+        "class": class_groups,
+        "branch": ontology_groups,
+        "hybrid": hybrid_groups,
+    }
+
+
 def evaluate(
     task: Task,
     probe,
@@ -169,6 +245,7 @@ def evaluate(
     mapping: OntologyMapping,
     ontology: Ontology,
     *,
+    branch_roots,
     alpha=0.1,
 ) -> ConformalResult:
     """Fit on train, calibrate on validation, and predict sets on test."""
@@ -180,6 +257,12 @@ def evaluate(
     labels = np.asarray(task.labels).astype(str)
     classes = np.asarray(model.classes_).astype(str)
     graph = build_task_graph(mapping, ontology, classes)
+    branch_groups = assign_ontology_branches(
+        mapping,
+        ontology,
+        classes,
+        branch_roots,
+    )
 
     calibration_probabilities = model.predict_proba(features[calibration_indices])
     test_probabilities = model.predict_proba(features[test])
@@ -205,12 +288,47 @@ def evaluate(
         graph_calibration.lambda_hat,
     )
 
+    calibration_scores = {
+        "split": 1.0 - calibration_probabilities,
+        "graph": graph_inclusion_scores(calibration_probabilities, graph),
+    }
+    test_scores = {
+        "split": 1.0 - test_probabilities,
+        "graph": graph_inclusion_scores(test_probabilities, graph),
+    }
+    groups = _conditional_groups(calibration_labels, classes, branch_groups, alpha)
+    conditional_sets = {}
+    conditional_nodes = {}
+    conditional_calibrations = {}
+    for conditioning, class_groups in groups.items():
+        for set_method in ("split", "graph"):
+            method = f"{conditioning}_{set_method}"
+            calibrated = calibrate_conditional(
+                calibration_scores[set_method],
+                calibration_labels,
+                classes,
+                class_groups,
+                alpha,
+            )
+            prediction_sets = predict_conditional(
+                test_scores[set_method],
+                classes,
+                calibrated,
+            )
+            conditional_calibrations[method] = calibrated
+            if set_method == "graph":
+                prediction = close_graph_sets(prediction_sets, graph)
+                conditional_sets[method] = prediction.prediction_sets
+                conditional_nodes[method] = prediction.anchor_nodes
+            else:
+                conditional_sets[method] = prediction_sets
+
     split_counts = {
         "n_train": len(train),
         "n_calibration": len(calibration_indices),
         "n_test": len(test),
     }
-    metrics = (
+    metrics = [
         _summary(
             "split",
             split_sets,
@@ -236,13 +354,44 @@ def evaluate(
             graph_nodes=graph_prediction.anchor_nodes,
             root=graph.root,
         ),
+    ]
+    per_class = list(_per_class("split", split_sets, test_labels, classes))
+    per_class.extend(
+        _per_class(
+            "graph",
+            graph_prediction.prediction_sets,
+            test_labels,
+            classes,
+        )
     )
-    per_class = _per_class("split", split_sets, test_labels, classes) + _per_class(
-        "graph", graph_prediction.prediction_sets, test_labels, classes
-    )
+    calibration_rows = []
+    for method, prediction_sets in conditional_sets.items():
+        conditioning, set_method = method.rsplit("_", 1)
+        calibrated = conditional_calibrations[method]
+        metrics.append(
+            _summary(
+                method,
+                prediction_sets,
+                test_labels,
+                classes,
+                float(alpha),
+                split_counts,
+                fit_details,
+                parameter="group_thresholds",
+                value=float("nan"),
+                conditioning=conditioning,
+                calibration=calibrated,
+                graph_nodes=conditional_nodes.get(method),
+                root=graph.root if set_method == "graph" else None,
+            )
+        )
+        per_class.extend(_per_class(method, prediction_sets, test_labels, classes))
+        calibration_rows.extend(_calibration_rows(method, calibrated))
+
     return ConformalResult(
-        metrics=metrics,
-        per_class_coverage=per_class,
+        metrics=tuple(metrics),
+        per_class_coverage=tuple(per_class),
+        calibration=tuple(calibration_rows),
         ids=np.asarray(task.ids)[test],
         y_true=test_labels,
         probabilities=np.asarray(test_probabilities, dtype=np.float32),
@@ -250,27 +399,40 @@ def evaluate(
         split_sets=split_sets,
         graph_sets=graph_prediction.prediction_sets,
         graph_nodes=graph_prediction.anchor_nodes,
+        conditional_sets=conditional_sets,
+        conditional_nodes=conditional_nodes,
     )
 
 
-def save_result(output_dir, result: ConformalResult) -> tuple[Path, Path, Path]:
-    """Write summary, per-class coverage, and aligned prediction artifacts."""
+def save_result(output_dir, result: ConformalResult) -> tuple[Path, ...]:
+    """Write metrics, calibration details, and aligned prediction artifacts."""
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     metrics_path = output_dir / "metrics.csv"
     coverage_path = output_dir / "per_class_coverage.csv"
+    calibration_path = output_dir / "calibration.csv"
     predictions_path = output_dir / "predictions.npz"
 
     pd.DataFrame(result.metrics).to_csv(metrics_path, index=False)
     pd.DataFrame(result.per_class_coverage).to_csv(coverage_path, index=False)
-    np.savez(
-        predictions_path,
-        ids=np.asarray(result.ids).astype(str),
-        y_true=np.asarray(result.y_true).astype(str),
-        probabilities=result.probabilities,
-        classes=np.asarray(result.classes).astype(str),
-        split_sets=result.split_sets,
-        graph_sets=result.graph_sets,
-        graph_nodes=np.asarray(result.graph_nodes).astype(str),
+    pd.DataFrame(result.calibration).to_csv(calibration_path, index=False)
+    arrays = {
+        "ids": np.asarray(result.ids).astype(str),
+        "y_true": np.asarray(result.y_true).astype(str),
+        "probabilities": result.probabilities,
+        "classes": np.asarray(result.classes).astype(str),
+        "split_sets": result.split_sets,
+        "graph_sets": result.graph_sets,
+        "graph_nodes": np.asarray(result.graph_nodes).astype(str),
+    }
+    arrays.update(
+        {f"{method}_sets": values for method, values in result.conditional_sets.items()}
     )
-    return metrics_path, coverage_path, predictions_path
+    arrays.update(
+        {
+            f"{method}_nodes": np.asarray(values).astype(str)
+            for method, values in result.conditional_nodes.items()
+        }
+    )
+    np.savez(predictions_path, **arrays)
+    return metrics_path, coverage_path, calibration_path, predictions_path

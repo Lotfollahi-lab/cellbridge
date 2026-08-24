@@ -72,7 +72,16 @@ def _load_conformal(config):
     alpha = float(settings.get("alpha", 0.1))
     if not 0 < alpha < 1:
         raise ValueError("conformal alpha must be between zero and one")
-    return mapping, ontology, alpha
+    branch_roots = settings.get("branch_roots")
+    if not isinstance(branch_roots, list) or not branch_roots:
+        raise ValueError("conformal branch_roots must be a non-empty list")
+    branch_roots = tuple(map(str, branch_roots))
+    if len(set(branch_roots)) != len(branch_roots):
+        raise ValueError("conformal branch_roots must be unique")
+    unknown = sorted(set(branch_roots) - set(ontology.names))
+    if unknown:
+        raise ValueError(f"unknown conformal branch roots: {unknown}")
+    return mapping, ontology, alpha, branch_roots
 
 
 def check(config, profiles, methods, probes, tasks) -> None:
@@ -97,7 +106,7 @@ def check(config, profiles, methods, probes, tasks) -> None:
                 raise FileNotFoundError(f"{method}: {key} does not exist: {value}")
 
     if "conformal" in config:
-        mapping, _, alpha = _load_conformal(config)
+        mapping, _, alpha, _ = _load_conformal(config)
         _, included = mapping.map_labels(metadata["label"])
         if not included.any():
             raise ValueError("dataset has no ontology-mapped cells")
@@ -334,10 +343,11 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
     if config["data"].get("format") == "hest":
         raise ValueError("conformal evaluation is not configured for HEST")
 
-    mapping, ontology, alpha = _load_conformal(config)
+    mapping, ontology, alpha, branch_roots = _load_conformal(config)
     probe_config = config["probe"]
     embedding_dir = Path(config["output_dir"]) / "embeddings"
     evaluation_dir = Path(config["output_dir"]) / "evaluation"
+    output_subdir = config["conformal"].get("output_subdir", "conformal")
     seed = int(probe_config.get("seed", 0))
     pca_components = int(probe_config.get("pca_components", 256))
 
@@ -365,6 +375,7 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
                         settings,
                         mapping,
                         ontology,
+                        branch_roots=branch_roots,
                         alpha=alpha,
                     )
                     context = {
@@ -380,14 +391,22 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
                         per_class_coverage=tuple(
                             {**context, **row} for row in result.per_class_coverage
                         ),
+                        calibration=tuple(
+                            {**context, **row} for row in result.calibration
+                        ),
                     )
                     output = (
-                        evaluation_dir / method / arm / task_name / probe / "conformal"
+                        evaluation_dir
+                        / method
+                        / arm
+                        / task_name
+                        / probe
+                        / output_subdir
                     )
                     conformal_api.save_result(output, result)
                     graph_metrics = result.metrics[1]
                     print(
-                        f"[{method}/{arm}/{task_name}/{probe}/conformal] "
+                        f"[{method}/{arm}/{task_name}/{probe}/{output_subdir}] "
                         f"coverage={graph_metrics['marginal_coverage']:.4f}, "
                         f"size={graph_metrics['mean_prediction_set_size']:.2f}"
                     )
