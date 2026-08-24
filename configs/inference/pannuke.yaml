@@ -35,6 +35,6 @@ conformal:
     - CL:0000113
     - CL:0000988
     - CL:0001061
-  output_subdir: conditional_conformal
+  output_subdir: conditional_conformal_v2
 
 output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/pannuke

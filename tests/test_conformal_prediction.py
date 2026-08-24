@@ -12,6 +12,7 @@ from cellbridge.inference.conformal import (
     predict_conditional,
     predict_graph,
 )
+from cellbridge.inference.evaluate.conformal import _conditional_groups
 from cellbridge.ontology import Ontology, OntologyMapping
 
 
@@ -170,3 +171,19 @@ def test_ordered_ontology_branches_are_unique():
     )
 
     assert groups == {"a": "myeloid", "b": "immune", "c": "other"}
+
+
+def test_hybrid_groups_pool_an_entire_branch_for_a_rare_class():
+    labels = np.asarray(["a"] * 10 + ["b"] * 6 + ["c"] * 10)
+    groups = _conditional_groups(
+        labels,
+        ("a", "b", "c"),
+        {"a": "branch-1", "b": "branch-1", "c": "branch-2"},
+        alpha=0.1,
+    )
+
+    assert groups["hybrid"] == {
+        "a": "branch:branch-1",
+        "b": "branch:branch-1",
+        "c": "class:c",
+    }

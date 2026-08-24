@@ -223,11 +223,14 @@ def _conditional_groups(
     }
     minimum_count = int(np.ceil(1.0 / alpha) - 1)
     counts = {label: int(np.sum(labels == label)) for label in classes}
+    fallback_branches = {
+        branch_groups[label] for label in classes if counts[label] < minimum_count
+    }
     hybrid_groups = {
         label: (
-            class_groups[label]
-            if counts[label] >= minimum_count
-            else ontology_groups[label]
+            ontology_groups[label]
+            if branch_groups[label] in fallback_branches
+            else class_groups[label]
         )
         for label in classes
     }
