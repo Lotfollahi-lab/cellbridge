@@ -47,6 +47,8 @@ def prepare_task(
     test_fraction: float = 0.2,
     split_axis: str = "y",
     arm: str | None = None,
+    mapping=None,
+    calibration_fraction_within_fit: float | None = None,
     pca_components: int = 256,
     seed: int = 0,
 ) -> Task:
@@ -63,6 +65,11 @@ def prepare_task(
         raise ValueError("min_class_count must be positive")
 
     label_table = _read_labels(labels_path, id_column, label_column)
+    if mapping is not None:
+        mapped, included = mapping.map_labels(label_table[label_column])
+        label_table = label_table.loc[included].copy()
+        label_table[label_column] = mapped[included]
+
     counts = label_table[label_column].value_counts()
     classes = set(counts.index[counts >= min_class_count])
     if len(classes) < 2:
@@ -94,15 +101,26 @@ def prepare_task(
     selected_coordinates = coordinates[
         [coordinate_row[cell_id] for cell_id in selected_ids]
     ]
-    train, test = spatial_split(
-        selected_ids,
-        selected_coordinates,
-        test_fraction,
-        split_axis,
-    )
-    missing = set(selected_labels[test]) - set(selected_labels[train])
-    if missing:
-        raise ValueError(f"test classes absent from training: {sorted(missing)}")
+    if calibration_fraction_within_fit is None:
+        train, test = spatial_split(
+            selected_ids, selected_coordinates, test_fraction, split_axis
+        )
+        calibration = None
+        held_out = (("test", test),)
+    else:
+        train, calibration, test = three_way_spatial_split(
+            selected_ids,
+            selected_coordinates,
+            test_fraction,
+            calibration_fraction_within_fit,
+            split_axis,
+        )
+        held_out = (("calibration", calibration), ("test", test))
+    train_classes = set(selected_labels[train])
+    for name, indices in held_out:
+        missing = set(selected_labels[indices]) - train_classes
+        if missing:
+            raise ValueError(f"{name} classes absent from training: {sorted(missing)}")
     if arm in PCA_ARMS:
         maximum = min(len(train), selected_features.shape[1])
         if not 1 <= pca_components <= maximum:
@@ -116,4 +134,24 @@ def prepare_task(
         )
         pca.fit(selected_features[train])
         selected_features = pca.transform(selected_features).astype(np.float32)
-    return Task(selected_features, selected_labels, selected_ids, train, None, test)
+    return Task(
+        selected_features, selected_labels, selected_ids, train, calibration, test
+    )
+
+
+def three_way_spatial_split(
+    cell_ids,
+    coordinates,
+    test_fraction,
+    calibration_fraction_within_fit,
+    axis,
+):
+    """Preserve the test stripe and split its complement into train/calibration."""
+    fit, test = spatial_split(cell_ids, coordinates, test_fraction, axis)
+    train_local, calibration_local = spatial_split(
+        np.asarray(cell_ids)[fit],
+        np.asarray(coordinates)[fit],
+        calibration_fraction_within_fit,
+        axis,
+    )
+    return fit[train_local], fit[calibration_local], test

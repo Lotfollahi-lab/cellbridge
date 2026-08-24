@@ -1,0 +1,36 @@
+defaults: hest.yaml
+
+conformal:
+  mapping_dir: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/hest
+  ontology: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/cl-2026-06-08.yaml
+  alpha: 0.1
+  calibration_fraction_within_fit: 0.2
+  branch_roots:
+    - CL:0000094  # granulocyte
+    - CL:0000542  # lymphocyte
+    - CL:0000113  # mononuclear phagocyte
+    - CL:0000988  # hematopoietic cell
+    - CL:0001061  # abnormal cell
+  output_subdir: conditional_conformal_spatial_v1
+  features:
+    uni:
+      manifest: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/contrastive_k0/evaluation/hest_label_test_fast/features/manifest.csv
+      arms:
+        uni: uni_original
+    cellbridge:
+      manifest: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/contrastive_k0/evaluation/hest_label_test_fast/features/manifest.csv
+      arms:
+        lora_adapted: lora_adapted
+        lora_projected: lora_projected
+    past:
+      manifest: ${CELLBRIDGE_OUTPUTS_ROOT}/baselines/past/hest_label_test_fast/features/manifest.csv
+      arms:
+        past: embeddings
+    volta:
+      manifest: ${CELLBRIDGE_OUTPUTS_ROOT}/baselines/volta/hest_label_test_fast/features/manifest.csv
+      arms:
+        volta: embeddings
+    spatialwhisperer:
+      manifest: ${CELLBRIDGE_OUTPUTS_ROOT}/baselines/spatialwhisperer/hest_label_test_fast/features/manifest.csv
+      arms:
+        spatialwhisperer: embeddings

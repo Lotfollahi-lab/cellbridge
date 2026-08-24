@@ -19,6 +19,7 @@ from cellbridge.inference.embed.artifacts import (
 from cellbridge.inference.embed.sources.metadata import cell_uids
 from cellbridge.inference.evaluate import conformal as conformal_api
 from cellbridge.inference.evaluate import hest as hest_api
+from cellbridge.inference.evaluate import hest_conformal
 from cellbridge.inference.evaluate import ood
 from cellbridge.inference.evaluate import probe as probe_api
 from cellbridge.ontology import load_mapping, load_ontology
@@ -341,7 +342,8 @@ def evaluate(config, methods, probes, tasks) -> None:
 def evaluate_conformal(config, methods, probes, tasks) -> None:
     """Run split and graph conformal evaluation for every extracted arm."""
     if config["data"].get("format") == "hest":
-        raise ValueError("conformal evaluation is not configured for HEST")
+        hest_conformal.evaluate(config, methods, probes, tasks)
+        return
 
     mapping, ontology, alpha, branch_roots = _load_conformal(config)
     probe_config = config["probe"]
