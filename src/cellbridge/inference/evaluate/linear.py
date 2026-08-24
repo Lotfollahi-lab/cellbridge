@@ -48,7 +48,7 @@ def fit(
     max_iter: int = 2000,
     seed: int = 0,
 ) -> LinearProbe:
-    """Select C without test data, then fit on all available reference rows."""
+    """Choose C without test data, then fit on all available reference rows."""
     features, labels, train = _inputs(task)
     choices = [float(value) for value in Cs]
     if not choices or any(value <= 0 for value in choices):
@@ -76,6 +76,9 @@ def fit(
             if score > best_score:
                 best_value, best_score = value, float(score)
         reference = np.concatenate((train, validation))
+    elif len(choices) == 1:
+        best_value, best_score = choices[0], float("nan")
+        reference = train
     else:
         class_counts = np.unique(labels[train], return_counts=True)[1]
         folds = min(3, int(class_counts.min()))
