@@ -19,6 +19,7 @@ version="$3"
 shift 3
 checkpoint=""
 conformal_config=""
+sample_id=""
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -28,6 +29,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --conformal-config)
       conformal_config="${2:?--conformal-config requires a path}"
+      shift 2
+      ;;
+    --sample-id)
+      sample_id="${2:?--sample-id requires an ID}"
       shift 2
       ;;
     *)
@@ -51,11 +56,31 @@ if [ "$method" = cellbridge ] && [ -z "$checkpoint" ]; then
 fi
 
 dataset="$($SUBMIT value "$config" dataset)"
+if [ -n "$sample_id" ]; then
+  if [ "$dataset" != hest ]; then
+    echo "--sample-id is supported only for HEST" >&2
+    exit 2
+  fi
+  case "$sample_id" in
+    *[!A-Za-z0-9_.-]*)
+      echo "unsafe sample ID: $sample_id" >&2
+      exit 2
+      ;;
+  esac
+fi
 outputs_root="${CELLBRIDGE_OUTPUTS_ROOT:-$WORKSPACE/outputs}"
 output_dir="$outputs_root/reproducibility/inference/$method/$version/$dataset"
+if [ -n "$sample_id" ]; then
+  output_dir="$output_dir/$sample_id"
+fi
 log_dir="$output_dir/logs"
 
 arguments=(--output-dir "$output_dir")
+sample_arguments=()
+if [ -n "$sample_id" ]; then
+  sample_arguments=(--sample-id "$sample_id")
+  arguments+=("${sample_arguments[@]}")
+fi
 if [ -n "$checkpoint" ]; then
   arguments+=(--checkpoint "$checkpoint")
 fi
@@ -76,6 +101,9 @@ case "$method" in
 esac
 
 job_name="${dataset}_${method}_${version}"
+if [ -n "$sample_id" ]; then
+  job_name="${dataset}_${sample_id}_${method}_${version}"
+fi
 extract_job="$($SUBMIT submit "$config" \
   --job "${job_name}_extract" --log-prefix extract --log-dir "$log_dir" \
   --queue "${INFERENCE_GPU_QUEUE:-training-normal}" \
@@ -90,21 +118,23 @@ esac
 
 evaluate_job="$($SUBMIT submit "$config" \
   --job "${job_name}_evaluate" --log-prefix evaluate --log-dir "$log_dir" \
-  --queue "${INFERENCE_CPU_QUEUE:-auto}" \
+  --queue "${INFERENCE_CPU_QUEUE:-training-normal}" \
+  --gmem "${INFERENCE_CPU_GMEM:-1000}" \
   --memory "$evaluation_memory" --cores "${INFERENCE_CPU_NCORES:-16}" \
   --environment none --dependency "done($extract_job)" -- \
   "$RUNNER" core evaluate "$config" --method "$method" \
-  --output-dir "$output_dir")"
+  --output-dir "$output_dir" "${sample_arguments[@]}")"
 
 conformal_job="-"
 if [ -n "$conformal_config" ]; then
   conformal_job="$($SUBMIT submit "$conformal_config" \
     --job "${job_name}_conformal" --log-prefix conformal --log-dir "$log_dir" \
-    --queue "${INFERENCE_CPU_QUEUE:-auto}" \
+    --queue "${INFERENCE_CPU_QUEUE:-training-normal}" \
+    --gmem "${INFERENCE_CPU_GMEM:-1000}" \
     --memory "$evaluation_memory" --cores "${INFERENCE_CPU_NCORES:-16}" \
     --environment none --dependency "done($extract_job)" -- \
     "$RUNNER" core conformal "$conformal_config" --method "$method" \
-    --output-dir "$output_dir")"
+    --output-dir "$output_dir" "${sample_arguments[@]}")"
 fi
 
 echo "$dataset $method $version extract=$extract_job evaluate=$evaluate_job conformal=$conformal_job"

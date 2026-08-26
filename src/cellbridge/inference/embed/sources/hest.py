@@ -211,12 +211,24 @@ class HestCrops:
 
 def sample_ids(data) -> list[str]:
     """Return the configured cohort after proving that it is held out."""
-    return cohort_in_split(
+    cohort = cohort_in_split(
         data["cohort"],
         data["split"],
         data.get("cohort_split", "label_test"),
         expected_count=data.get("expected_samples"),
     )
+    selected = data.get("sample_ids")
+    if selected is None:
+        return cohort
+    if not isinstance(selected, list) or not selected:
+        raise ValueError("data.sample_ids must be a non-empty list")
+    selected = [_identifier(sample_id) for sample_id in selected]
+    if len(selected) != len(set(selected)):
+        raise ValueError("data.sample_ids contains duplicates")
+    unknown = sorted(set(selected) - set(cohort))
+    if unknown:
+        raise ValueError(f"data.sample_ids contains non-cohort samples: {unknown}")
+    return selected
 
 
 def _manifest_rows(data) -> dict[str, dict]:

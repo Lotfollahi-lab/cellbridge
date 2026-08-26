@@ -472,6 +472,11 @@ def main():
     parser.add_argument("--method", action="append", choices=embedding_methods.METHODS)
     parser.add_argument("--probe", action="append", choices=probe_api.PROBES)
     parser.add_argument("--task", action="append", choices=TASKS)
+    parser.add_argument(
+        "--sample-id",
+        action="append",
+        help="Restrict a HEST command to one or more fixed-cohort samples",
+    )
     parser.add_argument("--device")
     parser.add_argument(
         "--checkpoint",
@@ -481,6 +486,10 @@ def main():
     args = parser.parse_args()
 
     config, profiles = _load_suite(args.config)
+    if args.sample_id:
+        if config["data"].get("format") != "hest":
+            raise ValueError("--sample-id is supported only for HEST")
+        config["data"]["sample_ids"] = args.sample_id
     if args.output_dir:
         config["output_dir"] = args.output_dir
     if not config.get("output_dir"):
