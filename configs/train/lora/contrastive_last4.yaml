@@ -1,7 +1,0 @@
-defaults: defaults.yaml
-run_name: lora_contrastive_last4
-output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/contrastive_last4
-checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/contrastive_last4
-
-model:
-  trainable_blocks: last_4

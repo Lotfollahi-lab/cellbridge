@@ -1,5 +1,16 @@
 defaults: ../defaults.yaml
-run_name: lora_clip_cells_10k
+
+run_name: repro_cells_10k
 max_cells_per_sample: 10000
-output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/scaling/cells_10k
-checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/scaling/cells_10k
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/train/lora/scaling/cells_10k
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/reproducibility/lora/scaling/cells_10k
+
+wandb:
+  group: scaling_reproducibility
+  name: repro_cells_10k
+
+training:
+  max_steps: 36875
+  eval_every: 2000
+  patience: 100

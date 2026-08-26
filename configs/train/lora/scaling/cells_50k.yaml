@@ -1,5 +1,16 @@
 defaults: ../defaults.yaml
-run_name: lora_clip_cells_50k
+
+run_name: repro_cells_50k
 max_cells_per_sample: 50000
-output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/lora/scaling/cells_50k
-checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/scaling/cells_50k
+
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/train/lora/scaling/cells_50k
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/reproducibility/lora/scaling/cells_50k
+
+wandb:
+  group: scaling_reproducibility
+  name: repro_cells_50k
+
+training:
+  max_steps: 163490
+  eval_every: 8000
+  patience: 100

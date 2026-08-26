@@ -2,7 +2,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CONFIG="${1:-$ROOT/configs/train/lora/contrastive_k0.yaml}"
+CONFIG="${1:?usage: submit_train.sh <config>}"
 case "$CONFIG" in /*) ;; *) CONFIG="$ROOT/$CONFIG" ;; esac
 SUBMIT="$ROOT/scripts/submit_job.sh"
 RUN_NAME="$($SUBMIT value "$CONFIG" run_name)"
