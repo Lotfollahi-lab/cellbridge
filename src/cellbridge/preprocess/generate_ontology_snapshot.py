@@ -3,7 +3,6 @@
 Example:
     PYTHONPATH=src python -m \
       cellbridge.preprocess.generate_ontology_snapshot cl-base.json \
-      configs/preprocess/cell_ontology/immunocto.yaml \
       configs/preprocess/cell_ontology/lizard.yaml \
       configs/preprocess/cell_ontology/nucls.yaml \
       configs/preprocess/cell_ontology/pannuke.yaml \

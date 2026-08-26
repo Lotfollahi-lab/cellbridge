@@ -5,10 +5,9 @@ from importlib import import_module
 
 import numpy as np
 
-FORMATS = ("tiled_lmdb", "immunocto", "nucls", "hest")
+FORMATS = ("tiled_lmdb", "nucls", "hest")
 _MODULES = {
     "tiled_lmdb": "lmdb",
-    "immunocto": "immunocto",
     "nucls": "nucls",
     "hest": "hest",
 }
