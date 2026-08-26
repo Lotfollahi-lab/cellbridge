@@ -54,7 +54,7 @@ def assign_ontology_branches(
     classes,
     branch_roots,
 ) -> dict[str, str]:
-    """Assign each class to the first configured ontology branch containing it."""
+    """Assign each class to its unique configured ontology branch."""
     mapping.validate_ontology(ontology)
     classes = tuple(map(str, classes))
     roots = tuple(map(str, branch_roots))
@@ -67,10 +67,13 @@ def assign_ontology_branches(
     groups = {}
     for class_label, term in mapping.class_terms(classes).items():
         ancestors = set(ontology.ancestors(term))
-        groups[class_label] = next(
-            (root for root in roots if root in ancestors),
-            "other",
-        )
+        matches = [root for root in roots if root in ancestors]
+        if len(matches) > 1:
+            names = [f"{root} ({ontology.names[root]})" for root in matches]
+            raise ValueError(
+                f"{class_label!r} belongs to multiple ontology branches: {names}"
+            )
+        groups[class_label] = matches[0] if matches else "other"
     return groups
 
 

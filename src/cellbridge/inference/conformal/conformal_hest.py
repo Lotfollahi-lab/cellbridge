@@ -27,9 +27,9 @@ def ontology_settings(config, sample_id):
     if not 0 < alpha < 1:
         raise ValueError("conformal alpha must be between zero and one")
     configured_roots = settings.get("branch_roots", ())
-    if isinstance(configured_roots, dict):
-        configured_roots = configured_roots.get(str(sample_id), ())
-    roots = tuple(map(str, configured_roots))
+    if not isinstance(configured_roots, dict):
+        raise ValueError("HEST conformal branch_roots must be keyed by sample ID")
+    roots = tuple(map(str, configured_roots.get(str(sample_id), ())))
     if not roots or len(set(roots)) != len(roots):
         raise ValueError(
             f"{sample_id}: conformal branch_roots must be non-empty and unique"

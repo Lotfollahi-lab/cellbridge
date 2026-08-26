@@ -5,9 +5,10 @@ data:
   root: ${CELLBRIDGE_DATA_ROOT}/train/hest
   manifest: ${CELLBRIDGE_DATA_ROOT}/train/hest/manifest.csv
   split: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
-  cohort: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/label_test_fast_v1.csv
+  cohort: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest_phenotype_split_v1.csv
   cohort_split: label_test
-  expected_samples: 5
+  expected_samples: 15
+  mapping_dir: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/hest
 
 methods: [uni, cellbridge, past, volta, spatialwhisperer]
 
@@ -25,4 +26,46 @@ probe:
   knn:
     n_neighbors: 20
 
-output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/hest
+conformal:
+  ontology: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/cl-2026-06-08.yaml
+  alpha: 0.1
+  calibration_fraction_within_fit: 0.2
+  min_class_count_per_split: 20
+  # Root legend:
+  # CL:0000542 lymphocyte; CL:0000763 myeloid cell;
+  # CL:0000066 epithelial cell; CL:0000115 endothelial cell;
+  # CL:0002320 connective tissue cell; CL:0001061 abnormal cell;
+  # CL:0000187 muscle cell; CL:0000037 hematopoietic stem cell;
+  # CL:0000451 dendritic cell; CL:4033054 perivascular cell.
+  branch_roots:
+    TENX116:
+      [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320,
+       CL:0001061, CL:0000187]
+    TENX143:
+      [CL:0000542, CL:0000763, CL:0000115, CL:0002320, CL:0000037]
+    TENX187:
+      [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320,
+       CL:0001061, CL:0000187]
+    TENX191:
+      [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320,
+       CL:0001061, CL:4033054]
+    TENX192: [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320, CL:0001061]
+    TENX193: [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320, CL:0001061]
+    TENX194: [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320]
+    TENX195:
+      [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320,
+       CL:0001061, CL:0000451]
+    TENX196:
+      [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320,
+       CL:0001061, CL:4033054]
+    TENX197: [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320, CL:4033054]
+    TENX198:
+      [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320,
+       CL:0001061, CL:4033054]
+    TENX199: [CL:0000542, CL:0000763, CL:0000115, CL:0002320, CL:0001061]
+    TENX200:
+      [CL:0000542, CL:0000763, CL:0000066, CL:0000115, CL:0002320,
+       CL:0001061, CL:4033054]
+    TENX201: [CL:0000763, CL:0000066, CL:0000115, CL:0002320, CL:0001061, CL:4033054]
+    TENX202: [CL:0000763, CL:0000066, CL:0000115, CL:0002320, CL:0001061]
+  output_subdir: conformal_prediction

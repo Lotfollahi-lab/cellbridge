@@ -17,21 +17,22 @@ probe:
   pca_components: 256
   seed: 0
   linear:
-    Cs: [1]
+    Cs: [0.1, 1, 10]
     max_iter: 2000
   knn:
     n_neighbors: 20
 
 conformal:
   alpha: 0.1
+  min_class_count_per_split: 20
   mapping: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/nucls.yaml
   ontology: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/cl-2026-06-08.yaml
   branch_roots:
-    - CL:0000094
-    - CL:0000542
-    - CL:0000113
-    - CL:0000988
-    - CL:0001061
-  output_subdir: conditional_conformal_v2
-
-output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/inference/nucls
+    - CL:0000094  # granulocyte
+    - CL:0000542  # lymphocyte
+    - CL:0000066  # epithelial cell
+    - CL:0000113  # mononuclear phagocyte
+    - CL:0000115  # endothelial cell
+    - CL:0000499  # stromal cell
+    - CL:0001061  # abnormal cell
+  output_subdir: conformal_prediction
