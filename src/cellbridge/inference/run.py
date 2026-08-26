@@ -19,6 +19,7 @@ from cellbridge.inference.embed.artifacts import (
 from cellbridge.inference.embed.sources.metadata import cell_uids
 from cellbridge.inference.conformal import conformal_hest as hest_conformal
 from cellbridge.inference.conformal import conformal_ood as conformal_api
+from cellbridge.inference.evaluate import bootstrap as bootstrap_api
 from cellbridge.inference.evaluate import hest as hest_api
 from cellbridge.inference.evaluate import ood
 from cellbridge.inference.evaluate import probe as probe_api
@@ -140,6 +141,17 @@ def check(config, profiles, methods, probes, tasks) -> None:
             f"Conformal: alpha={alpha:g}, "
             f"{int(included.sum()):,}/{len(included):,} mapped cells"
         )
+
+    if data.get("format") != "hest" and "bootstrap" in config["probe"]:
+        test_metadata = metadata.loc[
+            metadata["split"].replace({"valid": "val"}) == "test"
+        ]
+        groups = bootstrap_api.resolve_groups(
+            test_metadata,
+            test_metadata["row_id"].to_numpy(),
+            config["probe"]["bootstrap"],
+        )
+        print(f"Bootstrap: {len(np.unique(groups))} independent test groups")
 
     print(
         f"{config['dataset']}: {len(metadata):,} cells, "
@@ -316,6 +328,7 @@ def evaluate(config, methods, probes, tasks) -> None:
     embedding_dir = Path(config["output_dir"]) / "embeddings"
     evaluation_dir = Path(config["output_dir"]) / "evaluation"
     seed = int(probe_config.get("seed", 0))
+    bootstrap_config = probe_config.get("bootstrap")
 
     for method in methods:
         for arm in embedding_methods.arms(method):
@@ -331,6 +344,13 @@ def evaluate(config, methods, probes, tasks) -> None:
                     pca_components=int(probe_config.get("pca_components", 256)),
                     seed=seed,
                 )
+                groups = None
+                if bootstrap_config is not None:
+                    groups = bootstrap_api.resolve_groups(
+                        metadata,
+                        np.asarray(task.ids)[task.test],
+                        bootstrap_config,
+                    )
                 for probe in probes:
                     settings = dict(probe_config.get(probe, {}))
                     settings.setdefault("seed", seed)
@@ -347,9 +367,21 @@ def evaluate(config, methods, probes, tasks) -> None:
                     )
                     output = evaluation_dir / arm / task_name / probe
                     probe_api.save_result(output, result)
+                    uncertainty = None
+                    if bootstrap_config is not None:
+                        uncertainty, replicates = bootstrap_api.summarize(
+                            result, groups, bootstrap_config
+                        )
+                        bootstrap_api.save_result(output, uncertainty, replicates)
+                    suffix = ""
+                    if uncertainty is not None:
+                        macro_se = uncertainty.loc[
+                            uncertainty["metric"] == "macro_f1", "bootstrap_se"
+                        ].iloc[0]
+                        suffix = f", bootstrap_se={macro_se:.4f}"
                     print(
                         f"[{method}/{arm}/{task_name}/{probe}] "
-                        f"macro_f1={result.metrics['macro_f1']:.4f}"
+                        f"macro_f1={result.metrics['macro_f1']:.4f}{suffix}"
                     )
 
 

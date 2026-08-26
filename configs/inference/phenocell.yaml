@@ -17,6 +17,11 @@ probe:
   methods: [linear, knn]
   pca_components: 256
   seed: 0
+  bootstrap:
+    group_column: sample_id
+    group_regex: '^(reg\d+)'
+    n_resamples: 1000
+    seed: 0
   linear:
     Cs: [0.1, 1, 10]
     max_iter: 2000
