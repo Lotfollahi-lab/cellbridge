@@ -8,31 +8,34 @@ import pandas as pd
 
 from cellbridge.inference.embed import methods as embedding_methods
 from cellbridge.inference.embed import sources
-from cellbridge.inference.evaluate import conformal, hest, hest_features
-from cellbridge.ontology import load_mapping, load_ontology
+from cellbridge.inference.embed.artifacts import load_manifest_sample
+from cellbridge.inference.evaluate import conformal, hest
+from cellbridge.ontology import load_ontology
 
 
-def _ontology_settings(config, sample_id):
+def ontology_settings(config, sample_id):
+    """Load one HEST sample's mapping and conformal graph settings."""
     settings = config["conformal"]
-    mapping_path = Path(settings["mapping_dir"]) / f"{sample_id}.yaml"
-    mapping = load_mapping(mapping_path)
+    mapping = hest.load_sample_mapping(
+        config["data"]["mapping_dir"], sample_id, config["dataset"]
+    )
     ontology = load_ontology(settings["ontology"])
-    if mapping.dataset != str(config["dataset"]):
-        raise ValueError(
-            f"mapping dataset {mapping.dataset!r} does not match "
-            f"{config['dataset']!r}"
-        )
     mapping.validate_ontology(ontology)
 
     alpha = float(settings.get("alpha", 0.1))
     if not 0 < alpha < 1:
         raise ValueError("conformal alpha must be between zero and one")
-    roots = tuple(map(str, settings.get("branch_roots", ())))
+    configured_roots = settings.get("branch_roots", ())
+    if isinstance(configured_roots, dict):
+        configured_roots = configured_roots.get(str(sample_id), ())
+    roots = tuple(map(str, configured_roots))
     if not roots or len(set(roots)) != len(roots):
-        raise ValueError("conformal branch_roots must be non-empty and unique")
+        raise ValueError(
+            f"{sample_id}: conformal branch_roots must be non-empty and unique"
+        )
     unknown = sorted(set(roots) - set(ontology.names))
     if unknown:
-        raise ValueError(f"unknown conformal branch roots: {unknown}")
+        raise ValueError(f"{sample_id}: unknown conformal branch roots: {unknown}")
     return mapping, ontology, alpha, roots
 
 
@@ -62,6 +65,8 @@ def _save_aggregate(output, metrics, coverage, calibration_rows):
             n_samples=("sample_id", "size"),
             marginal_coverage_mean=("marginal_coverage", "mean"),
             marginal_coverage_std=("marginal_coverage", "std"),
+            coverage_gap_mean=("coverage_gap", "mean"),
+            coverage_gap_std=("coverage_gap", "std"),
             mean_prediction_set_size_mean=("mean_prediction_set_size", "mean"),
             mean_prediction_set_size_std=("mean_prediction_set_size", "std"),
             singleton_rate_mean=("singleton_rate", "mean"),
@@ -83,26 +88,29 @@ def evaluate(config, methods, probes, tasks):
     probe_settings = config["probe"]
     settings = config["conformal"]
     output_subdir = settings.get("output_subdir", "conformal")
+    embedding_dir = Path(config["output_dir"]) / "embeddings"
     evaluation_dir = Path(config["output_dir"]) / "evaluation"
     seed = int(probe_settings.get("seed", 0))
 
     for method in methods:
         for arm in embedding_methods.arms(method):
+            manifest = embedding_dir / arm / "manifest.csv"
             tables = {
                 probe: {"metrics": [], "coverage": [], "calibration": []}
                 for probe in probes
             }
             for sample_id in sample_ids:
-                mapping, ontology, alpha, branch_roots = _ontology_settings(
+                mapping, ontology, alpha, branch_roots = ontology_settings(
                     config, sample_id
                 )
-                cell_ids, features = hest_features.load(
-                    settings["features"], method, arm, sample_id
+                loaded = load_manifest_sample(manifest, sample_id)
+                metadata = hest.align_metadata(
+                    source, data, loaded, sample_id
                 )
                 labels, coordinates = source.evaluation_paths(data, sample_id)
                 task = hest.prepare_task(
-                    features,
-                    cell_ids,
+                    loaded.embeddings,
+                    metadata["cell_id"].to_numpy(),
                     labels,
                     coordinates,
                     id_column=probe_settings.get("label_id_column", "cell_id"),
@@ -114,6 +122,9 @@ def evaluate(config, methods, probes, tasks):
                     mapping=mapping,
                     calibration_fraction_within_fit=float(
                         settings.get("calibration_fraction_within_fit", 0.2)
+                    ),
+                    min_class_count_per_split=int(
+                        settings.get("min_class_count_per_split", 20)
                     ),
                     pca_components=int(probe_settings.get("pca_components", 256)),
                     seed=seed,
@@ -141,7 +152,6 @@ def evaluate(config, methods, probes, tasks):
                     result = _with_context(result, context)
                     output = (
                         evaluation_dir
-                        / method
                         / arm
                         / "all"
                         / probe
@@ -158,10 +168,10 @@ def evaluate(config, methods, probes, tasks):
                         f"coverage={graph['marginal_coverage']:.4f}, "
                         f"size={graph['mean_prediction_set_size']:.2f}"
                     )
-                del task, features, cell_ids
+                del task, loaded, metadata
                 gc.collect()
             for probe, rows in tables.items():
-                output = evaluation_dir / method / arm / "all" / probe / output_subdir
+                output = evaluation_dir / arm / "all" / probe / output_subdir
                 _save_aggregate(
                     output,
                     rows["metrics"],

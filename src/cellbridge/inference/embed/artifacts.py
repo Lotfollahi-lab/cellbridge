@@ -67,7 +67,7 @@ def save_sample(
         if not np.isfinite(embeddings).all():
             raise ValueError(f"{arm} contains non-finite embeddings")
 
-        directory = Path(output_dir) / method / arm
+        directory = Path(output_dir) / arm
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f"{sample_id}.npz"
         np.savez(
@@ -113,7 +113,7 @@ def write_manifests(output_dir, method, records) -> dict[str, Path]:
                 "every arm must contain the same samples in the same order"
             )
 
-        directory = Path(output_dir) / method / arm
+        directory = Path(output_dir) / arm
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / "manifest.csv"
         selected.to_csv(path, index=False)

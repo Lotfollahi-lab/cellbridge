@@ -8,9 +8,39 @@ from sklearn.decomposition import PCA
 
 from cellbridge.helpers.io import load_coords
 from cellbridge.helpers.splits import spatial_split
+from cellbridge.inference.embed.sources.metadata import cell_uids
 from cellbridge.inference.evaluate import Task
+from cellbridge.ontology import load_mapping
 
 PCA_ARMS = frozenset({"uni", "lora_adapted"})
+
+
+def load_sample_mapping(mapping_dir, sample_id, dataset):
+    """Load one reviewed HEST label mapping."""
+    mapping = load_mapping(Path(mapping_dir) / f"{sample_id}.yaml")
+    if mapping.dataset != str(dataset):
+        raise ValueError(
+            f"mapping dataset {mapping.dataset!r} does not match {dataset!r}"
+        )
+    return mapping
+
+
+def align_metadata(source, data, loaded, sample_id):
+    """Align one standard embedding artifact with its HEST cell metadata."""
+    metadata = source.sample_metadata(data, sample_id)
+    indexed = metadata.set_index("row_id", drop=False)
+    missing = set(loaded.row_ids) - set(indexed.index)
+    if missing:
+        raise ValueError(
+            f"{sample_id}: embedding artifacts contain unknown row IDs "
+            f"{sorted(missing)[:5]}"
+        )
+    aligned = indexed.loc[loaded.row_ids].reset_index(drop=True)
+    if not np.array_equal(cell_uids(aligned), loaded.cell_ids):
+        raise ValueError(f"{sample_id}: embedding cell IDs do not match HEST metadata")
+    if not np.all(loaded.sample_ids == str(sample_id)):
+        raise ValueError(f"{sample_id}: embedding manifest contains another sample")
+    return aligned
 
 
 def _read_labels(path, id_column, label_column) -> pd.DataFrame:
@@ -35,6 +65,61 @@ def _read_labels(path, id_column, label_column) -> pd.DataFrame:
     return table
 
 
+def _filter_split_support(
+    features,
+    labels,
+    ids,
+    train,
+    calibration,
+    test,
+    minimum,
+):
+    minimum = int(minimum)
+    if minimum < 1:
+        raise ValueError("min_class_count_per_split must be positive")
+    splits = [("train", train)]
+    if calibration is not None:
+        splits.append(("calibration", calibration))
+    splits.append(("test", test))
+
+    classes = set(labels)
+    supported = set(classes)
+    for _, indices in splits:
+        supported &= {
+            label
+            for label in classes
+            if int(np.sum(labels[indices] == label)) >= minimum
+        }
+    if len(supported) < 2:
+        raise ValueError(
+            "fewer than two classes have at least "
+            f"{minimum} cells in every required split"
+        )
+
+    excluded = sorted(classes - supported)
+    if excluded:
+        print(
+            f"Excluded classes with fewer than {minimum} cells per split: "
+            f"{', '.join(excluded)}"
+        )
+    keep = np.isin(labels, tuple(supported))
+    new_rows = np.full(len(labels), -1, dtype=int)
+    new_rows[keep] = np.arange(int(keep.sum()))
+
+    def remap(indices):
+        mapped = new_rows[indices]
+        return mapped[mapped >= 0]
+
+    return (
+        features[keep],
+        labels[keep],
+        ids[keep],
+        remap(train),
+        None if calibration is None else remap(calibration),
+        remap(test),
+    )
+
+
 def prepare_task(
     features,
     cell_ids,
@@ -49,6 +134,7 @@ def prepare_task(
     arm: str | None = None,
     mapping=None,
     calibration_fraction_within_fit: float | None = None,
+    min_class_count_per_split: int | None = None,
     pca_components: int = 256,
     seed: int = 0,
 ) -> Task:
@@ -116,6 +202,21 @@ def prepare_task(
             split_axis,
         )
         held_out = (("calibration", calibration), ("test", test))
+    if min_class_count_per_split is not None:
+        (
+            selected_features,
+            selected_labels,
+            selected_ids,
+            train,
+            calibration,
+            test,
+        ) = _filter_split_support(
+            selected_features, selected_labels, selected_ids,
+            train, calibration, test, min_class_count_per_split,
+        )
+        held_out = (("test", test),) if calibration is None else (
+            ("calibration", calibration), ("test", test)
+        )
     train_classes = set(selected_labels[train])
     for name, indices in held_out:
         missing = set(selected_labels[indices]) - train_classes

@@ -45,6 +45,34 @@ class ConformalResult:
     conditional_nodes: dict[str, np.ndarray]
 
 
+def _supported_cells(metadata, minimum):
+    minimum = int(minimum)
+    if minimum < 1:
+        raise ValueError("min_class_count_per_split must be positive")
+    labels = metadata["label"].astype(str).to_numpy()
+    splits = metadata["split"].replace({"valid": "val"}).astype(str).to_numpy()
+    classes = set(labels)
+    supported = set(classes)
+    for split in ("train", "val", "test"):
+        supported &= {
+            label
+            for label in classes
+            if int(np.sum((labels == label) & (splits == split))) >= minimum
+        }
+    if len(supported) < 2:
+        raise ValueError(
+            "fewer than two classes have at least "
+            f"{minimum} cells in train, calibration, and test"
+        )
+    excluded = sorted(classes - supported)
+    if excluded:
+        print(
+            f"Excluded classes with fewer than {minimum} cells per split: "
+            f"{', '.join(excluded)}"
+        )
+    return np.isin(labels, tuple(supported))
+
+
 def prepare_task(
     features,
     metadata,
@@ -53,6 +81,7 @@ def prepare_task(
     task: str,
     arm: str,
     pca_components: int,
+    min_class_count_per_split: int,
     seed: int,
 ) -> Task:
     """Harmonize source labels, exclude unmapped concepts, and prepare splits."""
@@ -68,6 +97,11 @@ def prepare_task(
     selected_metadata = metadata.loc[included].reset_index(drop=True).copy()
     selected_metadata["label"] = labels[included]
     selected_features = np.asarray(features)[included]
+    supported = _supported_cells(
+        selected_metadata, min_class_count_per_split
+    )
+    selected_metadata = selected_metadata.loc[supported].reset_index(drop=True)
+    selected_features = selected_features[supported]
     return ood.prepare_task(
         selected_features,
         selected_metadata,
@@ -144,12 +178,22 @@ def _summary(
 ) -> dict:
     sizes = prediction_sets.sum(axis=1)
     covered = _coverage(prediction_sets, labels, classes)
+    class_coverages = np.asarray(
+        [
+            covered[labels == class_label].mean()
+            for class_label in classes
+            if np.any(labels == class_label)
+        ]
+    )
     empirical_risk, corrected_risk, n_groups = _calibration_risks(calibration)
     return {
         "conformal_method": method,
         "conditioning": conditioning,
         "target_coverage": 1.0 - alpha,
         "marginal_coverage": float(covered.mean()),
+        "coverage_gap": float(
+            100.0 * np.mean(np.abs(class_coverages - (1.0 - alpha)))
+        ),
         "mean_prediction_set_size": float(sizes.mean()),
         "singleton_rate": float(np.mean(sizes == 1)),
         "root_inconclusive_rate": (

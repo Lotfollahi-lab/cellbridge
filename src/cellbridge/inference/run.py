@@ -106,7 +106,28 @@ def check(config, profiles, methods, probes, tasks) -> None:
             if value is not None and not Path(value).exists():
                 raise FileNotFoundError(f"{method}: {key} does not exist: {value}")
 
-    if "conformal" in config:
+    if data.get("format") == "hest":
+        mapping_dir = data.get("mapping_dir")
+        if not mapping_dir:
+            raise ValueError("HEST data.mapping_dir is required")
+        sample_ids = source.sample_ids(data)
+        for sample_id in sample_ids:
+            hest_api.load_sample_mapping(
+                mapping_dir, sample_id, config["dataset"]
+            )
+        print(f"HEST mappings: {len(sample_ids)} reviewed samples")
+
+        if "conformal" in config:
+            settings = [
+                hest_conformal.ontology_settings(config, sample_id)
+                for sample_id in sample_ids
+            ]
+            alphas = {item[2] for item in settings}
+            print(
+                f"Conformal: alpha={next(iter(alphas)):g}, "
+                f"{len(sample_ids)} per-sample mappings"
+            )
+    elif "conformal" in config:
         mapping, _, alpha, _ = _load_conformal(config)
         _, included = mapping.map_labels(metadata["label"])
         if not included.any():
@@ -192,23 +213,6 @@ def _align_metadata(config, loaded):
     return aligned
 
 
-def _align_hest_metadata(source, data, loaded, sample_id):
-    metadata = source.sample_metadata(data, sample_id)
-    indexed = metadata.set_index("row_id", drop=False)
-    missing = set(loaded.row_ids) - set(indexed.index)
-    if missing:
-        raise ValueError(
-            f"{sample_id}: embedding artifacts contain unknown row IDs "
-            f"{sorted(missing)[:5]}"
-        )
-    aligned = indexed.loc[loaded.row_ids].reset_index(drop=True)
-    if not np.array_equal(cell_uids(aligned), loaded.cell_ids):
-        raise ValueError(f"{sample_id}: embedding cell IDs do not match HEST metadata")
-    if not np.all(loaded.sample_ids == str(sample_id)):
-        raise ValueError(f"{sample_id}: embedding manifest contains another sample")
-    return aligned
-
-
 def _save_hest_metrics(output, rows):
     output.mkdir(parents=True, exist_ok=True)
     table = pd.DataFrame(rows)
@@ -245,11 +249,16 @@ def _evaluate_hest(config, methods, probes, tasks) -> None:
 
     for method in methods:
         for arm in embedding_methods.arms(method):
-            manifest = embedding_dir / method / arm / "manifest.csv"
+            manifest = embedding_dir / arm / "manifest.csv"
             metrics = {probe: [] for probe in probes}
             for sample_id in sample_ids:
                 loaded = load_manifest_sample(manifest, sample_id)
-                metadata = _align_hest_metadata(source, data, loaded, sample_id)
+                metadata = hest_api.align_metadata(
+                    source, data, loaded, sample_id
+                )
+                mapping = hest_api.load_sample_mapping(
+                    data["mapping_dir"], sample_id, config["dataset"]
+                )
                 labels, coordinates = source.evaluation_paths(data, sample_id)
                 task = hest_api.prepare_task(
                     loaded.embeddings,
@@ -262,6 +271,7 @@ def _evaluate_hest(config, methods, probes, tasks) -> None:
                     test_fraction=float(probe_config.get("test_fraction", 0.2)),
                     split_axis=probe_config.get("split_axis", "y"),
                     arm=arm,
+                    mapping=mapping,
                     pca_components=int(probe_config.get("pca_components", 256)),
                     seed=seed,
                 )
@@ -280,7 +290,7 @@ def _evaluate_hest(config, methods, probes, tasks) -> None:
                             **result.metrics,
                         },
                     )
-                    output = evaluation_dir / method / arm / "all" / probe / sample_id
+                    output = evaluation_dir / arm / "all" / probe / sample_id
                     probe_api.save_result(output, result)
                     metrics[probe].append(result.metrics)
                     print(
@@ -288,7 +298,7 @@ def _evaluate_hest(config, methods, probes, tasks) -> None:
                         f"macro_f1={result.metrics['macro_f1']:.4f}"
                     )
             for probe, rows in metrics.items():
-                output = evaluation_dir / method / arm / "all" / probe
+                output = evaluation_dir / arm / "all" / probe
                 _save_hest_metrics(output, rows)
 
 
@@ -305,7 +315,7 @@ def evaluate(config, methods, probes, tasks) -> None:
 
     for method in methods:
         for arm in embedding_methods.arms(method):
-            manifest = embedding_dir / method / arm / "manifest.csv"
+            manifest = embedding_dir / arm / "manifest.csv"
             loaded = load_manifest(manifest)
             metadata = _align_metadata(config, loaded)
             for task_name in tasks:
@@ -331,7 +341,7 @@ def evaluate(config, methods, probes, tasks) -> None:
                             **result.metrics,
                         },
                     )
-                    output = evaluation_dir / method / arm / task_name / probe
+                    output = evaluation_dir / arm / task_name / probe
                     probe_api.save_result(output, result)
                     print(
                         f"[{method}/{arm}/{task_name}/{probe}] "
@@ -355,7 +365,7 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
 
     for method in methods:
         for arm in embedding_methods.arms(method):
-            manifest = embedding_dir / method / arm / "manifest.csv"
+            manifest = embedding_dir / arm / "manifest.csv"
             loaded = load_manifest(manifest)
             metadata = _align_metadata(config, loaded)
             for task_name in tasks:
@@ -366,6 +376,9 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
                     task=task_name,
                     arm=arm,
                     pca_components=pca_components,
+                    min_class_count_per_split=int(
+                        config["conformal"].get("min_class_count_per_split", 20)
+                    ),
                     seed=seed,
                 )
                 for probe in probes:
@@ -399,7 +412,6 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
                     )
                     output = (
                         evaluation_dir
-                        / method
                         / arm
                         / task_name
                         / probe
