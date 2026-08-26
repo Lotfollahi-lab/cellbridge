@@ -9,7 +9,8 @@ import pandas as pd
 from cellbridge.inference.embed import methods as embedding_methods
 from cellbridge.inference.embed import sources
 from cellbridge.inference.embed.artifacts import load_manifest_sample
-from cellbridge.inference.evaluate import conformal, hest
+from cellbridge.inference.conformal import conformal_ood as conformal
+from cellbridge.inference.evaluate import hest
 from cellbridge.ontology import load_ontology
 
 

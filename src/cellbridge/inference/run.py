@@ -17,9 +17,9 @@ from cellbridge.inference.embed.artifacts import (
     write_manifests,
 )
 from cellbridge.inference.embed.sources.metadata import cell_uids
-from cellbridge.inference.evaluate import conformal as conformal_api
+from cellbridge.inference.conformal import conformal_hest as hest_conformal
+from cellbridge.inference.conformal import conformal_ood as conformal_api
 from cellbridge.inference.evaluate import hest as hest_api
-from cellbridge.inference.evaluate import hest_conformal
 from cellbridge.inference.evaluate import ood
 from cellbridge.inference.evaluate import probe as probe_api
 from cellbridge.ontology import load_mapping, load_ontology
