@@ -94,6 +94,10 @@ def check(config, profiles, methods, probes, tasks) -> None:
     for method in methods:
         profile = profiles[method]
         embedding_methods.arms(method)
+        if method == "cellbridge" and not profile.get("load", {}).get("checkpoint"):
+            raise ValueError(
+                "cellbridge requires --checkpoint for extraction or checking"
+            )
         source.make_cropper(profile, data)
         extraction = profile.get("extraction", {})
         if int(extraction.get("batch_size", 0)) < 1:
@@ -447,6 +451,8 @@ def main():
     config, profiles = _load_suite(args.config)
     if args.output_dir:
         config["output_dir"] = args.output_dir
+    if not config.get("output_dir"):
+        raise ValueError("--output-dir is required")
     if args.checkpoint:
         if "cellbridge" not in profiles:
             raise ValueError(
@@ -456,6 +462,9 @@ def main():
     methods = _select(
         args.method, config["methods"], embedding_methods.METHODS, "methods"
     )
+    if args.command in ("extract", "run") and "cellbridge" in methods:
+        if not profiles["cellbridge"].get("load", {}).get("checkpoint"):
+            raise ValueError("cellbridge extraction requires --checkpoint")
     probe_config = config["probe"]
     probes = _select(args.probe, probe_config["methods"], probe_api.PROBES, "probes")
     tasks = _select(args.task, probe_config["tasks"], TASKS, "tasks")

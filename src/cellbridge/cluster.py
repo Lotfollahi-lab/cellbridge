@@ -46,11 +46,14 @@ def _environment(name, cores):
 
 
 def render_job(args):
-    config = load_config(args.config)
-    value = config
-    for part in args.output_key.split("."):
-        value = value[part]
-    log_dir = _path(value) / args.log_subdir
+    if args.log_dir:
+        log_dir = _path(args.log_dir)
+    else:
+        config = load_config(args.config)
+        value = config
+        for part in args.output_key.split("."):
+            value = value[part]
+        log_dir = _path(value) / args.log_subdir
     log_dir.mkdir(parents=True, exist_ok=True)
 
     directives = [
@@ -132,6 +135,7 @@ def _parser():
     job.add_argument("--output-key", default="output_dir")
     job.add_argument("--log-subdir", default="logs")
     job.add_argument("--cluster", default=os.environ.get("CELLBRIDGE_CLUSTER", "auto"))
+    job.add_argument("--log-dir", help="Override the configured log directory")
     job.add_argument("--queue", default="auto")
     job.add_argument("--gmem", type=int, help="GPU memory in MB; requests one GPU")
     job.add_argument("--memory", required=True, type=int)

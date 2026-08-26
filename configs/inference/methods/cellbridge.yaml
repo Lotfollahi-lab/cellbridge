@@ -1,8 +1,5 @@
 method: cellbridge
 
-load:
-  checkpoint: ${CELLBRIDGE_CHECKPOINTS_ROOT}/lora/contrastive_k0/best.pt
-
 crop:
   kind: center
   source_size: 224
