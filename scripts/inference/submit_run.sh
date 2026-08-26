@@ -90,7 +90,7 @@ esac
 
 evaluate_job="$($SUBMIT submit "$config" \
   --job "${job_name}_evaluate" --log-prefix evaluate --log-dir "$log_dir" \
-  --queue "${INFERENCE_CPU_QUEUE:-training-normal}" \
+  --queue "${INFERENCE_CPU_QUEUE:-auto}" \
   --memory "$evaluation_memory" --cores "${INFERENCE_CPU_NCORES:-16}" \
   --environment none --dependency "done($extract_job)" -- \
   "$RUNNER" core evaluate "$config" --method "$method" \
@@ -100,7 +100,7 @@ conformal_job="-"
 if [ -n "$conformal_config" ]; then
   conformal_job="$($SUBMIT submit "$conformal_config" \
     --job "${job_name}_conformal" --log-prefix conformal --log-dir "$log_dir" \
-    --queue "${INFERENCE_CPU_QUEUE:-training-normal}" \
+    --queue "${INFERENCE_CPU_QUEUE:-auto}" \
     --memory "$evaluation_memory" --cores "${INFERENCE_CPU_NCORES:-16}" \
     --environment none --dependency "done($extract_job)" -- \
     "$RUNNER" core conformal "$conformal_config" --method "$method" \

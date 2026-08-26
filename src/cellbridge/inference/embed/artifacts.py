@@ -49,6 +49,10 @@ def save_sample(
     row_ids = np.asarray(row_ids)
     if cell_ids.ndim != 1 or row_ids.ndim != 1 or len(cell_ids) != len(row_ids):
         raise ValueError("cell_ids and row_ids must be aligned one-dimensional arrays")
+    if row_ids.dtype.hasobject:
+        row_ids = np.asarray(row_ids.tolist())
+        if row_ids.ndim != 1 or row_ids.dtype.hasobject:
+            raise TypeError("row_ids must be serializable without pickle")
     if len(np.unique(cell_ids)) != len(cell_ids) or len(np.unique(row_ids)) != len(
         row_ids
     ):
