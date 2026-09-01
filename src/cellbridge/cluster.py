@@ -69,6 +69,8 @@ def render_job(args):
             f'rusage[mem={args.memory}G] span[hosts=1]"'
         ),
     ]
+    if args.reservation:
+        directives.append(f"#BSUB -U {args.reservation}")
     if args.gmem is not None:
         directives.append(f'#BSUB -gpu "num=1:gmem={args.gmem}"')
     if args.dependency:
@@ -137,6 +139,9 @@ def _parser():
     job.add_argument("--cluster", default=os.environ.get("CELLBRIDGE_CLUSTER", "auto"))
     job.add_argument("--log-dir", help="Override the configured log directory")
     job.add_argument("--queue", default="auto")
+    job.add_argument(
+        "--reservation", default=os.environ.get("CELLBRIDGE_LSF_RESERVATION")
+    )
     job.add_argument("--gmem", type=int, help="GPU memory in MB; requests one GPU")
     job.add_argument("--memory", required=True, type=int)
     job.add_argument("--cores", required=True, type=int)
@@ -175,6 +180,8 @@ def main(argv=None):
             raise ValueError("submit requires a command after --")
         if args.gmem is not None and args.gmem <= 0:
             raise ValueError("--gmem must be positive")
+        if args.reservation and not re.fullmatch(r"[A-Za-z0-9_.-]+", args.reservation):
+            raise ValueError("--reservation contains unsafe characters")
         submit(args)
 
 
