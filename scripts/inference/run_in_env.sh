@@ -31,7 +31,9 @@ if [ "$runtime" = core ]; then
   exec "$TERRA_ENV/bin/python" "${arguments[@]:1}"
 fi
 
-if [ "$runtime" = uni ] || [ "$runtime" = cellbridge ]; then
+if [ "$runtime" = uni ] || [ "$runtime" = cellbridge ] || \
+   [ "$runtime" = lemon ] || [ "$runtime" = virchow2 ] || \
+   [ "$runtime" = hibou_l ]; then
   [ -x "$HEST_ENV/bin/python" ] || {
     echo "HEST environment not found: $HEST_ENV" >&2
     exit 1

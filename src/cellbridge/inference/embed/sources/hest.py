@@ -361,9 +361,20 @@ def make_cropper(profile, data):
         raise ValueError("crop fill must be between 0 and 255")
 
     if kind == "center":
-        size = int(settings.get("source_size", 0))
-        target_mpp = settings.get("target_mpp")
-        target_mpp = None if target_mpp is None else float(target_mpp)
+        has_pixels = "source_size" in settings
+        has_fov = "fov_um" in settings
+        if has_pixels == has_fov:
+            raise ValueError(
+                "HEST center crop requires exactly one of source_size or fov_um"
+            )
+        if has_fov:
+            size = int(settings.get("target_size", 0))
+            fov_um = float(settings["fov_um"])
+            target_mpp = fov_um / size if size > 0 else 0
+        else:
+            size = int(settings["source_size"])
+            target_mpp = settings.get("target_mpp")
+            target_mpp = None if target_mpp is None else float(target_mpp)
         if size < 1 or (target_mpp is not None and target_mpp <= 0):
             raise ValueError("HEST center crop dimensions must be positive")
         return partial(

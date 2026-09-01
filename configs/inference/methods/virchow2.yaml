@@ -1,0 +1,16 @@
+method: virchow2
+
+load:
+  hf_repo: paige-ai/Virchow2
+  revision: 3158645804b69e3f3bc4439d4116edddf0840a72
+
+crop:
+  kind: center
+  source_size: 224
+  target_mpp: 0.5
+  fill: 255
+
+extraction:
+  batch_size: 32
+  num_workers: 4
+  storage_dtype: float16

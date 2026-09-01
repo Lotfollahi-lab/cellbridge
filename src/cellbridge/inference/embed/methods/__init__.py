@@ -2,7 +2,16 @@
 
 from importlib import import_module
 
-METHODS = ("uni", "cellbridge", "past", "volta", "spatialwhisperer")
+METHODS = (
+    "uni",
+    "cellbridge",
+    "past",
+    "volta",
+    "spatialwhisperer",
+    "lemon",
+    "virchow2",
+    "hibou_l",
+)
 
 _MODULES = {
     "uni": "uni",
@@ -10,6 +19,9 @@ _MODULES = {
     "past": "past",
     "volta": "volta",
     "spatialwhisperer": "spatialwhisperer",
+    "lemon": "lemon",
+    "virchow2": "virchow2",
+    "hibou_l": "hibou_l",
 }
 
 

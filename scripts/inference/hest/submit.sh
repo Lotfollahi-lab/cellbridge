@@ -18,7 +18,7 @@ if [ "${#samples[@]}" -eq 0 ]; then
 fi
 
 for sample_id in "${samples[@]}"; do
-  for method in uni past volta spatialwhisperer; do
+  for method in uni past volta spatialwhisperer lemon virchow2 hibou_l; do
     "$SUBMIT_RUN" "$CONFIG" "$method" all \
       --sample-id "$sample_id" --conformal-config "$CONFIG"
   done

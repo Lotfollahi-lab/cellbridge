@@ -10,7 +10,7 @@ data:
   expected_samples: 15
   mapping_dir: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/hest
 
-methods: [uni, cellbridge, past, volta, spatialwhisperer]
+methods: [uni, cellbridge, past, volta, spatialwhisperer, lemon, virchow2, hibou_l]
 
 probe:
   tasks: [all]

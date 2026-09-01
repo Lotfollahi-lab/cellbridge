@@ -1,0 +1,17 @@
+method: lemon
+
+load:
+  hf_repo: aliceblondel/LEMON
+  arch: vitb8
+  revision: d12246ba78018e1abe8f9477e951cc7c31c83209
+
+crop:
+  kind: center
+  fov_um: 10.0
+  target_size: 40
+  fill: 255
+
+extraction:
+  batch_size: 128
+  num_workers: 4
+  storage_dtype: float16

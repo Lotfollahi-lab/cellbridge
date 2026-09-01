@@ -21,7 +21,7 @@ for dataset in "${datasets[@]}"; do
   fi
 
 
-  for method in uni past volta spatialwhisperer; do
+  for method in uni past volta spatialwhisperer lemon virchow2 hibou_l; do
     "$SUBMIT_RUN" "$config" "$method" all --conformal-config "$config"
   done
 

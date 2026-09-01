@@ -12,7 +12,7 @@ data:
   allow_unlabeled_samples: true
   skip_missing_cells: true
 
-methods: [uni, cellbridge, past, volta, spatialwhisperer]
+methods: [uni, cellbridge, past, volta, spatialwhisperer, lemon, virchow2, hibou_l]
 
 probe:
   tasks: [all]
