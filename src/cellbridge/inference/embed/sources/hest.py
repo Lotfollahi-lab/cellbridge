@@ -385,7 +385,8 @@ def _cell_bounds(path, cell_ids) -> np.ndarray:
 
     cells = gpd.read_parquet(path)
     bounds = cells.geometry.bounds
-    bounds.index = cells.index.astype(str)
+    identifiers = cells["cell_id"] if "cell_id" in cells else cells.index
+    bounds.index = [_identifier(value) for value in identifiers]
     bounds = bounds.groupby(level=0, sort=False).agg(
         {"minx": "min", "miny": "min", "maxx": "max", "maxy": "max"}
     )
