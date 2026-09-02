@@ -2,7 +2,7 @@ method: lemon
 
 load:
   hf_repo: aliceblondel/LEMON
-  arch: vitb8
+  arch: vits8
   revision: d12246ba78018e1abe8f9477e951cc7c31c83209
 
 crop:

@@ -7,7 +7,7 @@ data:
   split: ${CELLBRIDGE_DATA_ROOT}/eval/lizard/splits/lizard_default_train_test_val_split.csv
   tile_size: 224
   value_scale: 1
-  source_mpp: 0.25
+  source_mpp: 0.5
 
 methods: [uni, cellbridge, past, volta, spatialwhisperer, lemon, virchow2, hibou_l]
 
