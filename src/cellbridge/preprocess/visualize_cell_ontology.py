@@ -18,6 +18,28 @@ from cellbridge.ontology import Ontology, load_mapping, load_ontology
 
 _OUTPUT_FORMATS = {".pdf": "pdf", ".png": "png", ".svg": "svg"}
 
+# Pango parses a trailing "Roman" as a style, so the family needs a second
+# entry to survive as a family name.
+_FONT = "Latin Modern Roman, serif"
+
+_TERM_COLOR = "#287DC5"
+_TERM_FILL = "#9CBDDF"
+_MAPPED_COLOR = "#8859AB"
+_MAPPED_FILL = "#C0ADD2"
+_LABEL_COLOR = "#88C2AB"
+_LABEL_FILL = "#C9E0D6"
+_EXCLUDED_COLOR = "#CB722F"
+_EXCLUDED_FILL = "#DEBA9B"
+_EDGE_COLOR = "#000000"
+
+_DATASET_NAMES = {
+    "hest": "HEST",
+    "lizard": "Lizard",
+    "nucls": "NuCLS",
+    "pannuke": "PanNuke",
+    "phenocell": "PhenoCell",
+}
+
 
 def _quote(value) -> str:
     value = str(value)
@@ -62,7 +84,7 @@ def _ancestor_graph(mapping: dict, ontology: Ontology):
 
 def mapping_to_dot(config: dict, ontology: Ontology) -> str:
     """Return a DOT graph through every asserted ancestor to the root."""
-    root, terms, ontology_edges, mapped_terms = _ancestor_graph(config, ontology)
+    _, terms, ontology_edges, mapped_terms = _ancestor_graph(config, ontology)
     mapped_labels = []
     excluded_labels = []
 
@@ -76,13 +98,10 @@ def mapping_to_dot(config: dict, ontology: Ontology) -> str:
             raise ValueError(f"mapping and ontology name disagree for {term_id}")
         mapped_labels.append((normalized, entry, term_id))
 
-    dataset = str(config["dataset"])
+    dataset = _DATASET_NAMES.get(config["dataset"], str(config["dataset"]))
     if config.get("sample_id"):
-        dataset += f" / {config['sample_id']}"
-    title = (
-        f"{dataset}\nCell Ontology {config['ontology']['release']}\n"
-        "normalized labels → CL terms → complete asserted is_a ancestry"
-    )
+        dataset += f" \u2014 {config['sample_id']}"
+    title = f"Cell Ontology Tree for {dataset}"
 
     lines = [
         "digraph cell_ontology_mapping {",
@@ -92,14 +111,14 @@ def mapping_to_dot(config: dict, ontology: Ontology) -> str:
             bgcolor="white",
             label=title,
             labelloc="t",
-            fontsize="18",
-            fontname="Helvetica",
+            fontsize="28",
+            fontname=_FONT,
             nodesep="0.35",
             ranksep="0.65",
         )
         + "];",
-        "  node [fontname=\"Helvetica\", fontsize=\"10\"];",
-        "  edge [fontname=\"Helvetica\", fontsize=\"9\", arrowsize=\"0.7\"];",
+        f'  node [fontname={_quote(_FONT)}, fontsize="14"];',
+        f'  edge [fontname={_quote(_FONT)}, fontsize="12", arrowsize="0.7"];',
     ]
 
     for term_id, name in sorted(terms.items()):
@@ -107,20 +126,15 @@ def mapping_to_dot(config: dict, ontology: Ontology) -> str:
             "label": f"{name}\n{term_id}",
             "shape": "ellipse",
             "style": "filled",
-            "color": "#2563eb",
-            "fillcolor": "#dbeafe",
+            "color": _MAPPED_COLOR if term_id in mapped_terms else _TERM_COLOR,
+            "fillcolor": _MAPPED_FILL if term_id in mapped_terms else _TERM_FILL,
         }
-        if term_id in mapped_terms:
-            attributes["fillcolor"] = "#bfdbfe"
-            attributes["penwidth"] = "2"
-        if term_id == root["id"]:
-            attributes.update(fillcolor="#1d4ed8", fontcolor="white", penwidth="2")
         lines.append(f"  {_quote(f'term:{term_id}')} [{_attributes(**attributes)}];")
 
     for child, parent in sorted(ontology_edges):
         lines.append(
             f"  {_quote(f'term:{child}')} -> {_quote(f'term:{parent}')} "
-            f"[{_attributes(color='#64748b', tooltip='is_a')}];"
+            f"[{_attributes(color=_EDGE_COLOR, tooltip='is_a')}];"
         )
 
     for index, (normalized, entry, term_id) in enumerate(mapped_labels):
@@ -129,15 +143,15 @@ def mapping_to_dot(config: dict, ontology: Ontology) -> str:
             "label": _label_text(normalized, entry),
             "shape": "box",
             "style": "rounded,filled",
-            "color": "#15803d",
-            "fillcolor": "#dcfce7",
+            "color": _LABEL_COLOR,
+            "fillcolor": _LABEL_FILL,
         }
         if entry.get("note"):
             attributes["tooltip"] = entry["note"]
         lines.append(f"  {_quote(node_id)} [{_attributes(**attributes)}];")
         lines.append(
             f"  {_quote(node_id)} -> {_quote(f'term:{term_id}')} "
-            f"[{_attributes(label='maps to', color='#15803d', style='dashed')}];"
+            f"[{_attributes(label='maps to', color=_EDGE_COLOR, style='dashed')}];"
         )
 
     if excluded_labels:
@@ -147,8 +161,8 @@ def mapping_to_dot(config: dict, ontology: Ontology) -> str:
                 label="excluded from Cell Ontology",
                 shape="ellipse",
                 style="dashed,filled",
-                color="#b91c1c",
-                fillcolor="#fee2e2",
+                color=_EXCLUDED_COLOR,
+                fillcolor=_EXCLUDED_FILL,
             )
             + "];"
         )
@@ -158,14 +172,14 @@ def mapping_to_dot(config: dict, ontology: Ontology) -> str:
                 "label": _label_text(normalized, entry),
                 "shape": "box",
                 "style": "rounded,filled",
-                "color": "#b91c1c",
-                "fillcolor": "#fee2e2",
+                "color": _EXCLUDED_COLOR,
+                "fillcolor": _EXCLUDED_FILL,
                 "tooltip": entry["note"],
             }
             lines.append(f"  {_quote(node_id)} [{_attributes(**attributes)}];")
             lines.append(
                 f"  {_quote(node_id)} -> \"excluded\" "
-                f"[{_attributes(color='#b91c1c', style='dashed')}];"
+                f"[{_attributes(color=_EDGE_COLOR, style='dashed')}];"
             )
 
     lines.append("}")
