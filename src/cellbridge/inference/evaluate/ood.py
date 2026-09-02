@@ -6,7 +6,7 @@ from sklearn.decomposition import PCA
 
 from cellbridge.inference.evaluate import Task
 
-PCA_ARMS = frozenset({"uni", "lora_adapted", "virchow2"})
+PCA_ARMS = frozenset({"uni", "lora_adapted", "virchow2", "hibou_l"})
 
 IMMUNE_CLASSES = {
     "B cells",
