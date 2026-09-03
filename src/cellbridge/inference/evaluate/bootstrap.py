@@ -5,13 +5,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from cellbridge.evaluation import ClassificationResult
+from cellbridge.evaluation import ClassificationResult, macro_auroc
 
 METRICS = (
     "accuracy",
     "balanced_accuracy",
     "macro_f1",
     "weighted_f1",
+    "macro_auroc",
 )
 
 
@@ -72,18 +73,12 @@ def _group_confusions(result, groups):
 
     labels = np.unique(np.concatenate((y_true, y_pred)))
     label_index = {label: index for index, label in enumerate(labels)}
-    true_index = np.fromiter(
-        (label_index[label] for label in y_true), dtype=np.int64
-    )
-    pred_index = np.fromiter(
-        (label_index[label] for label in y_pred), dtype=np.int64
-    )
+    true_index = np.fromiter((label_index[label] for label in y_true), dtype=np.int64)
+    pred_index = np.fromiter((label_index[label] for label in y_pred), dtype=np.int64)
     unique_groups, group_index = np.unique(groups, return_inverse=True)
 
     n_labels = len(labels)
-    flat_index = (
-        group_index * n_labels * n_labels + true_index * n_labels + pred_index
-    )
+    flat_index = group_index * n_labels * n_labels + true_index * n_labels + pred_index
     confusions = np.bincount(
         flat_index,
         minlength=len(unique_groups) * n_labels * n_labels,
@@ -137,21 +132,49 @@ def summarize(result: ClassificationResult, groups, settings):
     sampled_confusions = np.einsum("bg,gij->bij", weights, confusions)
     values = _metrics_from_confusions(sampled_confusions, true_label_mask)
 
+    support = settings.get("min_test_support")
+    _, group_index = np.unique(np.asarray(groups).astype(str), return_inverse=True)
+    estimate, n_scored = macro_auroc(
+        result.y_true,
+        result.probabilities,
+        result.classes,
+        min_test_support=support,
+    )
+    values["macro_auroc"] = np.array(
+        [
+            macro_auroc(
+                result.y_true,
+                result.probabilities,
+                result.classes,
+                min_test_support=support,
+                sample_weight=draw[group_index].astype(np.float64),
+            )[0]
+            for draw in weights
+        ]
+    )
+    estimates = {**result.metrics, "macro_auroc": estimate}
+
     replicates = pd.DataFrame(
         {"bootstrap": np.arange(n_resamples, dtype=np.int64), **values}
     )
     rows = []
     for metric in METRICS:
         metric_values = np.asarray(values[metric], dtype=np.float64)
+        finite = metric_values[np.isfinite(metric_values)]
+        if len(finite) < 2:
+            raise ValueError(f"fewer than two finite bootstrap replicates for {metric}")
         rows.append(
             {
                 "metric": metric,
-                "estimate": float(result.metrics[metric]),
-                "bootstrap_se": float(metric_values.std(ddof=1)),
-                "ci_2_5": float(np.percentile(metric_values, 2.5)),
-                "ci_97_5": float(np.percentile(metric_values, 97.5)),
+                "estimate": float(estimates[metric]),
+                "bootstrap_se": float(finite.std(ddof=1)),
+                "ci_2_5": float(np.percentile(finite, 2.5)),
+                "ci_97_5": float(np.percentile(finite, 97.5)),
+                "n_classes_scored": n_scored if metric == "macro_auroc" else pd.NA,
+                "n_bootstrap_finite": len(finite),
                 "n_test_groups": n_groups,
                 "min_class_group_count": min_class_groups,
+                "min_test_support": support,
                 "n_bootstrap": n_resamples,
                 "seed": seed,
                 "group_column": str(settings.get("group_column", "")),

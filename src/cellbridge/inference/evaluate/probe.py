@@ -65,4 +65,5 @@ def evaluate(task: Task, probe, settings=None) -> ProbeResult:
             "n_classes": len(classes),
             **details,
         },
+        min_test_support=settings.get("min_test_support"),
     )

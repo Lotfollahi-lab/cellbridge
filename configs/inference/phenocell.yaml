@@ -18,6 +18,7 @@ probe:
   pca_components: 256
   seed: 0
   bootstrap:
+    min_test_support: 20
     group_column: sample_id
     group_regex: '^(reg\d+)'
     n_resamples: 1000

@@ -25,23 +25,40 @@ class ClassificationResult:
     classes: np.ndarray
 
 
-def _macro_auroc(y_true, probabilities, classes) -> float:
-    if len(np.unique(y_true)) != len(classes):
-        return float("nan")
-    try:
-        if len(classes) == 2:
-            return float(roc_auc_score(y_true, probabilities[:, 1]))
-        return float(
-            roc_auc_score(
-                y_true,
-                probabilities,
-                labels=classes,
-                multi_class="ovr",
-                average="macro",
+def scored_classes(y_true, classes, min_test_support) -> np.ndarray:
+    y_true = np.asarray(y_true).astype(str)
+    if min_test_support is None:
+        present = len(np.unique(y_true)) == len(classes)
+        return np.full(len(classes), present, dtype=bool)
+    counts = pd.Series(y_true).value_counts()
+    support = np.array([int(counts.get(str(name), 0)) for name in classes])
+    return support >= max(int(min_test_support), 1)
+
+
+def macro_auroc(
+    y_true, probabilities, classes, *, min_test_support=None, sample_weight=None
+):
+    scored = scored_classes(y_true, classes, min_test_support)
+    y_true = np.asarray(y_true).astype(str)
+    values = []
+    for column in np.flatnonzero(scored):
+        positive = y_true == str(classes[column])
+        if sample_weight is None:
+            if not positive.any() or positive.all():
+                continue
+        elif sample_weight[positive].sum() <= 0 or sample_weight[~positive].sum() <= 0:
+            continue
+        try:
+            values.append(
+                roc_auc_score(
+                    positive, probabilities[:, column], sample_weight=sample_weight
+                )
             )
-        )
-    except ValueError:
-        return float("nan")
+        except ValueError:
+            continue
+    if not values:
+        return float("nan"), 0
+    return float(np.mean(values)), len(values)
 
 
 def evaluate_predictions(
@@ -51,6 +68,7 @@ def evaluate_predictions(
     probabilities,
     classes,
     metrics=None,
+    min_test_support=None,
 ) -> ClassificationResult:
     """Score class probabilities and retain their aligned predictions."""
     ids = np.asarray(ids)
@@ -75,7 +93,9 @@ def evaluate_predictions(
         "weighted_f1": float(
             f1_score(y_true, predicted, average="weighted", zero_division=0)
         ),
-        "macro_auroc": _macro_auroc(y_true, probabilities, classes),
+        "macro_auroc": macro_auroc(
+            y_true, probabilities, classes, min_test_support=min_test_support
+        )[0],
     }
     return ClassificationResult(
         metrics={**(metrics or {}), **scores},

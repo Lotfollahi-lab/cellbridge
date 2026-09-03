@@ -354,6 +354,11 @@ def evaluate(config, methods, probes, tasks) -> None:
                 for probe in probes:
                     settings = dict(probe_config.get(probe, {}))
                     settings.setdefault("seed", seed)
+                    if bootstrap_config is not None:
+                        settings.setdefault(
+                            "min_test_support",
+                            bootstrap_config.get("min_test_support"),
+                        )
                     result = probe_api.evaluate(task, probe, settings)
                     result = replace(
                         result,
