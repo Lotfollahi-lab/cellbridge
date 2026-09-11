@@ -16,48 +16,11 @@ from cellbridge.qualitative.data import (
     terra_matrix,
 )
 
+
 # One fixed depth colour ramp, shared by the per-cell, smoothed and patch maps.
 DEPTH_CMAP = LinearSegmentedColormap.from_list(
     "ontology_depth", ["#4055cf", "#63d6e5", "#c5f0b1", "#fff28a", "#f6a15c", "#bf3438"]
 )
-
-
-def _label_colours(classes):
-    return dict(zip(classes, plt.get_cmap("tab20")(np.linspace(0, 1, len(classes)))))
-
-
-def _depth_scale(maximum):
-    cmap = ListedColormap(DEPTH_CMAP(np.linspace(0, 1, maximum + 1)))
-    return cmap, BoundaryNorm(np.arange(-0.5, maximum + 1.5), cmap.N)
-
-
-def _scatter_labels(ax, rows, column, colours, size=50, xy=("x", "y")):
-    for label, colour in colours.items():
-        group = rows.loc[rows[column].eq(label)]
-        ax.scatter(
-            group[xy[0]],
-            group[xy[1]],
-            s=size,
-            color=colour,
-            edgecolors="white",
-            linewidths=0.4,
-        )
-
-
-def _scatter_pair(axes, rows, sizes=(32, 52), **style):
-    for ax, (x, y), size in zip(axes, [("umap_x", "umap_y"), ("x", "y")], sizes):
-        ax.scatter(rows[x], rows[y], s=size, **style)
-
-
-def _scale_bar(ax, width, mpp, x, y, text_offset):
-    length = 10 ** np.floor(np.log10(width * mpp / 4))
-    ax.plot([x, x + length / mpp], [y, y], c="black", lw=3)
-    ax.text(
-        x,
-        y - text_offset,
-        f"{length:g} µm",
-        bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none"},
-    )
 
 
 def _format(value, spec):
@@ -159,10 +122,12 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     tissue = np.asarray(field["tissue"][y0:y1, x0:x1])[..., :3]
     extent = (x0 - 0.5, x1 - 0.5, y1 - 0.5, y0 - 0.5)
     classes = state["saved"]["classes"].astype(str)
-    colours = _label_colours(classes)
+    colours = dict(zip(classes, plt.get_cmap("tab20")(np.linspace(0, 1, len(classes)))))
     graph = state["graph"]
+    # One fixed scale for every method and field within the dataset/section.
     maximum = max(max(distances.values()) - 1 for distances in graph.distances)
-    cmap, norm = _depth_scale(maximum)
+    cmap = ListedColormap(DEPTH_CMAP(np.linspace(0, 1, maximum + 1)))
+    norm = BoundaryNorm(np.arange(-0.5, maximum + 1.5), cmap.N)
     fig, axes = plt.subplots(2, 2, figsize=(15, 12), layout="constrained")
     for ax in axes.flat:
         ax.imshow(tissue, extent=extent, alpha=1 if ax is axes[0, 0] else 0.65)
@@ -175,8 +140,18 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
         "Ontology depth / coarseness" + (" · local mean" if smooth else " · per cell")
     )
     for ax, column in [(axes[0, 1], "truth"), (axes[1, 0], "predicted")]:
-        _scatter_labels(ax, evaluated, column, colours)
+        for label in classes:
+            group = evaluated.loc[evaluated[column].eq(label)]
+            ax.scatter(
+                group.x,
+                group.y,
+                s=50,
+                color=colours[label],
+                edgecolors="white",
+                linewidths=0.4,
+            )
     missing = rows.loc[~rows.evaluated]
+    # Harmonized reference labels are still visible for non-evaluated cells, when available.
     reference = missing.label.map(state["mapping"].source_to_class)
     for label in classes:
         group = missing.loc[reference.eq(label)]
@@ -207,7 +182,7 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
                 "No supported neighbourhoods to smooth",
                 ha="center",
                 transform=axes[1, 1].transAxes,
-                bbox={"facecolor": "white", "alpha": 0.9},
+                bbox=dict(facecolor="white", alpha=0.9),
             )
     else:
         axes[1, 1].scatter(
@@ -243,12 +218,7 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
                 xytext=(3, 3),
                 textcoords="offset points",
                 fontsize=7,
-                bbox={
-                    "facecolor": "white",
-                    "alpha": 0.7,
-                    "edgecolor": "none",
-                    "pad": 0.2,
-                },
+                bbox=dict(facecolor="white", alpha=0.7, edgecolor="none", pad=0.2),
             )
     if cell_id is not None:
         chosen = rows.loc[rows.row_id.eq(cell_id)].iloc[0]
@@ -261,13 +231,14 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
                 edgecolors="magenta",
                 linewidths=2,
             )
-    _scale_bar(
-        axes[0, 0],
-        x1 - x0,
-        field["mpp"],
-        x0 + 0.06 * (x1 - x0),
-        y1 - 0.07 * (y1 - y0),
-        0.025 * (y1 - y0),
+    scale_um = 10 ** np.floor(np.log10((x1 - x0) * field["mpp"] / 4))
+    bx, by = x0 + 0.06 * (x1 - x0), y1 - 0.07 * (y1 - y0)
+    axes[0, 0].plot([bx, bx + scale_um / field["mpp"]], [by, by], c="black", lw=3)
+    axes[0, 0].text(
+        bx,
+        by - 0.025 * (y1 - y0),
+        f"{scale_um:g} µm",
+        bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
     )
     handles = [
         Line2D([], [], marker="o", linestyle="none", color=colours[c], label=c)
@@ -347,19 +318,19 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     if cell_id is not None:
         chosen = rows.loc[rows.row_id.eq(cell_id)].iloc[0]
         display(Markdown(selected_cell_text(state, chosen)))
-    return {
-        "figure": fig,
-        "cells": rows[columns],
-        "method": method,
-        "bounds": list(map(int, bounds)),
-        "cell_id": cell_id,
-        "smooth": smooth,
-        "sample_id": field["sample_id"],
-        "image_path": field["image_path"],
-        "mpp": field["mpp"],
-        "outside_image_annotations": field["outside_image_annotations"],
-        "outside_image_evaluated": field["outside_image_evaluated"],
-    }
+    return dict(
+        figure=fig,
+        cells=rows[columns],
+        method=method,
+        bounds=list(map(int, bounds)),
+        cell_id=cell_id,
+        smooth=smooth,
+        sample_id=field["sample_id"],
+        image_path=field["image_path"],
+        mpp=field["mpp"],
+        outside_image_annotations=field["outside_image_annotations"],
+        outside_image_evaluated=field["outside_image_evaluated"],
+    )
 
 
 TISSUE_STATISTICS = {
@@ -375,7 +346,8 @@ TISSUE_STATISTICS = {
 }
 
 
-# Custom hover labels also work in notebook viewers without native title tooltips.
+# Notebook viewers do not all draw the browser's own title tooltip, so every patch carries
+# a hover label of its own; title stays on as a fallback for plain HTML exports.
 HOVER_STYLE = """<style>
 #{name} {{position:relative;display:inline-block;max-width:100%}}
 #{name} > img {{width:100%;display:block}}
@@ -429,6 +401,7 @@ def hover_targets(fig, ax, table, tips):
     name = f"tissue-map-{uuid.uuid4().hex[:8]}"
     boxes = []
     for (left, top), (right, bottom), tip in zip(near, far, tips):
+        # Open the label away from whichever edge of the figure the patch sits against.
         anchor = "from-right" if left / width > 0.55 else "from-left"
         side = "above" if top / height < 0.45 else "below"
         label = html.escape(str(tip))
@@ -475,8 +448,16 @@ def render_section(state, field, table, size, statistic, method, min_cells):
         interpolation="nearest",
     )
     fig.colorbar(image, ax=axes[1], shrink=0.7, label=bar_label)
-    _scale_bar(
-        axes[0], width, field["mpp"], 0.04 * width, 0.97 * height, 0.015 * height
+    scale_um = 10 ** np.floor(np.log10(width * field["mpp"] / 4))
+    bar_x, bar_y = 0.04 * width, 0.97 * height
+    axes[0].plot(
+        [bar_x, bar_x + scale_um / field["mpp"]], [bar_y, bar_y], c="black", lw=3
+    )
+    axes[0].text(
+        bar_x,
+        bar_y - 0.015 * height,
+        f"{scale_um:g} µm",
+        bbox=dict(facecolor="white", alpha=0.8, edgecolor="none"),
     )
     fig.suptitle(
         f"{state['choice']} · CellBridge · {METHODS[method]}\n"
@@ -485,9 +466,16 @@ def render_section(state, field, table, size, statistic, method, min_cells):
         fontsize=11,
     )
     tips = [
-        f"{r.patch} · x={r.x0}:{r.x1}, y={r.y0}:{r.y1} · "
-        f"{r.evaluated_cells:,} evaluated cells · {statistic}: {getattr(r, column):.2f}"
-        for r in table.itertuples()
+        f"{patch} · x={x0}:{x1}, y={y0}:{y1} · {count:,} evaluated cells · {statistic}: {value:.2f}"
+        for patch, x0, x1, y0, y1, count, value in zip(
+            table.patch,
+            table.x0,
+            table.x1,
+            table.y0,
+            table.y1,
+            table.evaluated_cells,
+            table[column],
+        )
     ]
     hover_targets(fig, axes[1], table, tips)
     plt.close(fig)
@@ -592,18 +580,39 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
     axes[1].set(xlim=(x0 - 0.5, x1 - 0.5), ylim=(y1 - 0.5, y0 - 0.5))
     axes[1].axis("off")
     blank = inside.loc[~inside.evaluated]
-    _scatter_pair(
-        axes,
-        blank,
-        sizes=(24, 44),
+    axes[0].scatter(
+        blank.umap_x,
+        blank.umap_y,
+        s=24,
         facecolors="none",
         edgecolors="grey",
         linewidths=0.5,
     )
+    axes[1].scatter(
+        blank.x, blank.y, s=44, facecolors="none", edgecolors="grey", linewidths=0.5
+    )
     if discrete:
-        colours = _label_colours(classes)
-        for ax, xy, size in zip(axes, [("umap_x", "umap_y"), ("x", "y")], [32, 52]):
-            _scatter_labels(ax, scored, column, colours, size, xy)
+        colours = dict(
+            zip(classes, plt.get_cmap("tab20")(np.linspace(0, 1, len(classes))))
+        )
+        for label in classes:
+            group = scored.loc[scored[column].eq(label)]
+            axes[0].scatter(
+                group.umap_x,
+                group.umap_y,
+                s=32,
+                color=colours[label],
+                edgecolors="white",
+                linewidths=0.4,
+            )
+            axes[1].scatter(
+                group.x,
+                group.y,
+                s=52,
+                color=colours[label],
+                edgecolors="white",
+                linewidths=0.4,
+            )
         fig.legend(
             handles=[
                 Line2D([], [], marker="o", linestyle="none", color=colours[c], label=c)
@@ -616,8 +625,11 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
         )
     else:
         if column == "depth":
-            cmap, norm = _depth_scale(maximum)
-            ticks = range(maximum + 1)
+            cmap = ListedColormap(DEPTH_CMAP(np.linspace(0, 1, maximum + 1)))
+            norm, ticks = (
+                BoundaryNorm(np.arange(-0.5, maximum + 1.5), cmap.N),
+                range(maximum + 1),
+            )
             marked = scored.loc[scored.depth.notna()]
         else:
             top = int(scored.set_size.max()) if len(scored) else 1
@@ -627,12 +639,23 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
                 None,
                 scored,
             )
-        _scatter_pair(
-            axes,
-            marked,
+        axes[0].scatter(
+            marked.umap_x,
+            marked.umap_y,
             c=marked[column],
             cmap=cmap,
             norm=norm,
+            s=32,
+            edgecolors="white",
+            linewidths=0.4,
+        )
+        axes[1].scatter(
+            marked.x,
+            marked.y,
+            c=marked[column],
+            cmap=cmap,
+            norm=norm,
+            s=52,
             edgecolors="white",
             linewidths=0.4,
         )
@@ -646,9 +669,14 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
         if column == "depth":
             excluded = scored.loc[scored.depth.isna() & scored.set_size.gt(0)]
             empty = scored.loc[scored.set_size.eq(0)]
-            _scatter_pair(axes, excluded, sizes=(44, 64), marker="x", c="black")
-            _scatter_pair(axes, empty, sizes=(60, 88), marker="+", c="#c62828")
+            axes[0].scatter(
+                excluded.umap_x, excluded.umap_y, marker="x", c="black", s=44
+            )
+            axes[0].scatter(empty.umap_x, empty.umap_y, marker="+", c="#c62828", s=60)
+            axes[1].scatter(excluded.x, excluded.y, marker="x", c="black", s=64)
+            axes[1].scatter(empty.x, empty.y, marker="+", c="#c62828", s=88)
     if scored.neighbour_agreement.notna().any():
+        # Depth levels keep the ontology ramp; excluded and empty sets keep their × and + colours.
         buckets = [
             "Empty set"
             if size == 0
@@ -751,14 +779,14 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
             "neighbour_agreement",
         ]
     ]
-    return {
-        "figure": fig,
-        "cells": cells,
-        "pool": pool,
-        "patch": scored,
-        "bounds": [x0, y0, x1, y1],
-        "method": method,
-        "embedding": TERRA_MATRICES[name],
-        "colour": column,
-        "context": len(outside),
-    }
+    return dict(
+        figure=fig,
+        cells=cells,
+        pool=pool,
+        patch=scored,
+        bounds=[x0, y0, x1, y1],
+        method=method,
+        embedding=TERRA_MATRICES[name],
+        colour=column,
+        context=len(outside),
+    )
