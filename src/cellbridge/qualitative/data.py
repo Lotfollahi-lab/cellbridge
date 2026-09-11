@@ -15,7 +15,8 @@ from PIL import Image
 
 from cellbridge.config import load_config
 from cellbridge.inference.conformal.graph import build_task_graph
-from cellbridge.inference.embed.sources import hest, lmdb as tiled, nucls
+from cellbridge.inference.embed.sources import hest, nucls
+from cellbridge.inference.embed.sources import lmdb as tiled
 from cellbridge.ontology import load_mapping, load_ontology
 
 REPO = Path(__file__).resolve().parents[3]
@@ -38,12 +39,9 @@ METHODS = {
     "hybrid_split": "Hybrid split",
     "hybrid_graph": "Hybrid graph",
 }
-# The views offer one conformal method. Branch graph is the reported method, and a fixed
-# choice keeps every view comparable; METHODS stays complete so the saved metrics of all
-# eight are still checked when a dataset loads.
+# Show branch graph consistently; validate all saved methods.
 OFFERED_METHODS = ["branch_graph"]
-# HEST organs come from the phenotype cohort table. The two cell-level datasets carry no
-# organ column: NuCLS is TCGA breast carcinoma, PhenoCell the Schürch colorectal cohort.
+# HEST organs come from the cohort table; these datasets have no organ column.
 DATASET_ORGANS = {"nucls": "breast", "phenocell": "colorectal"}
 
 
@@ -79,20 +77,7 @@ def load_catalog():
         dtype={"sample_id": str},
     )
     hest_organs = dict(zip(cohort.sample_id, cohort.organ.str.replace("_", " ")))
-    catalog = []
-    for dataset, label in [("nucls", "NuCLS"), ("phenocell", "PhenoCell")]:
-        directory = prediction_directory(dataset)
-        if (directory / "predictions.npz").is_file():
-            organ = DATASET_ORGANS[dataset]
-            catalog.append(
-                dict(
-                    choice=f"{label} ({organ})",
-                    dataset=dataset,
-                    section=None,
-                    organ=organ,
-                    directory=directory,
-                )
-            )
+    sources = [("nucls", "NuCLS", None), ("phenocell", "PhenoCell", None)]
     for path in sorted(
         (MODEL_RESULTS / "hest").glob(
             "*/evaluation/lora_adapted/all/linear/*/conformal_prediction/predictions.npz"
@@ -103,16 +88,26 @@ def load_catalog():
             section != "TENX143"
             and path == prediction_directory("hest", section) / "predictions.npz"
         ):
-            organ = hest_organs.get(section, "organ not recorded")
-            catalog.append(
-                dict(
-                    choice=f"HEST · {section} ({organ})",
-                    dataset="hest",
-                    section=section,
-                    organ=organ,
-                    directory=path.parent,
-                )
-            )
+            sources.append(("hest", f"HEST · {section}", section))
+    catalog = []
+    for dataset, label, section in sources:
+        directory = prediction_directory(dataset, section)
+        if not (directory / "predictions.npz").is_file():
+            continue
+        organ = (
+            hest_organs.get(section, "organ not recorded")
+            if dataset == "hest"
+            else DATASET_ORGANS[dataset]
+        )
+        catalog.append(
+            {
+                "choice": f"{label} ({organ})",
+                "dataset": dataset,
+                "section": section,
+                "organ": organ,
+                "directory": directory,
+            }
+        )
     if not catalog:
         raise FileNotFoundError(
             f"No CellBridge cell-level conformal results under {MODEL_RESULTS}"
@@ -189,10 +184,11 @@ def load_dataset(catalog, choice):
     for method in available:
         masks = saved[method + "_sets"]
         assert masks.dtype == bool and masks.shape == probabilities.shape
+        sizes = masks.sum(axis=1)
         actual = [
             masks[np.arange(len(ids)), columns].mean(),
-            masks.sum(axis=1).mean(),
-            (masks.sum(axis=1) == 1).mean(),
+            sizes.mean(),
+            (sizes == 1).mean(),
         ]
         expected = metrics.loc[
             method, ["marginal_coverage", "mean_prediction_set_size", "singleton_rate"]
@@ -201,28 +197,29 @@ def load_dataset(catalog, choice):
     evaluated["truth"] = truth
     evaluated["predicted"] = classes[probabilities.argmax(axis=1)]
     graph = build_task_graph(mapping, ontology, classes)
-    state = dict(
-        choice=choice,
-        dataset=dataset,
-        section=section,
-        config=config,
-        mapping=mapping,
-        mapping_path=mapping_path,
-        ontology=ontology,
-        graph=graph,
-        saved=saved,
-        metadata=metadata,
-        evaluated=evaluated,
-        methods=available,
-        metrics=metrics,
-        directory=directory,
-        sample=sample,
+    state = {
+        "choice": choice,
+        "dataset": dataset,
+        "section": section,
+        "config": config,
+        "mapping": mapping,
+        "mapping_path": mapping_path,
+        "ontology": ontology,
+        "graph": graph,
+        "saved": saved,
+        "metadata": metadata,
+        "evaluated": evaluated,
+        "methods": available,
+        "metrics": metrics,
+        "directory": directory,
+        "sample": sample,
+    }
+    counts = (
+        evaluated.assign(correct=evaluated.truth.eq(evaluated.predicted))
+        .groupby("sample_id")
+        .agg(evaluated_cells=("row_id", "size"), top1_accuracy=("correct", "mean"))
     )
-    counts = evaluated.groupby("sample_id").size().rename("evaluated_cells").to_frame()
-    counts["annotated_cells"] = metadata.groupby("sample_id").size()
-    counts["top1_accuracy"] = evaluated.groupby("sample_id").apply(
-        lambda rows: rows.truth.eq(rows.predicted).mean()
-    )
+    counts.insert(1, "annotated_cells", metadata.groupby("sample_id").size())
     state["fields"] = counts.reset_index().sort_values(
         ["evaluated_cells", "sample_id"], ascending=[False, True]
     )
@@ -256,8 +253,7 @@ def load_field(state, sample_id):
                 env.stat()["entries"] == state["metadata"].sample_id.nunique() * n_tiles
             )
             entries = None
-            # Metadata order supplies a fast candidate; verify the stored name.
-            # Fall back to scanning block headers if that order ever changes.
+            # Try metadata order first, then scan block headers.
             sample_order = state["metadata"].sample_id.drop_duplicates().tolist()
             guess = sample_order.index(sample_id) * n_tiles
             starts = dict.fromkeys([guess, *range(0, env.stat()["entries"], n_tiles)])
@@ -310,15 +306,15 @@ def load_field(state, sample_id):
     cells = cells.sort_values("row_id").reset_index(drop=True)
     cells["number"] = np.arange(1, len(cells) + 1)
     cells["evaluated"] = cells.row_id.isin(state["evaluated"].index)
-    return dict(
-        sample_id=sample_id,
-        tissue=tissue,
-        cells=cells,
-        mpp=float(mpp),
-        image_path=str(path),
-        outside_image_annotations=omitted,
-        outside_image_evaluated=omitted_evaluated,
-    )
+    return {
+        "sample_id": sample_id,
+        "tissue": tissue,
+        "cells": cells,
+        "mpp": float(mpp),
+        "image_path": str(path),
+        "outside_image_annotations": omitted,
+        "outside_image_evaluated": omitted_evaluated,
+    }
 
 
 def ancestor_functions(state):
@@ -332,10 +328,11 @@ def ancestor_functions(state):
     def close(columns):
         if not columns:
             return "", (), (), ""
+        selected = set(columns)
         candidates = {
             node
             for node, descendants in graph.descendant_columns.items()
-            if set(columns).issubset(descendants)
+            if selected.issubset(descendants)
         }
         lowest = [
             n for n in candidates if not candidates.intersection(graph.children[n])
@@ -352,19 +349,21 @@ def ancestor_functions(state):
 
 
 def evaluate_field(state, field, method):
-    graph, classes = state["graph"], state["saved"]["classes"].astype(str)
-    cells = field["cells"].copy()
+    graph, saved = state["graph"], state["saved"]
+    classes = saved["classes"].astype(str)
+    class_columns = {label: column for column, label in enumerate(classes)}
+    cells = field["cells"]
     selected = cells.loc[cells.evaluated]
-    positions = pd.Index(state["saved"]["ids"].astype(str)).get_indexer(selected.row_id)
+    positions = pd.Index(saved["ids"].astype(str)).get_indexer(selected.row_id)
     assert (positions >= 0).all()
     close = ancestor_functions(state)
     records = []
     for row_id, position in zip(selected.row_id, positions):
-        mask = state["saved"][method + "_sets"][position]
+        mask = saved[method + "_sets"][position]
         columns = tuple(np.flatnonzero(mask))
         anchor, expanded, lowest, term = close(columns)
-        truth = str(state["saved"]["y_true"][position])
-        true_column = int(np.flatnonzero(classes == truth)[0])
+        truth = str(saved["y_true"][position])
+        true_column = class_columns[truth]
         covered = true_column in expanded
         distance = (
             max(0, graph.ancestors_for_column(true_column)[anchor] - 1)
@@ -372,22 +371,22 @@ def evaluate_field(state, field, method):
             else np.nan
         )
         records.append(
-            dict(
-                row_id=row_id,
-                truth=truth,
-                predicted=classes[state["saved"]["probabilities"][position].argmax()],
-                prediction_set="; ".join(classes[list(columns)]) or "∅",
-                set_size=len(columns),
-                raw_covered=bool(mask[true_column]),
-                ancestor_term=term,
-                ancestor=state["ontology"].names[term] if term else "Empty set",
-                all_lowest_ancestors="; ".join(
+            {
+                "row_id": row_id,
+                "truth": truth,
+                "predicted": classes[saved["probabilities"][position].argmax()],
+                "prediction_set": "; ".join(classes[list(columns)]) or "∅",
+                "set_size": len(columns),
+                "raw_covered": bool(mask[true_column]),
+                "ancestor_term": term,
+                "ancestor": state["ontology"].names[term] if term else "Empty set",
+                "all_lowest_ancestors": "; ".join(
                     f"{state['ontology'].names[t]} ({t})" for t in lowest
                 ),
-                expanded_set="; ".join(classes[list(expanded)]) or "∅",
-                ancestor_covered=covered,
-                depth=distance,
-            )
+                "expanded_set": "; ".join(classes[list(expanded)]) or "∅",
+                "ancestor_covered": covered,
+                "depth": distance,
+            }
         )
     return cells.merge(
         pd.DataFrame(records), on="row_id", how="left", validate="one_to_one"
@@ -464,7 +463,7 @@ def patch_statistics(rows, size, shape, min_cells):
     cells["excluded"] = cells.set_size.gt(0) & ~cells.ancestor_covered
     cells["empty"] = cells.set_size.eq(0)
     cells["correct"] = cells.truth.eq(cells.predicted)
-    # Excluded cells carry no depth, so patch depth averages the ancestor-covered cells only.
+    # NaN depths exclude uncovered cells from depth averages.
     table = (
         cells.groupby(["row", "column"])
         .agg(
@@ -509,7 +508,7 @@ def terra_matrix(state, name):
     """Read one TERRA matrix; its rows follow the section's cell order."""
     key = (state["section"], name)
     if key not in TERRA_CACHE:
-        TERRA_CACHE.clear()  # a section-sized matrix is a few hundred MB; keep only the current one
+        TERRA_CACHE.clear()  # Keep only one section-sized matrix in memory.
         with np.load(terra_file(state), allow_pickle=False) as archive:
             ids = np.asarray([hest._identifier(value) for value in archive["cell_ids"]])
             np.testing.assert_array_equal(ids, state["sample"].cell_ids)
