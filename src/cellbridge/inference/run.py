@@ -17,6 +17,7 @@ from cellbridge.inference.embed.artifacts import (
     write_manifests,
 )
 from cellbridge.inference.embed.sources.metadata import cell_uids
+from cellbridge.inference.conformal import bootstrap as conformal_bootstrap
 from cellbridge.inference.conformal import conformal_hest as hest_conformal
 from cellbridge.inference.conformal import conformal_ood as conformal_api
 from cellbridge.inference.evaluate import bootstrap as bootstrap_api
@@ -403,6 +404,7 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
     output_subdir = config["conformal"].get("output_subdir", "conformal")
     seed = int(probe_config.get("seed", 0))
     pca_components = int(probe_config.get("pca_components", 256))
+    bootstrap_config = probe_config.get("bootstrap")
 
     for method in methods:
         for arm in embedding_methods.arms(method):
@@ -459,6 +461,18 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
                         / output_subdir
                     )
                     conformal_api.save_result(output, result)
+                    if bootstrap_config is not None:
+                        uncertainty, replicates = conformal_bootstrap.summarize(
+                            conformal_bootstrap.prediction_sets(result),
+                            result.y_true,
+                            result.classes,
+                            bootstrap_api.resolve_groups(
+                                metadata, result.ids, bootstrap_config
+                            ),
+                            bootstrap_config,
+                            target_coverage=1.0 - float(alpha),
+                        )
+                        bootstrap_api.save_result(output, uncertainty, replicates)
                     graph_metrics = result.metrics[1]
                     print(
                         f"[{method}/{arm}/{task_name}/{probe}/{output_subdir}] "
