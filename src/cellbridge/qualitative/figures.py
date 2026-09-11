@@ -23,14 +23,56 @@ DEPTH_CMAP = LinearSegmentedColormap.from_list(
 )
 
 
-def show_table(table):
-    display(
-        HTML(
-            '<div style="max-height:420px;overflow:auto">'
-            + table.to_html(index=False, escape=True, na_rep="—")
-            + "</div>"
-        )
+def _format(value, spec):
+    return "—" if pd.isna(value) else format(value, spec)
+
+
+def summary_line(evaluated):
+    """Headline numbers for a group of evaluated cells, as one line of text."""
+    return (
+        f"Top-1 correct {evaluated.truth.eq(evaluated.predicted).mean():.1%} · "
+        f"original-set coverage {evaluated.raw_covered.astype(bool).mean():.1%} · "
+        f"ancestor-expanded coverage {evaluated.ancestor_covered.astype(bool).mean():.1%} · "
+        f"mean set size {evaluated.set_size.mean():.2f} · "
+        f"mean depth (covered only) {_format(evaluated.depth.mean(), '.2f')} · "
+        f"empty sets {int(evaluated.set_size.eq(0).sum())}."
     )
+
+
+def selected_cell_text(state, chosen):
+    """A selected cell's prediction and common ancestor, with one ontology path per label."""
+    head = (
+        f"**Selected cell #{chosen.number}** ({chosen.row_id}, circled in magenta; "
+        f"original annotation: {chosen.label})"
+    )
+    if not chosen.evaluated:
+        return f"{head} has no saved test prediction."
+    if chosen.set_size == 0:
+        outcome = "The prediction set is empty, so there is no ancestor and no depth."
+    elif not chosen.ancestor_covered:
+        outcome = f"The common ancestor **{chosen.ancestor}** excludes the reference, so there is no depth."
+    else:
+        outcome = f"Common ancestor **{chosen.ancestor}**, depth {int(chosen.depth)}."
+    text = (
+        f"{head}: reference **{chosen.truth}**, predicted **{chosen.predicted}**, "
+        f"prediction set {chosen.prediction_set}. {outcome}"
+    )
+    if chosen.ancestor_term:
+        ontology = state["ontology"]
+        terms = state["mapping"].class_terms(chosen.prediction_set.split("; "))
+        paths = [
+            f"- **{label}**: "
+            + " → ".join(
+                f"{ontology.names[t]} ({t})"
+                for t in shortest_path(ontology, term, chosen.ancestor_term)
+            )
+            for label, term in terms.items()
+        ]
+        text += (
+            "\n\nCandidate paths up to the ancestor, one shortest path per label:\n\n"
+            + "\n".join(paths)
+        )
+    return text
 
 
 def smooth_depth(tissue, rows, mpp, bounds):
@@ -92,7 +134,7 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
         ax.set(xlim=(x0 - 0.5, x1 - 0.5), ylim=(y1 - 0.5, y0 - 0.5))
         ax.axis("off")
     axes[0, 0].set_title("H&E · selected cell circled when applicable")
-    axes[0, 1].set_title("Reference labels · numbers match the table")
+    axes[0, 1].set_title("Reference labels · numbered as in the saved cell table")
     axes[1, 0].set_title("CellBridge · highest-scoring label")
     axes[1, 1].set_title(
         "Ontology depth / coarseness" + (" · local mean" if smooth else " · per cell")
@@ -246,31 +288,14 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     display(fig)
     plt.close(fig)
     nominal = float(state["metrics"].loc[method, "target_coverage"])
+    summary = f"\n\n{summary_line(evaluated)}" if len(evaluated) else ""
     display(
         Markdown(
             f"**{len(rows):,} annotated cells; {len(evaluated):,} with test predictions.** "
-            f"Saved nominal coverage: {nominal:.0%}. Numbers are omitted above 60 cells; choose a smaller patch or cell view."
+            f"Saved nominal coverage: {nominal:.0%}. Numbers are omitted above 60 cells; "
+            f"choose a smaller patch or cell view.{summary}"
         )
     )
-    if len(evaluated):
-        show_table(
-            pd.DataFrame(
-                [
-                    {
-                        "top-1 correct": evaluated.truth.eq(evaluated.predicted).mean(),
-                        "original-set coverage": evaluated.raw_covered.astype(
-                            bool
-                        ).mean(),
-                        "ancestor-expanded coverage": evaluated.ancestor_covered.astype(
-                            bool
-                        ).mean(),
-                        "mean set size": evaluated.set_size.mean(),
-                        "mean depth (covered only)": evaluated.depth.mean(),
-                        "empty sets": int(evaluated.set_size.eq(0).sum()),
-                    }
-                ]
-            )
-        )
     columns = [
         "number",
         "row_id",
@@ -291,33 +316,8 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
         "depth",
     ]
     if cell_id is not None:
-        display(Markdown("**Selected cell** (circled in magenta):"))
-        details = rows.loc[rows.row_id.eq(cell_id), columns].iloc[0]
-        show_table(details.rename_axis("item").reset_index(name="value"))
-    display(Markdown("**All annotated cells in this view:**"))
-    show_table(rows[columns])
-    if cell_id is not None:
         chosen = rows.loc[rows.row_id.eq(cell_id)].iloc[0]
-        if chosen.evaluated and chosen.ancestor_term:
-            labels = chosen.prediction_set.split("; ")
-            terms = state["mapping"].class_terms(labels)
-            paths = []
-            for label, term in terms.items():
-                path = shortest_path(state["ontology"], term, chosen.ancestor_term)
-                paths.append(
-                    {
-                        "candidate label": label,
-                        "path up to common ancestor": " → ".join(
-                            f"{state['ontology'].names[t]} ({t})" for t in path
-                        ),
-                    }
-                )
-            display(
-                Markdown(
-                    "**Selected cell: candidate paths to the ancestor** (one shortest path per label)."
-                )
-            )
-            show_table(pd.DataFrame(paths))
+        display(Markdown(selected_cell_text(state, chosen)))
     return dict(
         figure=fig,
         cells=rows[columns],
@@ -743,56 +743,23 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
     )
     display(fig)
     plt.close(fig)
+    summary = (
+        f"\n\nMean neighbour agreement {_format(scored.neighbour_agreement.mean(), '.1%')} · "
+        f"mean depth (covered only) {_format(scored.depth.mean(), '.2f')} · "
+        f"ancestor-expanded coverage {scored.ancestor_covered.astype(bool).mean():.1%} · "
+        f"mean set size {scored.set_size.mean():.2f} · "
+        f"reference excluded {int((scored.depth.isna() & scored.set_size.gt(0)).sum())} · "
+        f"empty sets {int(scored.set_size.eq(0).sum())}."
+        if len(scored)
+        else ""
+    )
     display(
         Markdown(
             f"**{len(inside):,} cells in the patch; {len(scored):,} with test predictions**, "
             f"projected with {len(outside):,} context cells from the rest of the section. "
-            "TERRA embeds these cells' Xenium counts; CellBridge never saw them."
+            f"TERRA embeds these cells' Xenium counts; CellBridge never saw them.{summary}"
         )
     )
-    if len(scored):
-        show_table(
-            pd.DataFrame(
-                [
-                    {
-                        "mean neighbour agreement": scored.neighbour_agreement.mean(),
-                        "mean depth (covered only)": scored.depth.mean(),
-                        "ancestor-expanded coverage": scored.ancestor_covered.astype(
-                            bool
-                        ).mean(),
-                        "mean set size": scored.set_size.mean(),
-                        "reference excluded": int(
-                            (scored.depth.isna() & scored.set_size.gt(0)).sum()
-                        ),
-                        "empty sets": int(scored.set_size.eq(0).sum()),
-                    }
-                ]
-            )
-        )
-        display(
-            Markdown(
-                "**Patch cells, least transcriptomically typical first** — the cells whose "
-                "TERRA neighbours least often carry their own reference label:"
-            )
-        )
-        show_table(
-            scored.sort_values("neighbour_agreement")[
-                [
-                    "number",
-                    "row_id",
-                    "x",
-                    "y",
-                    "label",
-                    "truth",
-                    "predicted",
-                    "prediction_set",
-                    "set_size",
-                    "ancestor",
-                    "depth",
-                    "neighbour_agreement",
-                ]
-            ]
-        )
     cells = inside[
         [
             "number",

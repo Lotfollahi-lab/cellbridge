@@ -103,3 +103,34 @@ def test_save_view_writes_a_folder_per_user_with_provenance(monkeypatch, tmp_pat
         provenance["nominal_coverage"] == 0.9
         and provenance["trainable_blocks"] == "last_4"
     )
+
+
+def test_selected_cell_text_handles_empty_sets_and_cells_without_predictions():
+    cell = pd.Series(
+        {
+            "number": 7,
+            "row_id": "x-1",
+            "label": "Tumor",
+            "evaluated": True,
+            "set_size": 0.0,
+            "ancestor_covered": False,
+            "ancestor": "Empty set",
+            "ancestor_term": "",
+            "truth": "tumor cell",
+            "predicted": "t cell",
+            "prediction_set": "∅",
+            "depth": np.nan,
+        }
+    )
+    text = figures.selected_cell_text(None, cell)
+    assert text.startswith(
+        "**Selected cell #7** (x-1, circled in magenta; original annotation: Tumor)"
+    )
+    assert text.endswith(
+        "prediction set ∅. The prediction set is empty, so there is no ancestor and no depth."
+    )
+    unscored = cell.copy()
+    unscored["evaluated"] = False
+    assert figures.selected_cell_text(None, unscored).endswith(
+        "has no saved test prediction."
+    )

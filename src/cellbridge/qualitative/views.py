@@ -2,7 +2,6 @@
 
 import ipywidgets as widgets
 import matplotlib.pyplot as plt
-import pandas as pd
 from IPython.display import Markdown, clear_output, display
 
 from cellbridge.inference.embed.sources import hest
@@ -28,7 +27,7 @@ from cellbridge.qualitative.figures import (
     render_section,
     render_selection,
     render_terra,
-    show_table,
+    summary_line,
 )
 
 plt.rcParams.update(
@@ -37,10 +36,14 @@ plt.rcParams.update(
 
 
 def show_catalog():
-    """Load and display every dataset and HEST section with saved cell-level predictions."""
+    """Load every dataset and HEST section with saved cell-level predictions."""
     catalog = load_catalog()
+    others = ", ".join(catalog.index[catalog.dataset.ne("hest")])
     print("CellBridge results:", MODEL_RESULTS)
-    display(catalog[["dataset", "section", "organ"]].fillna("—"))
+    print(
+        f"{len(catalog)} entries with saved cell-level predictions: {others} and "
+        f"{int(catalog.dataset.eq('hest').sum())} HEST sections."
+    )
     return catalog
 
 
@@ -217,27 +220,8 @@ class Explorer:
             clear_output(wait=True)
             display(
                 Markdown(
-                    f"**Loaded {state['choice']} · CellBridge**. All saved method metrics checked. "
-                    "Choose any field; accuracy is shown for context, not used to rank fields."
-                )
-            )
-            show_table(state["fields"])
-            metrics = (
-                state["metrics"]
-                .loc[
-                    state["methods"],
-                    [
-                        "target_coverage",
-                        "marginal_coverage",
-                        "mean_prediction_set_size",
-                        "singleton_rate",
-                    ],
-                ]
-                .reset_index()
-            )
-            show_table(
-                metrics.rename(
-                    columns={"marginal_coverage": "full-test original-set coverage"}
+                    f"**Loaded {state['choice']} · CellBridge**. All saved method metrics "
+                    "checked; fields are listed by evaluated cells, not by performance."
                 )
             )
         with self.plot_output:
@@ -431,26 +415,7 @@ class TissueMap:
                 Markdown(
                     f"**Whole section: {len(evaluated):,} evaluated cells** among "
                     f"{len(rows):,} annotated cells. Saved nominal coverage: {nominal:.0%}."
-                )
-            )
-            show_table(
-                pd.DataFrame(
-                    [
-                        {
-                            "top-1 correct": evaluated.truth.eq(
-                                evaluated.predicted
-                            ).mean(),
-                            "original-set coverage": evaluated.raw_covered.astype(
-                                bool
-                            ).mean(),
-                            "ancestor-expanded coverage": evaluated.ancestor_covered.astype(
-                                bool
-                            ).mean(),
-                            "mean set size": evaluated.set_size.mean(),
-                            "mean depth (covered only)": evaluated.depth.mean(),
-                            "empty sets": int(evaluated.set_size.eq(0).sum()),
-                        }
-                    ]
+                    f"\n\n{summary_line(evaluated)}"
                 )
             )
             if table.empty:
@@ -475,11 +440,10 @@ class TissueMap:
             self.save_button.disabled = False
             display(
                 Markdown(
-                    "Hover any patch on the map for its name, bounds and value. "
-                    f"**Patches, worst first by {statistic}:**"
+                    "Hover any patch on the map for its name, bounds and value; the **Patch** "
+                    f"menu below lists the same patches, worst first by {statistic}."
                 )
             )
-            show_table(self.map["table"])
 
     def on_patch_open(self, _=None):
         with self.patch_output:
