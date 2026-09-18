@@ -6,6 +6,7 @@ python -m cellbridge.inference.calibration.run report --output-dir PATH
 """
 
 import argparse
+import fcntl
 import gc
 import hashlib
 import json
@@ -160,9 +161,13 @@ def evaluate(case, output):
                 index = next(i for i, candidate in enumerate(cases) if candidate["key"] == case["key"])
                 environment = dict(os.environ, OPENBLAS_NUM_THREADS="16", OMP_NUM_THREADS="16",
                                    MKL_NUM_THREADS="16", NUMEXPR_NUM_THREADS="16")
-                subprocess.run([sys.executable, "-u", "-m", "cellbridge.inference.calibration.run",
-                                "evaluate", "--output-dir", str(output), "--index", str(index)],
-                               env=environment, check=True)
+                # Serialize expensive local retries to avoid competing 16-thread fits.
+                # Batch jobs start with 16 threads and never enter this retry path.
+                with (output / "reproduction.lock").open("a") as lock:
+                    fcntl.flock(lock, fcntl.LOCK_EX)
+                    subprocess.run([sys.executable, "-u", "-m", "cellbridge.inference.calibration.run",
+                                    "evaluate", "--output-dir", str(output), "--index", str(index)],
+                                   env=environment, check=True)
                 return
             raise ValueError(f"refitted probabilities differ from saved run by {error}")
     lookup = {label: i for i, label in enumerate(classes)}

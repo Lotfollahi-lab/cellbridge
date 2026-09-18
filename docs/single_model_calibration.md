@@ -75,7 +75,8 @@ python -m cellbridge.inference.calibration.run report --output-dir "$AUDIT_OUTPU
 `prepare` freezes 133 cases and expanded dataset configurations and refuses to
 replace an existing manifest. `evaluate-all` uses at most four workers, initially two
 BLAS threads each, and skips completed cases. A failed reproduction check retries
-that worker with 16 threads (up to 64 active compute threads across four workers). Use a new output directory when
+that worker with 16 threads. These local retries are serialized to avoid multiple
+16-thread fits competing for the same CPU allocation. Use a new output directory when
 changing the experiment. Individual cases can run with `evaluate --index N`
 (zero-based). `scripts/inference/calibration_array.sh` supports one-based LSF
 arrays; request CPU resources appropriate for the embedding sizes (e.g. 16 cores,
