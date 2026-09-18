@@ -96,3 +96,14 @@ Run validation with `PYTHONPATH=src python -m pytest tests/test_calibration -q`.
 `provenance.json` records package versions, the source revision/branch and source
 hashes. `audit.csv` flags iteration-limit warnings inherited from the existing
 probe settings and records any argmax changes relative to saved predictions.
+
+## Completed results
+
+All 133 cases completed and passed independent metric checks. See the
+[results table](results/single_model_calibration_4l.md) and
+[summary with confidence intervals](results/single_model_calibration_4l.csv).
+CellBridge has the lowest raw ECE point estimate on four of six tasks and the
+lowest temperature-scaled ECE on two; these ranks alone do not establish
+statistical significance. Eighteen VOLTA fits retained convergence warnings
+under the original iteration budget. This audit evaluates single models; it
+does not measure deep ensembles.
