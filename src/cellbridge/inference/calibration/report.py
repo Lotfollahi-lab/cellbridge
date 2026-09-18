@@ -90,7 +90,8 @@ def report(output):
             for metric in METRICS:
                 estimates = summary.loc[(summary.dataset == ds) & (summary.task == task) &
                                         (summary.variant == variant) & (summary.metric == metric)].set_index("method").estimate
-                comparisons.append({"dataset": ds, "task": task, "variant": variant, "comparison": f"CellBridge - {method}",
+                comparisons.append({"dataset": ds, "task": task, "variant": variant, "method": "CellBridge", "reference_method": method,
+                                    "comparison_type": "between_models", "comparison": f"CellBridge - {method}",
                                     "metric": metric, "estimate": estimates['CellBridge'] - estimates[method],
                                     **interval(ours[metric].to_numpy() - other[metric].to_numpy())})
     for (ds, task, method), group in all_draws.groupby(["dataset", "task", "method"]):
@@ -99,7 +100,8 @@ def report(output):
         for metric in METRICS:
             estimates = summary.loc[(summary.dataset == ds) & (summary.task == task) &
                                     (summary.method == method) & (summary.metric == metric)].set_index('variant').estimate
-            comparisons.append({"dataset": ds, "task": task, "variant": method, "comparison": 'temperature_scaled - raw',
+            comparisons.append({"dataset": ds, "task": task, "variant": "", "method": method, "reference_method": "",
+                                "comparison_type": "temperature_scaling", "comparison": 'temperature_scaled - raw',
                                 "metric": metric, "estimate": estimates['temperature_scaled'] - estimates['raw'],
                                 **interval(scaled[metric].to_numpy() - raw[metric].to_numpy())})
     pd.DataFrame(comparisons).to_csv(output / "paired_differences.csv", index=False)

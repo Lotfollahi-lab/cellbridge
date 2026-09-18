@@ -43,6 +43,10 @@ def test_hest_equal_section_mean_and_paired_intervals(hest_audit):
     assert difference.estimate == pytest.approx(-.01)
     assert difference.ci_2_5 == pytest.approx(-.01)
     assert difference.ci_97_5 == pytest.approx(-.01)
+    scaling = differences.query("method == 'CellBridge' and comparison_type == 'temperature_scaling' and metric == 'ece_15'").iloc[0]
+    assert scaling.estimate == 0
+    assert scaling.ci_2_5 == 0
+    assert scaling.ci_97_5 == 0
 
 
 def test_report_rejects_different_test_populations(hest_audit):
