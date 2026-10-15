@@ -1,0 +1,17 @@
+# Native NuCLS hierarchy: aggregate raw predictions, then refit coarse probes.
+dataset_config: ${CELLBRIDGE_ROOT}/configs/inference/nucls.yaml
+hierarchy_dir: ${CELLBRIDGE_DATA_ROOT}/eval/nucls/raw/csv
+inference_root: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/inference
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/analysis/nucls_granularity/aggregated
+refit_output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/analysis/nucls_granularity/refit
+workers: 7
+n_resamples: 1000
+# name: [method directory, version directory, representation]
+methods:
+  CellBridge: [cellbridge, uni_terra_four_layers_adapted_all_cells, lora_adapted]
+  UNI2-h: [uni, all, uni]
+  Virchow2: [virchow2, all, virchow2]
+  VOLTA: [volta, all, volta]
+  LEMON: [lemon, vits8, lemon]
+  PAST: [past, all, past]
+  SpatialWhisperer: [spatialwhisperer, all, spatialwhisperer]

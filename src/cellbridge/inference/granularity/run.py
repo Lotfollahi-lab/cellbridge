@@ -16,10 +16,11 @@ from sklearn.metrics import classification_report
 
 from cellbridge.config import load_config
 from cellbridge.evaluation import evaluate_predictions, save_result
-from cellbridge.inference.calibration.run import METHODS, ROOT, WORKSPACE
 from cellbridge.inference.evaluate.bootstrap import (
     _group_confusions, _metrics_from_confusions,
 )
+
+DEFAULT_CONFIG = Path(__file__).resolve().parents[4] / "configs/analysis/granularity.yaml"
 
 LEVELS = ("super", "main", "raw")
 METRICS = ("macro_f1", "balanced_accuracy", "accuracy", "weighted_f1")
@@ -78,21 +79,22 @@ def load_predictions(path):
     return data
 
 
-def prepare(output):
-    config = load_config(ROOT / "configs/inference/nucls.yaml")
+def prepare(output, settings=None):
+    settings = load_config(DEFAULT_CONFIG) if settings is None else settings
+    config = load_config(settings["dataset_config"])
     metadata = pd.read_csv(config["data"]["metadata"], dtype={"row_id": str})
-    raw_dir = Path(config["data"]["metadata"]).parent / "raw/csv"
+    raw_dir = Path(settings["hierarchy_dir"])
     tables = []
     for path in sorted(raw_dir.glob("*.csv")):
         tables.append(pd.read_csv(path, usecols=[f"{level}_classification" for level in LEVELS])
                       .rename(columns={f"{level}_classification": level for level in LEVELS})
                       .drop_duplicates())
+    if not tables:
+        raise FileNotFoundError(f"No NuCLS annotation CSVs in {raw_dir}")
     hierarchy = validate_hierarchy(pd.concat(tables, ignore_index=True))
     cases, reference = [], None
-    for name, (method, version, arm) in METHODS.items():
-        root = WORKSPACE / "outputs/reproducibility/inference" / method / version
-        if name == "CellBridge":
-            root = WORKSPACE / "outputs/reproducibility/ablations/lora_depth/layers_4_cells_all/inference"
+    for name, (method, version, arm) in settings["methods"].items():
+        root = Path(settings["inference_root"]) / method / version
         for probe in ("linear", "knn"):
             source = root / "nucls/evaluation" / arm / "all" / probe
             saved = load_predictions(source / "predictions.npz")
@@ -134,7 +136,8 @@ def prepare(output):
     provenance = {
         "config": config, "hierarchy_source": str(raw_dir), "annotation_files": len(tables),
         "n_test": len(groups), "n_test_slides": len(set(groups)),
-        "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+        "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[4], text=True).strip(),
+        "analysis_config": settings,
         "analysis_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "prediction_sha256": {c["key"]: hashlib.sha256((Path(c["source"]) / "predictions.npz").read_bytes()).hexdigest() for c in cases},
         "aggregation": "sum raw-class probabilities, then argmax; no refitting",
@@ -191,13 +194,14 @@ def report(output, summary, draws, *, refitted=False):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    methods = list(summary["method"].drop_duplicates())
     paired = []
     for probe in ("linear", "knn"):
         for metric in METRICS:
             points = summary.query("probe == @probe and metric == @metric").pivot(index="method", columns="level", values="estimate")
             boot = draws.query("probe == @probe").pivot(index="bootstrap", columns=["method", "level"], values=metric)
             cb_change = boot["CellBridge", "raw"] - boot["CellBridge", "super"]
-            for method in METHODS:
+            for method in methods:
                 changes = boot[method, "raw"] - boot[method, "super"]
                 comparisons = {"raw_minus_super": (points.loc[method, "raw"] - points.loc[method, "super"], changes)}
                 if method != "CellBridge":
@@ -213,9 +217,9 @@ def report(output, summary, draws, *, refitted=False):
                                        estimate=estimate, ci_low=low, ci_high=high))
         fig, axes = plt.subplots(1, 3, figsize=(14, 4.3))
         for ax, metric, title in zip(axes, METRICS[:3], ("Macro F1", "Balanced accuracy", "Accuracy")):
-            for method in METHODS:
+            for method in methods:
                 rows = summary.query("probe == @probe and metric == @metric and method == @method").set_index("level").loc[list(LEVELS)]
-                colors = dict(zip(METHODS, ["#bd2435", "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b", "#7f7f7f"]))
+                colors = dict(zip(methods, ["#bd2435", "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b", "#7f7f7f"]))
                 color = colors[method]
                 line, = ax.plot(range(3), rows.estimate * 100, marker="o", label=method, color=color,
                                 linewidth=3 if method == "CellBridge" else 1.5)
@@ -251,7 +255,7 @@ def report(output, summary, draws, *, refitted=False):
         text.extend([f"Convergence audit: {len(warned)} coarse tasks recorded an iteration-limit warning; {len(unknown)} recovered coarse tasks have unavailable warning history. The original iteration budget was retained. See audit.csv for method and level details.", ""])
     for probe in ("linear", "knn"):
         text.extend([f"## {probe}", "", "| Method | Super | Main | Raw | Raw − super (pp) |", "|---|---:|---:|---:|---:|"])
-        for method in METHODS:
+        for method in methods:
             rows = summary.query("probe == @probe and method == @method and metric == 'macro_f1'").set_index("level")
             values = [f"{rows.loc[level, 'estimate'] * 100:.2f}" for level in LEVELS]
             change = (rows.loc['raw', 'estimate'] - rows.loc['super', 'estimate']) * 100
@@ -262,16 +266,21 @@ def report(output, summary, draws, *, refitted=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--workers", type=int, default=7)
-    parser.add_argument("--n-resamples", type=int, default=1000)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--workers", type=int)
+    parser.add_argument("--n-resamples", type=int)
     args = parser.parse_args()
+    settings = load_config(args.config)
+    args.output_dir = args.output_dir or Path(settings["output_dir"])
+    args.workers = settings["workers"] if args.workers is None else args.workers
+    args.n_resamples = settings["n_resamples"] if args.n_resamples is None else args.n_resamples
     if args.workers < 1 or args.n_resamples < 2:
         parser.error("workers must be positive and n-resamples at least two")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if (args.output_dir / "cases.json").exists():
         raise FileExistsError("use a new output directory to preserve earlier runs")
-    cases, hierarchy, groups = prepare(args.output_dir)
+    cases, hierarchy, groups = prepare(args.output_dir, settings)
     provenance_path = args.output_dir / "provenance.json"
     provenance = json.loads(provenance_path.read_text())
     provenance.update(n_resamples=args.n_resamples, seed=0, workers=args.workers)

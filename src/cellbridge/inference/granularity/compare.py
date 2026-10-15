@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from cellbridge.inference.granularity.run import LEVELS, METHODS
+from cellbridge.inference.granularity.run import LEVELS
 
 
 def main():
@@ -31,13 +31,14 @@ def main():
         tables.append(pd.read_csv(source / "summary.csv").assign(protocol=protocol))
         contrasts.append(pd.read_csv(source / "paired_differences.csv").assign(protocol=protocol))
     summary = pd.concat(tables, ignore_index=True)
+    methods = list(summary["method"].drop_duplicates())
     summary.to_csv(output / "summary.csv", index=False)
     pd.concat(contrasts, ignore_index=True).to_csv(output / "paired_differences.csv", index=False)
     for probe in ("linear", "knn"):
         fig, axes = plt.subplots(1, 2, figsize=(10, 4.8), sharey=True)
         for ax, protocol in zip(axes, protocols):
             selected = summary.query("probe == @probe and protocol == @protocol and metric == 'macro_f1'")
-            for method, color in zip(METHODS, colors):
+            for method, color in zip(methods, colors):
                 rows = selected.loc[selected.method == method].set_index("level").loc[list(LEVELS)]
                 ax.plot(range(3), rows.estimate * 100, marker="o", color=color, label=method,
                         linewidth=2.8 if method == "CellBridge" else 1.4)

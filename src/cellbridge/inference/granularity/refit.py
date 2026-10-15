@@ -15,11 +15,12 @@ from sklearn import config_context
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.metrics import classification_report
 
+from cellbridge.config import load_config
 from cellbridge.evaluation import evaluate_predictions, save_result
 from cellbridge.inference.embed.artifacts import load_manifest
 from cellbridge.inference.evaluate import ood, probe as probe_api
 from cellbridge.inference.evaluate.bootstrap import _group_confusions, _metrics_from_confusions
-from cellbridge.inference.granularity.run import LEVELS, METRICS, load_predictions, report
+from cellbridge.inference.granularity.run import DEFAULT_CONFIG, LEVELS, METRICS, load_predictions, report
 from cellbridge.inference.run import _align_metadata
 
 
@@ -157,12 +158,18 @@ def evaluate_method(arguments):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reuse-dir", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--workers", type=int, default=7)
-    parser.add_argument("--n-resamples", type=int, default=1000)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--reuse-dir", type=Path)
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--workers", type=int)
+    parser.add_argument("--n-resamples", type=int)
     parser.add_argument("--resume", action="store_true", help="reuse completed fits and rebuild the report")
     args = parser.parse_args()
+    settings = load_config(args.config)
+    args.reuse_dir = args.reuse_dir or Path(settings["output_dir"])
+    args.output_dir = args.output_dir or Path(settings["refit_output_dir"])
+    args.workers = settings["workers"] if args.workers is None else args.workers
+    args.n_resamples = settings["n_resamples"] if args.n_resamples is None else args.n_resamples
     if args.workers < 1 or args.n_resamples < 2:
         parser.error("workers must be positive and n-resamples at least two")
     args.output_dir.mkdir(parents=True, exist_ok=True)
