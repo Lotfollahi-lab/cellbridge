@@ -1,6 +1,7 @@
 """NuCLS native super/main/raw resolution sweep without fitting probes.
 
-Run with ``python -m cellbridge.inference.granularity.run --output-dir PATH``.
+Run with ``python -m cellbridge.inference.granularity.run --config CONFIG``.
+Analysis tables and figures have separate configurable output directories.
 """
 
 import argparse
@@ -189,11 +190,13 @@ def evaluate_case(arguments):
     return pd.DataFrame(rows), pd.concat(draws, ignore_index=True)
 
 
-def report(output, summary, draws, *, refitted=False):
+def report(output, summary, draws, *, figure_dir, refitted=False):
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
+    figure_dir = Path(figure_dir)
+    figure_dir.mkdir(parents=True, exist_ok=True)
     methods = list(summary["method"].drop_duplicates())
     paired = []
     for probe in ("linear", "knn"):
@@ -234,7 +237,7 @@ def report(output, summary, draws, *, refitted=False):
         fig.legend(handles, labels, loc="lower center", ncol=7, frameon=False)
         fig.tight_layout(rect=(0, .1, 1, .95))
         for extension in ("png", "pdf"):
-            fig.savefig(output / f"granularity_{probe}.{extension}", dpi=200, bbox_inches="tight")
+            fig.savefig(figure_dir / f"granularity_{probe}.{extension}", dpi=200, bbox_inches="tight")
         plt.close(fig)
     pd.DataFrame(paired).to_csv(output / "paired_differences.csv", index=False)
     text = ["# NuCLS label granularity", "", "Saved raw-class probabilities summed within native groups; no probe refitting.", "",
@@ -268,11 +271,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--figure-dir", type=Path)
     parser.add_argument("--workers", type=int)
     parser.add_argument("--n-resamples", type=int)
     args = parser.parse_args()
     settings = load_config(args.config)
     args.output_dir = args.output_dir or Path(settings["output_dir"])
+    args.figure_dir = args.figure_dir or Path(settings["figure_dir"])
     args.workers = settings["workers"] if args.workers is None else args.workers
     args.n_resamples = settings["n_resamples"] if args.n_resamples is None else args.n_resamples
     if args.workers < 1 or args.n_resamples < 2:
@@ -283,7 +288,8 @@ def main():
     cases, hierarchy, groups = prepare(args.output_dir, settings)
     provenance_path = args.output_dir / "provenance.json"
     provenance = json.loads(provenance_path.read_text())
-    provenance.update(n_resamples=args.n_resamples, seed=0, workers=args.workers)
+    provenance.update(n_resamples=args.n_resamples, seed=0, workers=args.workers,
+                      figure_dir=str(args.figure_dir))
     provenance_path.write_text(json.dumps(provenance, indent=2))
     print(f"Prepared {len(cases)} cases, {len(groups)} cells, {len(set(groups))} slides", flush=True)
     arguments = [(case, hierarchy, groups, args.output_dir, args.n_resamples) for case in cases]
@@ -293,7 +299,7 @@ def main():
     draws = pd.concat([result[1] for result in results], ignore_index=True)
     summary.to_csv(args.output_dir / "summary.csv", index=False)
     draws.to_csv(args.output_dir / "bootstrap_metrics.csv", index=False)
-    report(args.output_dir, summary, draws)
+    report(args.output_dir, summary, draws, figure_dir=args.figure_dir)
     print(f"Results: {args.output_dir / 'results.md'}", flush=True)
 
 

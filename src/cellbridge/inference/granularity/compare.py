@@ -6,7 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from cellbridge.inference.granularity.run import LEVELS
+from cellbridge.config import load_config
+from cellbridge.inference.granularity.run import DEFAULT_CONFIG, LEVELS
 
 
 def main():
@@ -15,15 +16,23 @@ def main():
     import matplotlib.pyplot as plt
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--reuse-dir", type=Path, required=True)
-    parser.add_argument("--refit-dir", type=Path, required=True)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--reuse-dir", type=Path)
+    parser.add_argument("--refit-dir", type=Path)
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--figure-dir", type=Path)
     args = parser.parse_args()
+    settings = load_config(args.config)
+    args.reuse_dir = args.reuse_dir or Path(settings["output_dir"])
+    args.refit_dir = args.refit_dir or Path(settings["refit_output_dir"])
+    output = args.output_dir or Path(settings["comparison_output_dir"])
+    figure_dir = args.figure_dir or Path(settings["comparison_figure_dir"])
     protocols = {
         "Regroup existing probabilities": args.reuse_dir,
         "Fit probes to each label level": args.refit_dir,
     }
-    output = args.refit_dir / "comparison"
-    output.mkdir(exist_ok=True)
+    output.mkdir(parents=True, exist_ok=True)
+    figure_dir.mkdir(parents=True, exist_ok=True)
     tables = []
     contrasts = []
     colors = ["#bd2435", "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b", "#7f7f7f"]
@@ -56,7 +65,7 @@ def main():
         fig.legend(handles, labels, loc="lower center", ncol=4, frameon=False)
         fig.tight_layout(rect=(0, .14, 1, .94))
         for extension in ("png", "pdf"):
-            fig.savefig(output / f"granularity_comparison_{probe}.{extension}", dpi=220, bbox_inches="tight")
+            fig.savefig(figure_dir / f"granularity_comparison_{probe}.{extension}", dpi=220, bbox_inches="tight")
         plt.close(fig)
     print(output)
 

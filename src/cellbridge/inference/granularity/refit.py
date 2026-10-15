@@ -161,6 +161,7 @@ def main():
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--reuse-dir", type=Path)
     parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--figure-dir", type=Path)
     parser.add_argument("--workers", type=int)
     parser.add_argument("--n-resamples", type=int)
     parser.add_argument("--resume", action="store_true", help="reuse completed fits and rebuild the report")
@@ -168,6 +169,7 @@ def main():
     settings = load_config(args.config)
     args.reuse_dir = args.reuse_dir or Path(settings["output_dir"])
     args.output_dir = args.output_dir or Path(settings["refit_output_dir"])
+    args.figure_dir = args.figure_dir or Path(settings["refit_figure_dir"])
     args.workers = settings["workers"] if args.workers is None else args.workers
     args.n_resamples = settings["n_resamples"] if args.n_resamples is None else args.n_resamples
     if args.workers < 1 or args.n_resamples < 2:
@@ -188,6 +190,7 @@ def main():
     provenance.update(final_source_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                       reuse_dir=str(args.reuse_dir), analysis="Direct super/main probe fitting; raw predictions reused",
                       n_resamples=args.n_resamples, bootstrap_seed=0, workers=args.workers,
+                      figure_dir=str(args.figure_dir),
                       aggregation="direct grouped-label probe fitting; raw predictions reused")
     (args.output_dir / "provenance.json").write_text(json.dumps(provenance, indent=2))
     methods = list(dict.fromkeys(case["method"] for case in cases))
@@ -205,7 +208,7 @@ def main():
     provenance["convergence_warning_unknown_cases"] = int(audit.convergence_warning.isna().sum())
     provenance["convergence_warning_unknown_refitted_cases"] = int((audit.convergence_warning.isna() & ~audit.reused_raw).sum())
     (args.output_dir / "provenance.json").write_text(json.dumps(provenance, indent=2))
-    report(args.output_dir, summary, draws, refitted=True)
+    report(args.output_dir, summary, draws, figure_dir=args.figure_dir, refitted=True)
     print(f"Completed: {args.output_dir / 'results.md'}", flush=True)
 
 
