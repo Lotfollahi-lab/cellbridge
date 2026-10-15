@@ -2,7 +2,6 @@
 I/O and cell-ID alignment helpers for the linear-probe experiment.
 """
 
-import anndata as ad
 import numpy as np
 
 
@@ -47,6 +46,8 @@ def align_by_cell_id(pairs):
 
 def load_coords(adata_path, key="spatial"):
     """Return ``(coords, cell_ids)`` from ``adata.obsm[key]`` for the spatial split."""
+    import anndata as ad
+
     adata = ad.read_h5ad(adata_path, backed="r")
     try:
         if key not in adata.obsm:

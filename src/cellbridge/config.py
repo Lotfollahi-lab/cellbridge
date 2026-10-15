@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import argparse
 import os
+import shutil
 from collections.abc import Mapping
 from pathlib import Path
 from string import Template
@@ -10,16 +12,41 @@ from string import Template
 import yaml
 
 
+def config_root() -> Path:
+    """Directory containing configs, in a checkout or an installed distribution."""
+    if root := os.environ.get("CELLBRIDGE_ROOT"):
+        return Path(root).expanduser().resolve()
+    checkout = Path(__file__).resolve().parents[2]
+    if (checkout / "configs/inference").is_dir():
+        return checkout
+    return Path(__file__).resolve().parent
+
+
 def _defaults() -> dict[str, str]:
-    root = Path(__file__).resolve().parents[2]
-    workspace = root.parents[1]
+    root = config_root()
+    checkout = Path(__file__).resolve().parents[2]
+    # Keep the research workspace layout for checkouts; wheels use the caller's
+    # working directory, never site-packages, for mutable data and results.
+    workspace = Path(
+        os.environ.get(
+            "CELLBRIDGE_WORKSPACE",
+            checkout.parents[1]
+            if (checkout / "src/cellbridge").is_dir()
+            else Path.cwd(),
+        )
+    )
     return {
         "CELLBRIDGE_ROOT": str(root),
-        "CELLBRIDGE_DATA_ROOT": str(workspace / "data"),
-        "CELLBRIDGE_REPOS_ROOT": str(workspace / "repos"),
-        "CELLBRIDGE_ENV_ROOT": str(workspace / "envs"),
-        "CELLBRIDGE_OUTPUTS_ROOT": str(workspace / "outputs"),
-        "CELLBRIDGE_CHECKPOINTS_ROOT": str(workspace / "checkpoints"),
+        **{
+            f"CELLBRIDGE_{name}_ROOT": str(workspace / folder)
+            for name, folder in (
+                ("DATA", "data"),
+                ("REPOS", "repos"),
+                ("ENV", "envs"),
+                ("OUTPUTS", "outputs"),
+                ("CHECKPOINTS", "checkpoints"),
+            )
+        },
     }
 
 
@@ -96,3 +123,18 @@ def config_value(path, dotted_key, *, overlay=None):
             raise KeyError(f"{path}: missing configuration key {dotted_key!r}")
         value = value[part]
     return value
+
+
+def main():
+    """Copy the bundled configuration tree to a new, editable project directory."""
+    parser = argparse.ArgumentParser(description=main.__doc__)
+    parser.add_argument("destination", type=Path, help="Create DESTINATION/configs")
+    args = parser.parse_args()
+    destination = args.destination.expanduser().resolve()
+    shutil.copytree(config_root() / "configs", destination / "configs")
+    print(f"Copied configurations to {destination / 'configs'}")
+    print(f"Set CELLBRIDGE_ROOT to {destination} when using these configurations.")
+
+
+if __name__ == "__main__":
+    main()

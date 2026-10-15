@@ -18,6 +18,8 @@ if [ "${#samples[@]}" -eq 0 ]; then
 fi
 
 for sample_id in "${samples[@]}"; do
+  # Paper Appendix A.1 excludes TENX143.
+  if [ "$sample_id" = TENX143 ]; then continue; fi
   for method in uni past volta spatialwhisperer lemon virchow2 hibou_l; do
     version=all
     if [ "$method" = lemon ]; then version=vits8; fi

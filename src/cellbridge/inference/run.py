@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from cellbridge.config import load_config
+from cellbridge.config import config_root, load_config
 from cellbridge.inference.embed import embed, sources
 from cellbridge.inference.embed import methods as embedding_methods
 from cellbridge.inference.embed.artifacts import (
@@ -41,6 +41,8 @@ def _load_suite(path):
     profiles = {}
     for method in configured:
         profile_path = path.parent / "methods" / f"{method}.yaml"
+        if not profile_path.is_file():
+            profile_path = config_root() / "configs/inference/methods" / f"{method}.yaml"
         profile = load_config(profile_path)
         if profile.get("method") != method:
             raise ValueError(f"{profile_path} does not describe method {method!r}")

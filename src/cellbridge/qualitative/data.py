@@ -13,25 +13,32 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
-from cellbridge.config import load_config
+from cellbridge.config import _defaults, config_root, load_config
 from cellbridge.inference.conformal.graph import build_task_graph
-from cellbridge.inference.embed.sources import hest, lmdb as tiled, nucls
+from cellbridge.inference.embed.sources import hest, nucls
+from cellbridge.inference.embed.sources import lmdb as tiled
 from cellbridge.ontology import load_mapping, load_ontology
 
-REPO = Path(__file__).resolve().parents[3]
-WORKSPACE = Path(os.environ.get("CELLBRIDGE_WORKSPACE", REPO.parents[1]))
+REPO = config_root()
+OUTPUTS_ROOT = Path(
+    os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", _defaults()["CELLBRIDGE_OUTPUTS_ROOT"])
+)
 MODEL_RESULTS = Path(
     os.environ.get(
         "CELLBRIDGE_QUALITATIVE_RESULTS",
-        Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs")) / "reproducibility/inference/cellbridge/uni_terra_four_layers_adapted_all_cells",
+        OUTPUTS_ROOT
+        / "reproducibility/inference/cellbridge/uni_terra_four_layers_adapted_all_cells",
     )
 )
-TRAIN_CONFIG = Path(os.environ.get(
-    "CELLBRIDGE_TRAIN_CONFIG",
-    Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs"))
-    / "reproducibility/train/uni_terra_four_layers_adapted_all_cells/resolved_config.yaml",
-))
-EXPORT_ROOT = Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs")) / "visualizations/res_figures/qualitative_conformal"
+TRAIN_CONFIG = Path(
+    os.environ.get(
+        "CELLBRIDGE_TRAIN_CONFIG",
+        OUTPUTS_ROOT
+        / "reproducibility/train/uni_terra_four_layers_adapted_all_cells/resolved_config.yaml",
+    )
+)
+EXPORT_ROOT = OUTPUTS_ROOT / "visualizations/res_figures/qualitative_conformal"
+
 METHODS = {
     "split": "Global split",
     "graph": "Global graph",
@@ -42,50 +49,33 @@ METHODS = {
     "hybrid_split": "Hybrid split",
     "hybrid_graph": "Hybrid graph",
 }
-# The views offer one conformal method. Branch graph is the reported method, and a fixed
-# choice keeps every view comparable; METHODS stays complete so the saved metrics of all
-# eight are still checked when a dataset loads.
+# Paper-facing views use branch graph; all saved methods are validated on load.
 OFFERED_METHODS = ["branch_graph"]
-# HEST organs come from the phenotype cohort table. The two cell-level datasets carry no
-# organ column: NuCLS is TCGA breast carcinoma, PhenoCell the Schürch colorectal cohort.
 DATASET_ORGANS = {"nucls": "breast", "phenocell": "colorectal"}
 
 
-@lru_cache(None)
 def training_config():
-    """Read the training config, checked to be four adapted blocks trained on all cells."""
-    training = load_config(TRAIN_CONFIG)
-    assert training["model"]["trainable_blocks"] == "last_4", (
-        "Expected four adapted blocks"
-    )
-    assert training["max_cells_per_sample"] is None, "Expected training on all cells"
-    return training
+    """Read optional training provenance; prediction review does not require it."""
+    return load_config(TRAIN_CONFIG) if TRAIN_CONFIG.is_file() else {}
 
 
-def prediction_directory(dataset, section=None):
-    base = MODEL_RESULTS / dataset
+def prediction_directory(dataset, section=None, *, results_root=MODEL_RESULTS):
+    base = Path(results_root) / dataset
+    suffix = Path("evaluation/lora_adapted/all/linear")
     if section:
-        return (
-            base
-            / section
-            / "evaluation/lora_adapted/all/linear"
-            / section
-            / "conformal_prediction"
-        )
-    return base / "evaluation/lora_adapted/all/linear/conformal_prediction"
+        per_section = base / section / suffix / section / "conformal_prediction"
+        if per_section.is_dir():
+            return per_section
+        return base / suffix / section / "conformal_prediction"
+    return base / suffix / "conformal_prediction"
 
 
-def load_catalog():
-    """List the datasets and HEST sections with saved cell-level predictions, with organs."""
-    training_config()
-    cohort = pd.read_csv(
-        load_config(REPO / "configs/inference/hest.yaml")["data"]["cohort"],
-        dtype={"sample_id": str},
-    )
-    hest_organs = dict(zip(cohort.sample_id, cohort.organ.str.replace("_", " ")))
+def load_catalog(results_root=MODEL_RESULTS):
+    """Discover saved OOD and HEST predictions, including both CLI output layouts."""
+    results_root = Path(results_root)
     catalog = []
     for dataset, label in [("nucls", "NuCLS"), ("phenocell", "PhenoCell")]:
-        directory = prediction_directory(dataset)
+        directory = prediction_directory(dataset, results_root=results_root)
         if (directory / "predictions.npz").is_file():
             organ = DATASET_ORGANS[dataset]
             catalog.append(
@@ -97,29 +87,43 @@ def load_catalog():
                     directory=directory,
                 )
             )
-    for path in sorted(
-        (MODEL_RESULTS / "hest").glob(
-            "*/evaluation/lora_adapted/all/linear/*/conformal_prediction/predictions.npz"
+    paths = sorted(
+        (results_root / "hest").glob(
+            "**/evaluation/lora_adapted/all/linear/*/conformal_prediction/predictions.npz"
         )
-    ):
-        section = path.parent.parent.name
-        if (
-            section != "TENX143"
-            and path == prediction_directory("hest", section) / "predictions.npz"
+    )
+    if paths:
+        cohort_path = Path(
+            load_config(REPO / "configs/inference/hest.yaml")["data"]["cohort"]
+        )
+        cohort = (
+            pd.read_csv(cohort_path, dtype={"sample_id": str})
+            if cohort_path.is_file()
+            else None
+        )
+        organs = (
+            dict(zip(cohort.sample_id, cohort.organ.str.replace("_", " ")))
+            if cohort is not None and "organ" in cohort
+            else {}
+        )
+        for section in sorted(
+            {path.parent.parent.name for path in paths} - {"TENX143"}
         ):
-            organ = hest_organs.get(section, "organ not recorded")
-            catalog.append(
-                dict(
-                    choice=f"HEST · {section} ({organ})",
-                    dataset="hest",
-                    section=section,
-                    organ=organ,
-                    directory=path.parent,
+            directory = prediction_directory("hest", section, results_root=results_root)
+            if (directory / "predictions.npz").is_file():
+                organ = organs.get(section, "organ not recorded")
+                catalog.append(
+                    dict(
+                        choice=f"HEST · {section} ({organ})",
+                        dataset="hest",
+                        section=section,
+                        organ=organ,
+                        directory=directory,
+                    )
                 )
-            )
     if not catalog:
         raise FileNotFoundError(
-            f"No CellBridge cell-level conformal results under {MODEL_RESULTS}"
+            f"No CellBridge conformal predictions under {results_root}"
         )
     return pd.DataFrame(catalog).set_index("choice")
 
@@ -355,31 +359,44 @@ def ancestor_functions(state):
     return close
 
 
+PREDICTION_COLUMNS = (
+    "truth",
+    "predicted",
+    "prediction_set",
+    "set_size",
+    "raw_covered",
+    "ancestor",
+    "ancestor_term",
+    "all_lowest_ancestors",
+    "expanded_set",
+    "ancestor_covered",
+    "depth",
+)
+
+
 def evaluate_field(state, field, method):
-    graph, classes = state["graph"], state["saved"]["classes"].astype(str)
-    cells = field["cells"].copy()
-    selected = cells.loc[cells.evaluated]
-    positions = pd.Index(state["saved"]["ids"].astype(str)).get_indexer(selected.row_id)
-    assert (positions >= 0).all()
+    """Join saved predictions to field cells by ID; close each distinct set once."""
+    graph, saved = state["graph"], state["saved"]
+    classes = saved["classes"].astype(str)
+    cells = field["cells"]
+    ids = cells.loc[cells.evaluated, "row_id"]
+    positions = pd.Index(saved["ids"].astype(str)).get_indexer(ids)
+    if (positions < 0).any():
+        raise ValueError("Evaluated cells are absent from saved predictions")
     close = ancestor_functions(state)
+    class_columns = {label: index for index, label in enumerate(classes)}
     records = []
-    for row_id, position in zip(selected.row_id, positions):
-        mask = state["saved"][method + "_sets"][position]
+    for position in positions:
+        mask = saved[method + "_sets"][position]
         columns = tuple(np.flatnonzero(mask))
         anchor, expanded, lowest, term = close(columns)
-        truth = str(state["saved"]["y_true"][position])
-        true_column = int(np.flatnonzero(classes == truth)[0])
+        truth = str(saved["y_true"][position])
+        true_column = class_columns[truth]
         covered = true_column in expanded
-        distance = (
-            max(0, graph.ancestors_for_column(true_column)[anchor] - 1)
-            if covered
-            else np.nan
-        )
         records.append(
             dict(
-                row_id=row_id,
                 truth=truth,
-                predicted=classes[state["saved"]["probabilities"][position].argmax()],
+                predicted=classes[saved["probabilities"][position].argmax()],
                 prediction_set="; ".join(classes[list(columns)]) or "∅",
                 set_size=len(columns),
                 raw_covered=bool(mask[true_column]),
@@ -390,12 +407,14 @@ def evaluate_field(state, field, method):
                 ),
                 expanded_set="; ".join(classes[list(expanded)]) or "∅",
                 ancestor_covered=covered,
-                depth=distance,
+                depth=max(0, graph.ancestors_for_column(true_column)[anchor] - 1)
+                if covered
+                else np.nan,
             )
         )
-    return cells.merge(
-        pd.DataFrame(records), on="row_id", how="left", validate="one_to_one"
-    )
+    predictions = pd.DataFrame(records, columns=PREDICTION_COLUMNS)
+    predictions.insert(0, "row_id", ids.to_numpy())
+    return cells.merge(predictions, on="row_id", how="left", validate="one_to_one")
 
 
 def patch_choices(field, size=512):
@@ -511,10 +530,11 @@ def terra_file(state):
 
 def terra_matrix(state, name):
     """Read one TERRA matrix; its rows follow the section's cell order."""
-    key = (state["section"], name)
+    path = terra_file(state).resolve()
+    key = (path, name)
     if key not in TERRA_CACHE:
         TERRA_CACHE.clear()  # a section-sized matrix is a few hundred MB; keep only the current one
-        with np.load(terra_file(state), allow_pickle=False) as archive:
+        with np.load(path, allow_pickle=False) as archive:
             ids = np.asarray([hest._identifier(value) for value in archive["cell_ids"]])
             np.testing.assert_array_equal(ids, state["sample"].cell_ids)
             TERRA_CACHE[key] = np.ascontiguousarray(archive[name], dtype=np.float32)
@@ -540,8 +560,8 @@ def save_view(state, method, view, figures, tables, details):
         representation="uni_terra_four_layers_adapted_all_cells/lora_adapted",
         task="all",
         probe="linear",
-        training_config=str(TRAIN_CONFIG),
-        trainable_blocks=training_config()["model"]["trainable_blocks"],
+        training_config=str(TRAIN_CONFIG) if TRAIN_CONFIG.is_file() else None,
+        trainable_blocks=training_config().get("model", {}).get("trainable_blocks"),
         choice=state["choice"],
         predictions=str(state["directory"] / "predictions.npz"),
         mapping=str(state["mapping_path"]),

@@ -1,0 +1,31 @@
+name: Test distributions
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: python -m pip install build
+      - run: python -m build
+      - name: Install wheel and test extras
+        shell: bash
+        run: |
+          wheels=(dist/*.whl)
+          python -m pip install "${wheels[0]}[dev,preprocess,analysis]"
+      - run: python -m twine check dist/*
+      - run: python -m pytest
+      - name: Test installed configs away from checkout
+        run: |
+          cd "$RUNNER_TEMP"
+          cellbridge-infer --help
+          cellbridge-granularity --help
+          cellbridge-config cellbridge-example

@@ -8,6 +8,9 @@ data:
   cohort: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest_phenotype_split_v1.csv
   cohort_split: label_test
   expected_samples: 15
+  # Appendix A.1 excludes TENX143 (memory constraints).
+  sample_ids: [TENX116, TENX187, TENX191, TENX192, TENX193, TENX194, TENX195,
+               TENX196, TENX197, TENX198, TENX199, TENX200, TENX201, TENX202]
   mapping_dir: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/hest
 
 methods: [uni, cellbridge, past, volta, spatialwhisperer, lemon, virchow2, hibou_l]

@@ -35,6 +35,31 @@ plt.rcParams.update(
 )
 
 
+def dropdown(description, *, width=None, **options):
+    layout = widgets.Layout(width=width) if width else widgets.Layout()
+    return widgets.Dropdown(description=description, layout=layout, **options)
+
+
+def button(description, callback, *, primary=False, disabled=False, width=None):
+    widget = widgets.Button(
+        description=description,
+        disabled=disabled,
+        button_style="primary" if primary else "",
+        layout=widgets.Layout(width=width) if width else widgets.Layout(),
+    )
+    widget.on_click(callback)
+    return widget
+
+
+def offered_methods(state):
+    methods = [(METHODS[m], m) for m in OFFERED_METHODS if m in state["methods"]]
+    if not methods:
+        raise ValueError(
+            f"{state['choice']} has no saved results for {OFFERED_METHODS}"
+        )
+    return methods
+
+
 def show_catalog():
     """Load every dataset and HEST section with saved cell-level predictions."""
     catalog = load_catalog()
@@ -53,26 +78,16 @@ class Explorer:
     def __init__(self, catalog, metric="depth"):
         self.catalog = catalog
         self.metric = metric
-        self.dataset_widget = widgets.Dropdown(
-            options=list(catalog.index),
-            description="Dataset:",
-            layout=widgets.Layout(width="450px"),
+        self.dataset_widget = dropdown(
+            "Dataset:", options=list(catalog.index), width="450px"
         )
-        self.load_button = widgets.Button(
-            description="Load dataset", button_style="primary"
-        )
-        self.field_widget = widgets.Dropdown(
-            description="Field:", layout=widgets.Layout(width="95%")
-        )
-        self.patch_widget = widgets.Dropdown(
-            description="Patch:", layout=widgets.Layout(width="650px")
-        )
+        self.load_button = button("Load dataset", self.on_load, primary=True)
+        self.field_widget = dropdown("Field:", width="95%")
+        self.patch_widget = dropdown("Patch:", width="650px")
         self.mode_widget = widgets.ToggleButtons(
             options=["Patch", "Cell"], description="View:"
         )
-        self.size_widget = widgets.Dropdown(
-            options=[224, 512, 1024], value=512, description="Width (px):"
-        )
+        self.size_widget = dropdown("Width (px):", options=[224, 512, 1024], value=512)
         self.whole_field_widget = widgets.Checkbox(
             value=False, description="Cells from whole field"
         )
@@ -88,18 +103,17 @@ class Explorer:
             description="Cell:",
             layout=widgets.Layout(width="95%"),
         )
-        self.method_widget = widgets.Dropdown(
-            description="Method:", layout=widgets.Layout(width="350px")
-        )
+        self.method_widget = dropdown("Method:", width="350px")
         self.smooth_widget = widgets.Checkbox(
-            value=False, description="Smooth set-size map" if metric == "set_size" else "Smooth depth map"
+            value=False,
+            description="Smooth set-size map"
+            if metric == "set_size"
+            else "Smooth depth map",
         )
-        self.show_button = widgets.Button(
-            description="Show selection", button_style="primary", disabled=True
+        self.show_button = button(
+            "Show selection", self.on_show, disabled=True, primary=True
         )
-        self.save_button = widgets.Button(
-            description="Save displayed view", disabled=True
-        )
+        self.save_button = button("Save displayed view", self.on_save, disabled=True)
         self.status_output, self.catalog_output, self.plot_output = (
             widgets.Output(),
             widgets.Output(),
@@ -107,9 +121,7 @@ class Explorer:
         )
         self.state = self.field = self.last = None
         self.cell_ids = {}
-        self.load_button.on_click(self.on_load)
-        self.show_button.on_click(self.on_show)
-        self.save_button.on_click(self.on_save)
+
         self.field_widget.observe(self.change_field, names="value")
         self.size_widget.observe(self.update_patches, names="value")
         self.patch_widget.observe(self.update_cells, names="value")
@@ -173,6 +185,11 @@ class Explorer:
             self.patch_widget.options = patch_choices(
                 self.field, self.size_widget.value
             )
+            if not self.patch_widget.options:
+                self.cell_widget.options = []
+                self.cell_widget.value = ""
+                self.cell_ids = {}
+                return
             self.patch_widget.value = self.patch_widget.options[0][1]
             self.update_cells()
 
@@ -180,7 +197,8 @@ class Explorer:
         state = self.state
         if state is None or self.field_widget.value is None:
             return
-        self.show_button.disabled = True
+        self.show_button.disabled = self.save_button.disabled = True
+        self.last = None
         with self.status_output:
             clear_output(wait=True)
             print("Loading H&E and cell coordinates…")
@@ -190,7 +208,7 @@ class Explorer:
                 hest.close_wsi(old["tissue"])
             self.field = load_field(state, self.field_widget.value)
             self.update_patches()
-            self.show_button.disabled = False
+            self.show_button.disabled = not bool(self.patch_widget.options)
             print("Ready. Choose a patch/cell and click Show selection.")
 
     def on_load(self, _=None):
@@ -198,15 +216,11 @@ class Explorer:
         with self.status_output:
             clear_output(wait=True)
             print("Loading saved predictions and checking alignment…")
-            state = load_dataset(self.catalog, self.dataset_widget.value)
             self.last = None
+            state = load_dataset(self.catalog, self.dataset_widget.value)
             self.state = state
-            offered = [m for m in OFFERED_METHODS if m in state["methods"]]
-            assert offered, (
-                f"{state['choice']} has no saved results for {OFFERED_METHODS}"
-            )
-            self.method_widget.options = [(METHODS[m], m) for m in offered]
-            self.method_widget.value = offered[0]
+            self.method_widget.options = offered_methods(state)
+            self.method_widget.value = self.method_widget.options[0][1]
             # Clear the old selection before assigning options; observers load the new field.
             self.field_widget.unobserve(self.change_field, names="value")
             self.field_widget.options = []
@@ -229,6 +243,8 @@ class Explorer:
             clear_output()
 
     def on_show(self, _=None):
+        if self.field is None or self.patch_widget.value is None:
+            return
         with self.plot_output:
             clear_output(wait=True)
             self.save_button.disabled = True
@@ -289,46 +305,45 @@ class TissueMap:
         assert choices, (
             f"No HEST sections with saved cell-level predictions under {MODEL_RESULTS}"
         )
-        self.section_widget = widgets.Dropdown(
-            options=choices,
-            description="Section:",
-            layout=widgets.Layout(width="450px"),
+        self.section_widget = dropdown("Section:", options=choices, width="450px")
+        self.statistic_widget = dropdown(
+            "Statistic:",
+            options=[
+                "Mean prediction-set size",
+                "Original-set coverage",
+                "Top-1 accuracy",
+                "Empty prediction sets",
+            ]
+            if metric == "set_size"
+            else list(TISSUE_STATISTICS),
+            width="450px",
         )
-        self.statistic_widget = widgets.Dropdown(
-            options=(
-                ["Mean prediction-set size", "Original-set coverage", "Top-1 accuracy", "Empty prediction sets"]
-                if metric == "set_size" else list(TISSUE_STATISTICS)
-            ),
-            description="Statistic:",
-            layout=widgets.Layout(width="450px"),
+        self.tissue_size_widget = dropdown(
+            "Patch (px):", options=[512, 1024, 2048], value=1024
         )
-        self.tissue_size_widget = widgets.Dropdown(
-            options=[512, 1024, 2048], value=1024, description="Patch (px):"
+        self.min_cells_widget = dropdown(
+            "Min cells:", options=[1, 10, 25, 50, 100], value=25
         )
-        self.min_cells_widget = widgets.Dropdown(
-            options=[1, 10, 25, 50, 100], value=25, description="Min cells:"
-        )
-        self.tissue_method_widget = widgets.Dropdown(
+        self.tissue_method_widget = dropdown(
+            "Method:",
             options=[(METHODS[m], m) for m in OFFERED_METHODS],
             value=OFFERED_METHODS[0],
-            description="Method:",
-            layout=widgets.Layout(width="350px"),
+            width="350px",
         )
         self.tissue_smooth_widget = widgets.Checkbox(
-            value=False, description="Smooth set-size map" if metric == "set_size" else "Smooth depth map"
+            value=False,
+            description="Smooth set-size map"
+            if metric == "set_size"
+            else "Smooth depth map",
         )
-        self.tissue_button = widgets.Button(
-            description="Show tissue map", button_style="primary"
+        self.tissue_button = button(
+            "Show tissue map", self.on_tissue_show, primary=True
         )
-        self.tissue_patch_widget = widgets.Dropdown(
-            options=[], description="Patch:", layout=widgets.Layout(width="95%")
+        self.tissue_patch_widget = dropdown("Patch:", options=[], width="95%")
+        self.patch_button = button(
+            "Open selected patch", self.on_patch_open, disabled=True
         )
-        self.patch_button = widgets.Button(
-            description="Open selected patch", disabled=True
-        )
-        self.save_button = widgets.Button(
-            description="Save displayed view", disabled=True
-        )
+        self.save_button = button("Save displayed view", self.on_save, disabled=True)
         self.tissue_status, self.tissue_output, self.patch_output = (
             widgets.Output(),
             widgets.Output(),
@@ -336,9 +351,7 @@ class TissueMap:
         )
         self.choice = self.state = self.field = self.map = self.opened = None
         self.rows, self.patches = {}, {}
-        self.tissue_button.on_click(self.on_tissue_show)
-        self.patch_button.on_click(self.on_patch_open)
-        self.save_button.on_click(self.on_save)
+
         self.box = widgets.VBox(
             [
                 widgets.HBox([self.section_widget, self.tissue_button]),
@@ -387,11 +400,7 @@ class TissueMap:
             clear_output(wait=True)
             print("Loading the section and scoring its cells…")
             state, field = self.section_data(self.section_widget.value)
-            offered = [m for m in OFFERED_METHODS if m in state["methods"]]
-            assert offered, (
-                f"{state['choice']} has no saved results for {OFFERED_METHODS}"
-            )
-            self.tissue_method_widget.options = [(METHODS[m], m) for m in offered]
+            self.tissue_method_widget.options = offered_methods(state)
             method = self.tissue_method_widget.value
             if method not in self.rows:
                 self.rows[method] = evaluate_field(state, field, method)
@@ -435,11 +444,23 @@ class TissueMap:
             figure = render_section(
                 state, field, table, size, statistic, method, min_cells
             )
-            report_columns = ["patch", "evaluated_cells", "mean_set_size", "original_coverage",
-                              "top1_accuracy", "empty_fraction", "x0", "y0", "x1", "y1"]
+            report_columns = [
+                "patch",
+                "evaluated_cells",
+                "mean_set_size",
+                "original_coverage",
+                "top1_accuracy",
+                "empty_fraction",
+                "x0",
+                "y0",
+                "x1",
+                "y1",
+            ]
             self.map = dict(
                 figure=figure,
-                table=table[report_columns] if self.metric == "set_size" else table.drop(columns=["row", "column"]),
+                table=table[report_columns]
+                if self.metric == "set_size"
+                else table.drop(columns=["row", "column"]),
                 method=method,
                 statistic=statistic,
                 patch_size=size,
@@ -508,18 +529,23 @@ class TerraView:
 
     def __init__(self, tissue_map):
         self.tissue_map = tissue_map
-        self.terra_embedding_widget = widgets.Dropdown(
-            options=list(TERRA_MATRICES),
-            description="Embedding:",
-            layout=widgets.Layout(width="420px"),
+        self.terra_embedding_widget = dropdown(
+            "Embedding:", options=list(TERRA_MATRICES), width="420px"
         )
-        self.terra_colour_widget = widgets.Dropdown(
-            options=[c for c in TERRA_COLOURS if tissue_map.metric == "depth" or c != "Ontology depth / coarseness"],
-            value="Prediction-set size" if tissue_map.metric == "set_size" else "Ontology depth / coarseness",
-            description="Colour by:",
-            layout=widgets.Layout(width="420px"),
+        self.terra_colour_widget = dropdown(
+            "Colour by:",
+            options=[
+                c
+                for c in TERRA_COLOURS
+                if tissue_map.metric == "depth" or c != "Ontology depth / coarseness"
+            ],
+            value="Prediction-set size"
+            if tissue_map.metric == "set_size"
+            else "Ontology depth / coarseness",
+            width="420px",
         )
-        self.terra_context_widget = widgets.Dropdown(
+        self.terra_context_widget = dropdown(
+            "Context:",
             options=[
                 ("Patch only", 0),
                 ("5,000 cells", 5000),
@@ -527,20 +553,14 @@ class TerraView:
                 ("50,000 cells", 50000),
             ],
             value=5000,
-            description="Context:",
         )
-        self.terra_button = widgets.Button(
-            description="Fetch TERRA embeddings",
-            button_style="primary",
-            layout=widgets.Layout(width="220px"),
+        self.terra_button = button(
+            "Fetch TERRA embeddings", self.on_terra_fetch, width="220px", primary=True
         )
-        self.save_button = widgets.Button(
-            description="Save displayed view", disabled=True
-        )
+        self.save_button = button("Save displayed view", self.on_save, disabled=True)
         self.terra_status, self.terra_output = widgets.Output(), widgets.Output()
         self.last = None
-        self.terra_button.on_click(self.on_terra_fetch)
-        self.save_button.on_click(self.on_save)
+
         self.box = widgets.VBox(
             [
                 widgets.HBox([self.terra_embedding_widget, self.terra_colour_widget]),

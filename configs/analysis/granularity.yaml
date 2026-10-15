@@ -4,10 +4,6 @@ hierarchy_dir: ${CELLBRIDGE_DATA_ROOT}/eval/nucls/raw/csv
 inference_root: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/inference
 output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/analysis/nucls_granularity/aggregated
 refit_output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/analysis/nucls_granularity/refit
-comparison_output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/analysis/nucls_granularity/comparison
-figure_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/visualizations/res_figures/nucls_granularity/aggregated
-refit_figure_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/visualizations/res_figures/nucls_granularity/refit
-comparison_figure_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/visualizations/res_figures/nucls_granularity/comparison
 workers: 7
 n_resamples: 1000
 # name: [method directory, version directory, representation]

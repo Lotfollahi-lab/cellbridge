@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from sklearn.exceptions import ConvergenceWarning
 
-from cellbridge.config import load_config
+from cellbridge.config import _defaults, config_root, load_config
 from cellbridge.inference.calibration.metrics import fit_temperature, log_probabilities, statistics
 from cellbridge.inference.conformal import conformal_ood
 from cellbridge.inference.embed import sources
@@ -32,8 +32,8 @@ from cellbridge.inference.evaluate import probe as probe_api
 from cellbridge.inference.run import _align_metadata
 from cellbridge.ontology import load_mapping
 
-ROOT = Path(__file__).resolve().parents[4]
-WORKSPACE = ROOT.parents[1]
+ROOT = config_root()
+OUTPUTS_ROOT = Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", _defaults()["CELLBRIDGE_OUTPUTS_ROOT"]))
 METHODS = {
     "CellBridge": ("cellbridge", "uni_terra_four_layers_adapted_all_cells", "lora_adapted"),
     "UNI2-h": ("uni", "all", "uni"),
@@ -57,7 +57,7 @@ def prepare(output):
     for dataset in ("nucls", "pannuke", "lizard", "phenocell", "hest"):
         config = load_config(ROOT / "configs/inference" / f"{dataset}.yaml")
         for name, (method, version, arm) in METHODS.items():
-            root = Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs")) / "reproducibility/inference" / method / version
+            root = OUTPUTS_ROOT / "reproducibility/inference" / method / version
             runs = sorted((root / dataset).iterdir()) if dataset == "hest" else [root / dataset]
             runs = [p for p in runs if p.is_dir() and p.name != "TENX143"]
             if len(runs) != (14 if dataset == "hest" else 1):
