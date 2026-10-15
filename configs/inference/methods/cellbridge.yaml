@@ -12,4 +12,7 @@ extraction:
   storage_dtype: float16
 
 load:
-  checkpoint: ${CELLBRIDGE_CHECKPOINTS_ROOT}/uni_terra_four_layers_adapted_all_cells/best.pt
+  # A local --checkpoint overrides this released adapter.
+  repo_id: ogutsevda/cellbridge
+  filename: cellbridge.pt
+  revision: 1c334ee0783be5aaae93a5562522d73fc92ee6c1

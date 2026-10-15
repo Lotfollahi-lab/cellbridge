@@ -23,6 +23,13 @@ python -m pip install -r requirements/encoders.txt
 The last command installs the **pinned Mahmood Lab TRIDENT** source used by UNI2-h.
 The unrelated PyPI package named `trident` is not a substitute. Install a
 PyTorch/torchvision build appropriate for your GPU before the model extra if needed.
+The default CellBridge inference profile downloads `cellbridge.pt` from
+[ogutsevda/cellbridge](https://huggingface.co/ogutsevda/cellbridge), pinned to revision
+`1c334ee0783be5aaae93a5562522d73fc92ee6c1`, and reuses the Hugging Face cache.
+The repository is currently private: use an authorized Hugging Face account and
+set `HF_TOKEN` or authenticate with the Hugging Face client. Once public, the
+adapter download will no longer require access approval.
+
 UNI2-h also requires access to its pretrained weights; a CellBridge adapter does
 not contain the frozen UNI2-h backbone. See [model prerequisites](docs/reproduction.md#models).
 
@@ -114,11 +121,14 @@ cellbridge-infer check --config "$CONFIG" --method cellbridge --arm lora_adapted
 cellbridge-infer run --config "$CONFIG" --method cellbridge --arm lora_adapted --output-dir "$RUN" --device cuda
 ```
 
-`check` validates data/configuration and local checkpoint paths. `run` extracts
+`check` validates data/configuration and resolves the adapter (downloading it on
+first use). `run` extracts
 embeddings, evaluates linear and kNN probes, and runs conformal evaluation.
 Use `extract`, `evaluate`, or `conformal` separately to reuse saved embeddings;
 `--probe linear` limits a stage to the paper's conformal probe. `--checkpoint`
-overrides the adapter path. For HEST, add `--sample-id TENX201` and use `hest.yaml`.
+uses a local adapter instead of the Hub release, for example
+`--checkpoint "$CELLBRIDGE_CHECKPOINTS_ROOT/uni_terra_four_layers_adapted_all_cells/best.pt"`
+after training your own model. For HEST, add `--sample-id TENX201` and use `hest.yaml`.
 
 Results live under `embeddings/<arm>/` and
 `evaluation/<arm>/<task>/<probe>/` (with an extra section directory for HEST).
@@ -174,7 +184,8 @@ python -m build
 ```
 
 See [the audit](docs/AUDIT.md) for pre-release findings and their resolution.
-CellBridge code is licensed under the [Apache License 2.0](LICENSE.md). Approved
-download locations for adapter weights and exact split artifacts still require
-author decisions. Third-party datasets and models retain their own terms. Package and CPU tests do not establish numerical
-reproduction of the full manuscript.
+CellBridge code is licensed under the [Apache License 2.0](LICENSE.md). Adapter
+weights are hosted on [Hugging Face](https://huggingface.co/ogutsevda/cellbridge);
+public repository access and release of exact split artifacts remain outstanding.
+Third-party datasets and models retain their own terms. Package and CPU tests do
+not establish numerical reproduction of the full manuscript.

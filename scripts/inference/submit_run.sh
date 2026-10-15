@@ -50,11 +50,6 @@ if [ -n "$conformal_config" ]; then
   esac
 fi
 
-if [ "$method" = cellbridge ] && [ -z "$checkpoint" ]; then
-  echo "cellbridge requires --checkpoint" >&2
-  exit 2
-fi
-
 dataset="$($SUBMIT value "$config" dataset)"
 if [ -n "$sample_id" ]; then
   if [ "$dataset" != hest ]; then

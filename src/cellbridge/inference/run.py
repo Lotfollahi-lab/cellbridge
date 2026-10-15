@@ -16,6 +16,7 @@ from cellbridge.inference.embed.artifacts import (
     save_sample,
     write_manifests,
 )
+from cellbridge.inference.embed.methods.lora import resolve_checkpoint
 from cellbridge.inference.embed.sources.metadata import cell_uids
 from cellbridge.inference.conformal import bootstrap as conformal_bootstrap
 from cellbridge.inference.conformal import conformal_hest as hest_conformal
@@ -98,10 +99,13 @@ def check(config, profiles, methods, probes, tasks, *, pending_checkpoint=False)
     for method in methods:
         profile = profiles[method]
         embedding_methods.arms(method, config.get("arms"))
-        if method == "cellbridge" and not profile.get("load", {}).get("checkpoint"):
-            raise ValueError(
-                "cellbridge requires --checkpoint for extraction or checking"
-            )
+        if method == "cellbridge" and not pending_checkpoint:
+            settings = profile.get("load", {})
+            resolve_checkpoint(**{
+                key: settings[key]
+                for key in ("checkpoint", "repo_id", "filename", "revision")
+                if key in settings
+            })
         source.make_cropper(profile, data)
         extraction = profile.get("extraction", {})
         if int(extraction.get("batch_size", 0)) < 1:
@@ -111,7 +115,7 @@ def check(config, profiles, methods, probes, tasks, *, pending_checkpoint=False)
         np.dtype(extraction.get("storage_dtype", "float16"))
         for key in ("checkpoint", "repository", "encoder_weights"):
             value = profile.get("load", {}).get(key)
-            if key == "checkpoint" and pending_checkpoint:
+            if key == "checkpoint" and (pending_checkpoint or method == "cellbridge"):
                 continue
             if value is not None and not Path(value).exists():
                 raise FileNotFoundError(f"{method}: {key} does not exist: {value}")
@@ -535,8 +539,9 @@ def main():
         args.method, config["methods"], embedding_methods.METHODS, "methods"
     )
     if args.command in ("extract", "run") and "cellbridge" in methods:
-        if not profiles["cellbridge"].get("load", {}).get("checkpoint"):
-            raise ValueError("cellbridge extraction requires --checkpoint")
+        settings = profiles["cellbridge"].get("load", {})
+        if not (settings.get("checkpoint") or settings.get("repo_id")):
+            raise ValueError("cellbridge extraction requires a checkpoint or repo_id")
     if args.arm:
         config["arms"] = args.arm
     for method in methods:

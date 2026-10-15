@@ -17,7 +17,7 @@ CellBridge's HEST crops use tifffile/zarr, independently of that binary's slide-
 
 | Model | Inputs / installation |
 |---|---|
-| CellBridge | `best.pt` adapter plus the original UNI2-h weights loaded through TRIDENT. Obtain access to `MahmoodLab/UNI2-h` on Hugging Face and authenticate using the Hugging Face client. A local backbone can be set as `model.weights_path` in the training config or `load.encoder_weights` in the CellBridge inference profile. |
+| CellBridge | Released `cellbridge.pt` adapter from [ogutsevda/cellbridge](https://huggingface.co/ogutsevda/cellbridge), plus the original UNI2-h weights loaded through TRIDENT. Obtain access to `MahmoodLab/UNI2-h` on Hugging Face and authenticate using the Hugging Face client. A local backbone can be set as `model.weights_path` in the training config or `load.encoder_weights` in the CellBridge inference profile. |
 | UNI2-h | Same frozen backbone, `configs/inference/methods/uni.yaml`. |
 | Virchow2 | Access to `paige-ai/Virchow2`; the config pins its model revision. |
 | LEMON | `aliceblondel/LEMON`, pinned revision, `arch: vits8`. |
@@ -37,12 +37,25 @@ Recorded main-training versions include PyTorch **2.6.0+cu124**, torchvision
 requirements file). These are provenance, not a claim that every baseline supports
 one shared environment. Retain each run's environment and resolved configuration.
 
+The CellBridge profile pins adapter revision
+`1c334ee0783be5aaae93a5562522d73fc92ee6c1`. `check`, `extract`, and `run` use the
+Hugging Face cache; set `HF_HOME` to choose its location. The adapter repository
+is currently private, so authenticate with an authorized account (`HF_TOKEN` or
+the Hugging Face client). After caching both the adapter and backbone, set
+`HF_HUB_OFFLINE=1` for offline use. The adapter uses checkpoint format
+`cellbridge.lora/2` and contains the LoRA parameters and alignment head, not the
+UNI2-h backbone. A local `--checkpoint /path/to/best.pt` takes precedence over
+the Hub configuration; missing local files raise an error without falling back
+to the released model.
+
 ## Main experiment
 
 1. Prepare [data and exact split artifacts](data.md). Set the five path variables
    in the README. For paper runs, keep the provided ontology snapshot and mappings.
-2. Train `configs/train/lora/cellbridge.yaml`, or obtain the corresponding released
-   adapter when its download is available. Training uses 59 sections; six separate
+2. Use the released adapter (the inference default), or train
+   `configs/train/lora/cellbridge.yaml`. For your own training run, set
+   `CELLBRIDGE_CHECKPOINT` to its `best.pt` before running the commands below.
+   Training uses 59 sections; six separate
    sections provide up to 5,000 validation cells each. The sampler uses full
    within-section batches and drops each section's incomplete final batch.
 3. Run `bash scripts/reproduce.sh cellbridge check`, then
@@ -145,4 +158,6 @@ Run `python -m pytest`, `python -m build`, and `python -m twine check dist/*`.
 Install the wheel into a clean environment, change out of the checkout, run
 `cellbridge-infer --help`, and copy configs with `cellbridge-config`.
 This checks distribution completeness; it does not substitute for a full
-GPU/data reproduction. The data/checkpoint download destinations must be finalized before describing this as a completed public release.
+GPU/data reproduction. Public access to the hosted adapter and download
+destinations for the exact data/split artifacts must be finalized before
+describing this as a completed public release.
