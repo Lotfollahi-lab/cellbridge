@@ -59,7 +59,7 @@ def prepare(output):
         for name, (method, version, arm) in METHODS.items():
             root = WORKSPACE / "outputs/reproducibility/inference" / method / version
             if name == "CellBridge":
-                root = WORKSPACE / "outputs/ablations/lora_depth/layers_4_cells_all/inference"
+                root = WORKSPACE / "outputs/reproducibility/ablations/lora_depth/layers_4_cells_all/inference"
             runs = sorted((root / dataset).iterdir()) if dataset == "hest" else [root / dataset]
             runs = [p for p in runs if p.is_dir() and p.name != "TENX143"]
             if len(runs) != (14 if dataset == "hest" else 1):
