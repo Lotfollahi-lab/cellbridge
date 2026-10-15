@@ -1,4 +1,4 @@
-"""The notebook 09 widgets: the explorer, the HEST tissue map and the TERRA cross-check."""
+"""The notebook 07 widgets: the explorer, the HEST tissue map and the TERRA cross-check."""
 
 import ipywidgets as widgets
 import matplotlib.pyplot as plt

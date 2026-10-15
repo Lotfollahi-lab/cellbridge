@@ -11,8 +11,6 @@ model:
   output_dim: 64
   batch_size: 128
 
-# Prior setup used radius=80 with coordinates in 0.5-micron units.
-# Reconstructed HEST spatial coordinates are already in microns.
 radius_um: 40.0
 num_workers: 8
 seed: 0

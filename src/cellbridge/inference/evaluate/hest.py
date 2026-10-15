@@ -12,7 +12,7 @@ from cellbridge.inference.embed.sources.metadata import cell_uids
 from cellbridge.inference.evaluate import Task
 from cellbridge.ontology import load_mapping
 
-PCA_ARMS = frozenset({"uni", "lora_adapted", "virchow2", "hibou_l"})
+PCA_ARMS = frozenset({"uni", "lora_adapted", "virchow2"})
 
 
 def load_sample_mapping(mapping_dir, sample_id, dataset):

@@ -27,8 +27,7 @@ CellBridge's HEST crops use tifffile/zarr, independently of that binary's slide-
 | TERRA teacher | Install the authors' TERRA package exposing `download_pretrained`, `harmonize_adata`, `tokenize_adata`, and `embed_dataset`; preprocessing uses `Lotfollahi-lab/TERRA-112M`. It is unnecessary when teacher NPZ files already exist. |
 | NOVAE teacher ablation | Install the authors' `novae` package in its supported environment. `configs/preprocess/novae.yaml` pins `prism-oncology/novae-human-0`. |
 
-Hibou-L remains an optional implementation but is excluded from the paper's six
-baselines. Baseline profiles specify their own crop rules: HEST UNI2-h/CellBridge
+Baseline profiles specify their own crop rules: HEST UNI2-h/CellBridge
 uses 112 µm at 0.5 µm/px; external UNI2-h/CellBridge uses 224 source pixels.
 LEMON uses 10 µm / 40 pixels, VOLTA uses instance boxes, and PAST pads with black.
 
@@ -64,9 +63,9 @@ to the released model.
    The script defaults to `check`; it does not submit cluster jobs. It stops at the
    first failure. A `run` stage may take substantial time and writes to the selected
    result directory; use a new output root for an independent reproduction.
-4. Open notebooks 07 and 08 from the repository to generate the classification and
-   conformal tables. Notebook 10 collects the teacher and conformal-construction
-   ablations. Notebook 09 provides qualitative review.
+4. Open notebooks 05 and 06 from the repository to generate the classification and
+   conformal tables. Notebook 08 collects the teacher and conformal-construction
+   ablations. Notebook 07 provides qualitative review.
 
 `CELLBRIDGE_DEVICE=cuda` selects the extraction device. `CELLBRIDGE_CHECKPOINT`
 overrides the adapter for the CellBridge runner. For a different experiment,
@@ -112,7 +111,7 @@ a shared HEST output directory; use the per-section layout above for notebooks.
 | Uncertainty | 1,000 grouped resamples, seed 0; fixed fitted model/calibration. Group units are in [data.md](data.md). |
 
 HEST reports section-level variation, not cell-wise bootstrap uncertainty.
-Notebook 07's classification summary uses section SD; conformal/ablation summaries
+Notebook 05's classification summary uses section SD; conformal/ablation summaries
 use section SE. OOD uncertainty files include macro AUROC when enough finite
 replicates exist. Metrics are fractions except `coverage_gap`, which is already
 in percentage points. Match table captions before comparing formatted values.
@@ -132,14 +131,11 @@ in percentage points. Match table captions before comparing formatted values.
   (repeat for each training/validation section), then train
   `configs/train/lora/novae.yaml`. Evaluate with
   `CELLBRIDGE_RUN_VERSION=uni_novae_four_layers_adapted_all_cells` and
-  `CELLBRIDGE_CHECKPOINT` pointing to that run's `best.pt`. Notebook 10 compares
+  `CELLBRIDGE_CHECKPOINT` pointing to that run's `best.pt`. Notebook 08 compares
   this directory to the main TERRA run.
-- **Conformal constructions:** a conformal run saves global, class, branch and
-  hybrid split/graph methods. Notebook 10 selects methods via `COVGAP_METHODS`;
-  no new embeddings are needed.
-- **Supervised UNI control:** `cellbridge-finetune train --config
-  configs/train/finetune/uni.yaml --dataset-config configs/inference/nucls.yaml`.
-  This is a separate supervised control, not the main CellBridge training route.
+- **Conformal constructions:** a conformal run saves the three paper methods:
+  `split` (standard), `graph` (global graph), and `branch_graph` (COF).
+  Notebook 08 reports their CovGap comparison; no new embeddings are needed.
 - **Qualitative:** `data.py` loads/aligns predictions, `figures.py` renders them,
   and `views.py` provides the three notebook controls. `Explorer` shows patches,
   `TissueMap` locates regions, and `TerraView` adds transcriptomic context. Optional
@@ -149,8 +145,8 @@ in percentage points. Match table captions before comparing formatted values.
   figures, tables and provenance to a new timestamped directory.
 
 Notebooks are available in the repository/source archive. Some publication plots
-in notebook 07 use LaTeX; install a TeX distribution or disable that notebook's
-`text.usetex` setting. Notebook 09's existing interactive controls are preserved.
+in notebook 05 use LaTeX; install a TeX distribution or disable that notebook's
+`text.usetex` setting. Notebook 07's existing interactive controls are preserved.
 
 ## Release validation
 

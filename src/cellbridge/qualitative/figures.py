@@ -1,4 +1,4 @@
-"""Figures and tables for notebook 09: the patch view, the section map and the TERRA view."""
+"""Figures and tables for notebook 07: the patch view, the section map and the TERRA view."""
 
 import matplotlib.pyplot as plt
 import numpy as np

@@ -21,7 +21,7 @@ for dataset in "${datasets[@]}"; do
   fi
 
 
-  for method in uni past volta spatialwhisperer lemon virchow2 hibou_l; do
+  for method in uni past volta spatialwhisperer lemon virchow2; do
     version=all
     if [ "$method" = lemon ]; then version=vits8; fi
     "$SUBMIT_RUN" "$config" "$method" "${version}" --conformal-config "$config"

@@ -32,8 +32,7 @@ if [ "$runtime" = core ]; then
 fi
 
 if [ "$runtime" = uni ] || [ "$runtime" = cellbridge ] || \
-   [ "$runtime" = lemon ] || [ "$runtime" = virchow2 ] || \
-   [ "$runtime" = hibou_l ]; then
+   [ "$runtime" = lemon ] || [ "$runtime" = virchow2 ]; then
   [ -x "$HEST_ENV/bin/python" ] || {
     echo "HEST environment not found: $HEST_ENV" >&2
     exit 1

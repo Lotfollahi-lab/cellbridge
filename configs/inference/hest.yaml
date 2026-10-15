@@ -13,7 +13,7 @@ data:
                TENX196, TENX197, TENX198, TENX199, TENX200, TENX201, TENX202]
   mapping_dir: ${CELLBRIDGE_ROOT}/configs/preprocess/cell_ontology/hest
 
-methods: [uni, cellbridge, past, volta, spatialwhisperer, lemon, virchow2, hibou_l]
+methods: [uni, cellbridge, past, volta, spatialwhisperer, lemon, virchow2]
 
 probe:
   tasks: [all]

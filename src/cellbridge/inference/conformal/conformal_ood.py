@@ -257,36 +257,6 @@ def _calibration_rows(
     return tuple(rows)
 
 
-def _conditional_groups(
-    labels,
-    classes,
-    branch_groups,
-    alpha,
-) -> dict[str, dict[str, str]]:
-    class_groups = {label: f"class:{label}" for label in classes}
-    ontology_groups = {
-        label: f"branch:{branch_groups[label]}" for label in classes
-    }
-    minimum_count = int(np.ceil(1.0 / alpha) - 1)
-    counts = {label: int(np.sum(labels == label)) for label in classes}
-    fallback_branches = {
-        branch_groups[label] for label in classes if counts[label] < minimum_count
-    }
-    hybrid_groups = {
-        label: (
-            ontology_groups[label]
-            if branch_groups[label] in fallback_branches
-            else class_groups[label]
-        )
-        for label in classes
-    }
-    return {
-        "class": class_groups,
-        "branch": ontology_groups,
-        "hybrid": hybrid_groups,
-    }
-
-
 def evaluate(
     task: Task,
     probe,
@@ -337,59 +307,17 @@ def evaluate(
         graph_calibration.lambda_hat,
     )
 
-    calibration_scores = {
-        "split": 1.0 - calibration_probabilities,
-        "graph": graph_inclusion_scores(calibration_probabilities, graph),
-    }
-    test_scores = {
-        "split": 1.0 - test_probabilities,
-        "graph": graph_inclusion_scores(test_probabilities, graph),
-    }
-    groups = _conditional_groups(calibration_labels, classes, branch_groups, alpha)
-    conditional_sets = {}
-    conditional_nodes = {}
-    conditional_calibrations = {}
-    published_closure = {"split": "unclosed", "graph": "closed"}
-    conditional_arms = []
-    added_arms = []
-    calibration_rows = []
-    for conditioning, class_groups in groups.items():
-        for set_method in ("split", "graph"):
-            method = f"{conditioning}_{set_method}"
-            calibrated = calibrate_conditional(
-                calibration_scores[set_method],
-                calibration_labels,
-                classes,
-                class_groups,
-                alpha,
-            )
-            prediction_sets = predict_conditional(
-                test_scores[set_method],
-                classes,
-                calibrated,
-            )
-            calibration_rows.extend(_calibration_rows(method, calibrated))
-            prediction = close_graph_sets(prediction_sets, graph)
-            variants = {
-                "unclosed": prediction_sets,
-                "closed": prediction.prediction_sets,
-            }
-            for closure, sets in variants.items():
-                # The published arm name keeps the meaning it already has, so
-                # split stays unclosed and graph stays closed; the counterpart
-                # is added under an explicit suffix.
-                arm = (
-                    method
-                    if closure == published_closure[set_method]
-                    else f"{method}_{closure}"
-                )
-                conditional_sets[arm] = sets
-                conditional_calibrations[arm] = calibrated
-                if closure == "closed":
-                    conditional_nodes[arm] = prediction.anchor_nodes
-                target = conditional_arms if arm == method else added_arms
-                target.append((arm, conditioning, closure))
-    conditional_arms.extend(added_arms)
+    calibrated = calibrate_conditional(
+        graph_inclusion_scores(calibration_probabilities, graph),
+        calibration_labels,
+        classes,
+        {label: f"branch:{branch_groups[label]}" for label in classes},
+        alpha,
+    )
+    branch_sets = predict_conditional(
+        graph_inclusion_scores(test_probabilities, graph), classes, calibrated
+    )
+    branch_prediction = close_graph_sets(branch_sets, graph)
 
     split_counts = {
         "n_train": len(train),
@@ -432,33 +360,34 @@ def evaluate(
             classes,
         )
     )
-    for method, conditioning, closure in conditional_arms:
-        prediction_sets = conditional_sets[method]
-        calibrated = conditional_calibrations[method]
-        metrics.append(
-            _summary(
-                method,
-                prediction_sets,
-                test_labels,
-                classes,
-                float(alpha),
-                split_counts,
-                fit_details,
-                parameter="group_thresholds",
-                value=float("nan"),
-                conditioning=conditioning,
-                closure=closure,
-                calibration=calibrated,
-                graph_nodes=conditional_nodes.get(method),
-                root=graph.root if closure == "closed" else None,
-            )
+    metrics.append(
+        _summary(
+            "branch_graph",
+            branch_prediction.prediction_sets,
+            test_labels,
+            classes,
+            float(alpha),
+            split_counts,
+            fit_details,
+            parameter="group_thresholds",
+            value=float("nan"),
+            conditioning="branch",
+            closure="closed",
+            calibration=calibrated,
+            graph_nodes=branch_prediction.anchor_nodes,
+            root=graph.root,
         )
-        per_class.extend(_per_class(method, prediction_sets, test_labels, classes))
+    )
+    per_class.extend(
+        _per_class(
+            "branch_graph", branch_prediction.prediction_sets, test_labels, classes
+        )
+    )
 
     return ConformalResult(
         metrics=tuple(metrics),
         per_class_coverage=tuple(per_class),
-        calibration=tuple(calibration_rows),
+        calibration=_calibration_rows("branch_graph", calibrated),
         ids=np.asarray(task.ids)[test],
         y_true=test_labels,
         probabilities=np.asarray(test_probabilities, dtype=np.float32),
@@ -466,8 +395,8 @@ def evaluate(
         split_sets=split_sets,
         graph_sets=graph_prediction.prediction_sets,
         graph_nodes=graph_prediction.anchor_nodes,
-        conditional_sets=conditional_sets,
-        conditional_nodes=conditional_nodes,
+        conditional_sets={"branch_graph": branch_prediction.prediction_sets},
+        conditional_nodes={"branch_graph": branch_prediction.anchor_nodes},
     )
 
 

@@ -1,14 +1,20 @@
 # CellBridge
 
-**Fine-Grained and Reliable Cell Classification from Pathology Images**
+This repository contains the full preprocessing, training, and evaluation pipeline for CellBridge from the preprint <a href="TODO">Fine-Grained and Reliable Cell Classification from Pathology Images</a>.
 
-CellBridge transfers molecular information from paired spatial transcriptomics
-into cell-centered H&E representations. It adapts the final four attention blocks
-of UNI2-h with LoRA against a frozen TERRA teacher. At inference, images alone
-provide the features; a fitted probe and Cell-Ontology-Fallback (COF) return either
-fine-grained labels or broader, biologically coherent prediction sets.
 
-## Install
+
+**CellBridge** is a multi-modal contrastive learning framework for fine-grained, reliable cell classification from H&E images, pretrained on 16 million paired H&E and Xenium spatial transcriptomic profiles.
+
+It leverages (1) **cross-modal alignment**, which uses parameter-efficient adaptation to align cell-centered image representations from a pathology foundation model with embeddings from a frozen single-cell spatial transcriptomics foundation model, transferring molecular information into morphological representations and (2) **Cell-Ontology-Fallback (COF)**, which uses conformal prediction calibrated within Cell Ontology branches to report the most specific cell type supported by the image, with per-lineage coverage guarantees.
+
+CellBridge requires **only H&E images at inference**, returning fine-grained labels when supported and broader ancestor categories when finer distinctions require molecular measurements.
+
+<p align="center">
+<img src="cellbridge.jpg" alt="Gmain figure" width="800"/>
+</p>
+
+## 🚀 Installation
 
 Use Python **3.11 or 3.12** for the full model workflow. From this repository:
 
@@ -50,7 +56,7 @@ guide. No PyPI publication is assumed here. You can build and install a wheel wi
 `python -m pip install '.[dev]'`, `python -m build`, then
 `python -m pip install dist/cellbridge-0.1.0-py3-none-any.whl`.
 
-## Data and paths
+## 📊 Datasets
 
 Set absolute paths before running commands or starting Jupyter:
 
@@ -93,7 +99,7 @@ test assignments. **Do not regenerate random splits to reproduce the paper.**
 and preprocessing commands. Data, split/cohort CSVs, and model weights are not
 bundled in the package.
 
-## Train
+## Training (Cross-modal Alignment)
 
 Prepare the HEST artifacts and obtain UNI2-h access, then run:
 
@@ -109,7 +115,7 @@ directory, and the best adapter checkpoint to
 Existing training artifacts are protected; use `--output-dir` and
 `--checkpoint-dir` for a new run. Training targets CUDA; the paper used one H200.
 
-## Evaluate
+## Evaluation (Cell-Ontology-Fallback)
 
 Start with one dataset and the paper representation:
 
@@ -150,7 +156,7 @@ bash scripts/reproduce.sh cellbridge run
 
 This runs four OOD datasets (both PhenoCell tasks) and the 14 paper HEST sections.
 The source cohort has 15 entries; TENX143 is excluded as in Appendix A.1.
-Notebooks 07, 08, 09 and 10 produce classification, conformal, qualitative and
+Notebooks 05, 06, 07 and 08 produce classification, conformal, qualitative and
 ablation analyses. Install `.[analysis]` before opening them.
 
 NuCLS granularity uses the saved paper-layout runs:
@@ -175,17 +181,10 @@ Explorer(load_catalog(), metric="set_size").show()
 Set size measures prediction breadth. The manuscript's reliability is
 `1 - set_size / n_classes`; it is not a calibrated probability of correctness.
 
-## Development and release status
+## 📚 Citation
 
-```bash
-python -m pip install -e '.[dev,preprocess,analysis]'
-python -m pytest
-python -m build
+If this repository is helpful to you, please consider citing the associated paper:
+
+```bibtex
+TODO: Update after the arXiv submission.
 ```
-
-See [the audit](docs/AUDIT.md) for pre-release findings and their resolution.
-CellBridge code is licensed under the [Apache License 2.0](LICENSE.md). Adapter
-weights are hosted on [Hugging Face](https://huggingface.co/ogutsevda/cellbridge);
-public repository access and release of exact split artifacts remain outstanding.
-Third-party datasets and models retain their own terms. Package and CPU tests do
-not establish numerical reproduction of the full manuscript.

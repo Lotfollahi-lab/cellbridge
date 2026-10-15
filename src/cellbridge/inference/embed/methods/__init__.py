@@ -10,7 +10,6 @@ METHODS = (
     "spatialwhisperer",
     "lemon",
     "virchow2",
-    "hibou_l",
 )
 
 _MODULES = {
@@ -21,7 +20,6 @@ _MODULES = {
     "spatialwhisperer": "spatialwhisperer",
     "lemon": "lemon",
     "virchow2": "virchow2",
-    "hibou_l": "hibou_l",
 }
 
 

@@ -91,7 +91,6 @@ case "$method" in
   spatialwhisperer) gmem=30000 ;;
   lemon) gmem=16000 ;;
   virchow2) gmem=30000 ;;
-  hibou_l) gmem=24000 ;;
   *)
     echo "unknown inference method: $method" >&2
     exit 2

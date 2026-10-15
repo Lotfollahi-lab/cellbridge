@@ -1,4 +1,4 @@
-"""Load, check and score the saved CellBridge conformal predictions shown in notebook 09."""
+"""Load, check and score the saved CellBridge conformal predictions shown in notebook 07."""
 
 import getpass
 import json
@@ -42,14 +42,9 @@ EXPORT_ROOT = OUTPUTS_ROOT / "visualizations/res_figures/qualitative_conformal"
 METHODS = {
     "split": "Global split",
     "graph": "Global graph",
-    "class_split": "Class split",
-    "class_graph": "Class graph",
-    "branch_split": "Branch split",
     "branch_graph": "Branch graph",
-    "hybrid_split": "Hybrid split",
-    "hybrid_graph": "Hybrid graph",
 }
-# Paper-facing views use branch graph; all saved methods are validated on load.
+# Paper-facing views use branch graph; saved paper methods are validated on load.
 OFFERED_METHODS = ["branch_graph"]
 DATASET_ORGANS = {"nucls": "breast", "phenocell": "colorectal"}
 

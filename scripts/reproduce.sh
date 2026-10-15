@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run one paper model with the directory layout consumed by notebooks 07–10.
+# Run one paper model with the directory layout consumed by notebooks 05–08.
 set -euo pipefail
 
 method="${1:-cellbridge}"
