@@ -23,11 +23,11 @@ WORKSPACE = Path(os.environ.get("CELLBRIDGE_WORKSPACE", REPO.parents[1]))
 MODEL_RESULTS = Path(
     os.environ.get(
         "CELLBRIDGE_QUALITATIVE_RESULTS",
-        WORKSPACE / "outputs/ablations/lora_depth/layers_4_cells_all/inference",
+        WORKSPACE / "outputs/reproducibility/ablations/lora_depth/layers_4_cells_all/inference",
     )
 )
 TRAIN_CONFIG = MODEL_RESULTS.parent / "train/resolved_config.yaml"
-EXPORT_ROOT = WORKSPACE / "outputs/reproducibility/figures/qualitative_conformal"
+EXPORT_ROOT = WORKSPACE / "outputs/visualizations/res_figures/qualitative_conformal"
 METHODS = {
     "split": "Global split",
     "graph": "Global graph",
@@ -526,7 +526,8 @@ def save_view(state, method, view, figures, tables, details):
     )
     directory.mkdir(parents=True, exist_ok=False)
     for name, figure in figures.items():
-        figure.savefig(directory / f"{name}.png", dpi=180, bbox_inches="tight")
+        extension = "pdf" if details.get("metric") == "set_size" else "png"
+        figure.savefig(directory / f"{name}.{extension}", dpi=180, bbox_inches="tight")
     for name, table in tables.items():
         table.to_csv(directory / f"{name}.csv", index=False)
     provenance = dict(details)
@@ -550,5 +551,12 @@ def save_view(state, method, view, figures, tables, details):
         saved_by=user,
         saved_at=saved_at.isoformat(),
     )
+    if details.get("metric") == "set_size":
+        provenance.pop("depth_definition")
+        provenance.pop("lca_rule")
+        provenance["set_size_definition"] = (
+            "Number of labels in the saved final prediction set; graph methods already include ontology closure. "
+            "Means include every evaluated cell, including empty sets as zero."
+        )
     (directory / "provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     return directory

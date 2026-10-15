@@ -23,12 +23,30 @@ DEPTH_CMAP = LinearSegmentedColormap.from_list(
 )
 
 
+SET_SIZE_CMAP = LinearSegmentedColormap.from_list(
+    "prediction_set_size", ["#20865C", "#8ABF7B", "#E5C65B", "#D97A38", "#B52B32"]
+)
+
+
+def set_size_scale(nclasses):
+    """Zero is grey; singleton to all classes runs green to red."""
+    cmap = ListedColormap(["#555555", *SET_SIZE_CMAP(np.linspace(0, 1, nclasses))])
+    return cmap, BoundaryNorm(np.arange(-0.5, nclasses + 1.5), cmap.N)
+
+
 def _format(value, spec):
     return "—" if pd.isna(value) else format(value, spec)
 
 
-def summary_line(evaluated):
+def summary_line(evaluated, metric="depth"):
     """Headline numbers for a group of evaluated cells, as one line of text."""
+    if metric == "set_size":
+        return (
+            f"Mean saved set size {evaluated.set_size.mean():.2f} · "
+            f"set coverage {evaluated.raw_covered.astype(bool).mean():.1%} · "
+            f"Top-1 correct {evaluated.truth.eq(evaluated.predicted).mean():.1%} · "
+            f"empty sets {int(evaluated.set_size.eq(0).sum())}."
+        )
     return (
         f"Top-1 correct {evaluated.truth.eq(evaluated.predicted).mean():.1%} · "
         f"original-set coverage {evaluated.raw_covered.astype(bool).mean():.1%} · "
@@ -39,7 +57,7 @@ def summary_line(evaluated):
     )
 
 
-def selected_cell_text(state, chosen):
+def selected_cell_text(state, chosen, metric="depth"):
     """A selected cell's prediction and common ancestor, with one ontology path per label."""
     head = (
         f"**Selected cell #{chosen.number}** ({chosen.row_id}, circled in magenta; "
@@ -47,6 +65,13 @@ def selected_cell_text(state, chosen):
     )
     if not chosen.evaluated:
         return f"{head} has no saved test prediction."
+    if metric == "set_size":
+        return (
+            f"{head}: reference **{chosen.truth}**, predicted **{chosen.predicted}**, "
+            f"saved prediction set **{chosen.prediction_set or 'empty'}**, "
+            f"set size **{int(chosen.set_size)}**, "
+            f"reference in set: **{'yes' if chosen.raw_covered else 'no'}**."
+        )
     if chosen.set_size == 0:
         outcome = "The prediction set is empty, so there is no ancestor and no depth."
     elif not chosen.ancestor_covered:
@@ -75,19 +100,19 @@ def selected_cell_text(state, chosen):
     return text
 
 
-def smooth_depth(tissue, rows, mpp, bounds):
+def smooth_depth(tissue, rows, mpp, bounds, metric="depth"):
     from scipy.ndimage import gaussian_filter
     from scipy.spatial import cKDTree
 
     x0, y0, x1, y1 = bounds
     step, bandwidth_um = 4, 15.0
-    covered = rows.loc[rows.depth.notna()]
+    covered = rows.loc[rows.evaluated & rows[metric].notna()]
     if covered.empty:
         return None
     xe, ye = np.arange(x0, x1 + step, step), np.arange(y0, y1 + step, step)
     counts, _, _ = np.histogram2d(covered.y, covered.x, bins=(ye, xe))
     totals, _, _ = np.histogram2d(
-        covered.y, covered.x, bins=(ye, xe), weights=covered.depth
+        covered.y, covered.x, bins=(ye, xe), weights=covered[metric]
     )
     sigma = bandwidth_um / (mpp * step)
     density = gaussian_filter(counts, sigma, mode="constant", truncate=3)
@@ -114,7 +139,7 @@ def smooth_depth(tissue, rows, mpp, bounds):
     return mean, (xe[0], xe[-1], ye[-1], ye[0])
 
 
-def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
+def render_selection(state, field, method, bounds, cell_id=None, smooth=False, metric="depth"):
     all_rows = evaluate_field(state, field, method)
     rows = cells_in_bounds(all_rows, bounds)
     evaluated = rows.loc[rows.evaluated]
@@ -123,11 +148,18 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     extent = (x0 - 0.5, x1 - 0.5, y1 - 0.5, y0 - 0.5)
     classes = state["saved"]["classes"].astype(str)
     colours = dict(zip(classes, plt.get_cmap("tab20")(np.linspace(0, 1, len(classes)))))
+    if metric == "set_size" and "macrophage" in colours:
+        colours["macrophage"] = "#FF6600"
     graph = state["graph"]
     # One fixed scale for every method and field within the dataset/section.
     maximum = max(max(distances.values()) - 1 for distances in graph.distances)
     cmap = ListedColormap(DEPTH_CMAP(np.linspace(0, 1, maximum + 1)))
     norm = BoundaryNorm(np.arange(-0.5, maximum + 1.5), cmap.N)
+    continuous_cmap = DEPTH_CMAP
+    if metric == "set_size":
+        maximum = len(classes)
+        cmap, norm = set_size_scale(maximum)
+        continuous_cmap = LinearSegmentedColormap.from_list("mean_set_size", cmap.colors)
     fig, axes = plt.subplots(2, 2, figsize=(15, 12), layout="constrained")
     for ax in axes.flat:
         ax.imshow(tissue, extent=extent, alpha=1 if ax is axes[0, 0] else 0.65)
@@ -137,7 +169,8 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     axes[0, 1].set_title("Reference labels · numbered as in the saved cell table")
     axes[1, 0].set_title("CellBridge · highest-scoring label")
     axes[1, 1].set_title(
-        "Ontology depth / coarseness" + (" · local mean" if smooth else " · per cell")
+        ("Prediction-set size" if metric == "set_size" else "Ontology depth / coarseness")
+        + (" · local mean" if smooth else " · per cell")
     )
     for ax, column in [(axes[0, 1], "truth"), (axes[1, 0], "predicted")]:
         for label in classes:
@@ -147,10 +180,10 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
                 group.y,
                 s=50,
                 color=colours[label],
-                edgecolors="white",
+                edgecolors="black" if metric == "set_size" else "white",
                 linewidths=0.4,
             )
-    missing = rows.loc[~rows.evaluated]
+    missing = rows.loc[~rows.evaluated] if metric == "depth" else rows.iloc[:0]
     # Harmonized reference labels are still visible for non-evaluated cells, when available.
     reference = missing.label.map(state["mapping"].source_to_class)
     for label in classes:
@@ -162,14 +195,14 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     axes[0, 1].scatter(unknown.x, unknown.y, s=54, facecolors="none", edgecolors="grey")
     for ax in axes[1]:
         ax.scatter(missing.x, missing.y, s=54, facecolors="none", edgecolors="grey")
-    covered = evaluated.loc[evaluated.depth.notna()]
+    covered = evaluated.loc[evaluated[metric].notna()]
     if smooth:
-        smoothed = smooth_depth(tissue, rows, field["mpp"], bounds)
+        smoothed = smooth_depth(tissue, rows, field["mpp"], bounds, metric)
         if smoothed is not None and np.isfinite(smoothed[0]).any():
             axes[1, 1].imshow(
                 smoothed[0],
                 extent=smoothed[1],
-                cmap=DEPTH_CMAP,
+                cmap=continuous_cmap,
                 vmin=0,
                 vmax=maximum,
                 alpha=0.78,
@@ -188,19 +221,20 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
         axes[1, 1].scatter(
             covered.x,
             covered.y,
-            c=covered.depth,
+            c=covered[metric],
             cmap=cmap,
             norm=norm,
             s=64,
-            edgecolors="white",
+            edgecolors="black" if metric == "set_size" else "white",
             linewidths=0.4,
         )
-    excluded = evaluated.loc[evaluated.depth.isna() & evaluated.set_size.gt(0)]
-    empty = evaluated.loc[evaluated.set_size.eq(0)]
-    axes[1, 1].scatter(excluded.x, excluded.y, marker="x", c="black", s=80)
-    axes[1, 1].scatter(empty.x, empty.y, marker="+", c="#c62828", s=110)
+    if metric == "depth":
+        excluded = evaluated.loc[evaluated.depth.isna() & evaluated.set_size.gt(0)]
+        empty = evaluated.loc[evaluated.set_size.eq(0)]
+        axes[1, 1].scatter(excluded.x, excluded.y, marker="x", c="black", s=80)
+        axes[1, 1].scatter(empty.x, empty.y, marker="+", c="#c62828", s=110)
     bar = plt.cm.ScalarMappable(
-        cmap=DEPTH_CMAP if smooth else cmap,
+        cmap=continuous_cmap if smooth else cmap,
         norm=plt.Normalize(0, maximum) if smooth else norm,
     )
     fig.colorbar(
@@ -208,10 +242,10 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
         ax=axes[1, 1],
         shrink=0.7,
         ticks=range(maximum + 1),
-        label="Steps up from reference to ancestor",
+        label="Labels in saved prediction set" if metric == "set_size" else "Steps up from reference to ancestor",
     )
     if len(rows) <= 60:
-        for row in rows.itertuples():
+        for row in (evaluated if metric == "set_size" else rows).itertuples():
             axes[0, 1].annotate(
                 str(row.number),
                 (row.x, row.y),
@@ -247,38 +281,39 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     axes[0, 1].legend(
         handles=handles, loc="upper left", bbox_to_anchor=(1, 1), fontsize=8
     )
-    axes[1, 1].legend(
-        handles=[
-            Line2D(
-                [],
-                [],
-                marker="x",
-                color="black",
-                linestyle="none",
-                label="Reference excluded by ancestor",
-            ),
-            Line2D(
-                [],
-                [],
-                marker="+",
-                color="#c62828",
-                linestyle="none",
-                label="Empty prediction set",
-            ),
-            Line2D(
-                [],
-                [],
-                marker="o",
-                markerfacecolor="none",
-                color="grey",
-                linestyle="none",
-                label="No test prediction",
-            ),
-        ],
-        loc="upper center",
-        bbox_to_anchor=(0.5, 0),
-        fontsize=8,
-    )
+    if metric == "depth":
+        axes[1, 1].legend(
+            handles=[
+                Line2D(
+                    [],
+                    [],
+                    marker="x",
+                    color="black",
+                    linestyle="none",
+                    label="Reference excluded by ancestor",
+                ),
+                Line2D(
+                    [],
+                    [],
+                    marker="+",
+                    color="#c62828",
+                    linestyle="none",
+                    label="Empty prediction set",
+                ),
+                Line2D(
+                    [],
+                    [],
+                    marker="o",
+                    markerfacecolor="none",
+                    color="grey",
+                    linestyle="none",
+                    label="No test prediction",
+                ),
+            ],
+            loc="upper center",
+            bbox_to_anchor=(0.5, 0),
+            fontsize=8,
+        )
     fig.suptitle(
         f"{state['choice']} · CellBridge · {METHODS[method]}\n"
         f"{field['sample_id']}\nx={x0}:{x1}, y={y0}:{y1}",
@@ -288,7 +323,7 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
     display(fig)
     plt.close(fig)
     nominal = float(state["metrics"].loc[method, "target_coverage"])
-    summary = f"\n\n{summary_line(evaluated)}" if len(evaluated) else ""
+    summary = f"\n\n{summary_line(evaluated, metric)}" if len(evaluated) else ""
     display(
         Markdown(
             f"**{len(rows):,} annotated cells; {len(evaluated):,} with test predictions.** "
@@ -315,9 +350,11 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
         "ancestor_covered",
         "depth",
     ]
+    if metric == "set_size":
+        columns = columns[:columns.index("ancestor")]
     if cell_id is not None:
         chosen = rows.loc[rows.row_id.eq(cell_id)].iloc[0]
-        display(Markdown(selected_cell_text(state, chosen)))
+        display(Markdown(selected_cell_text(state, chosen, metric)))
     return dict(
         figure=fig,
         cells=rows[columns],
@@ -325,6 +362,7 @@ def render_selection(state, field, method, bounds, cell_id=None, smooth=False):
         bounds=list(map(int, bounds)),
         cell_id=cell_id,
         smooth=smooth,
+        metric=metric,
         sample_id=field["sample_id"],
         image_path=field["image_path"],
         mpp=field["mpp"],
@@ -367,6 +405,10 @@ HOVER_STYLE = """<style>
 
 def colour_scale(state, statistic, values):
     """Depth keeps the ontology's fixed scale; other statistics stretch to this section."""
+    if statistic == "Mean prediction-set size":
+        cmap, _ = set_size_scale(len(state["saved"]["classes"]))
+        continuous = LinearSegmentedColormap.from_list("mean_set_size", cmap.colors)
+        return continuous, 0.0, len(state["saved"]["classes"]), statistic
     _, higher_is_better, fixed = TISSUE_STATISTICS[statistic]
     cmap = DEPTH_CMAP.reversed() if higher_is_better else DEPTH_CMAP
     if fixed:
@@ -558,7 +600,7 @@ def terra_agreement(reduced, pool, neighbours=TERRA_NEIGHBOURS):
     return shares
 
 
-def render_terra(state, field, rows, bounds, method, name, colour, context):
+def render_terra(state, field, rows, bounds, method, name, colour, context, metric="depth"):
     """Project one patch into TERRA space beside its tissue and its neighbourhood agreement."""
     matrix = terra_matrix(state, TERRA_MATRICES[name])
     patch = cells_in_bounds(rows, bounds)
@@ -579,7 +621,7 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
     axes[1].imshow(tissue, extent=(x0 - 0.5, x1 - 0.5, y1 - 0.5, y0 - 0.5), alpha=0.65)
     axes[1].set(xlim=(x0 - 0.5, x1 - 0.5), ylim=(y1 - 0.5, y0 - 0.5))
     axes[1].axis("off")
-    blank = inside.loc[~inside.evaluated]
+    blank = inside.loc[~inside.evaluated] if metric == "depth" else inside.iloc[:0]
     axes[0].scatter(
         blank.umap_x,
         blank.umap_y,
@@ -632,13 +674,8 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
             )
             marked = scored.loc[scored.depth.notna()]
         else:
-            top = int(scored.set_size.max()) if len(scored) else 1
-            cmap, norm, ticks, marked = (
-                DEPTH_CMAP,
-                plt.Normalize(0, max(top, 1)),
-                None,
-                scored,
-            )
+            cmap, norm = set_size_scale(len(classes))
+            ticks, marked = range(len(classes) + 1), scored
         axes[0].scatter(
             marked.umap_x,
             marked.umap_y,
@@ -685,6 +722,9 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
             else str(int(depth))
             for depth, size in zip(scored.depth, scored.set_size)
         ]
+        if metric == "set_size":
+            maximum = len(classes)
+            buckets = scored.set_size.astype(int).astype(str)
         summary = (
             scored.assign(bucket=buckets)
             .groupby("bucket")
@@ -703,7 +743,8 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
             summary.agreement,
             edgecolor="white",
             color=[
-                palette[b] if b in palette else DEPTH_CMAP(int(b) / max(maximum, 1))
+                set_size_scale(len(classes))[0](int(b)) if metric == "set_size"
+                else palette[b] if b in palette else DEPTH_CMAP(int(b) / max(maximum, 1))
                 for b in summary.index
             ],
         )
@@ -712,7 +753,7 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
         )
         axes[2].set(
             ylim=(0, 1.15),
-            xlabel="Ontology depth / coarseness",
+            xlabel="Prediction-set size" if metric == "set_size" else "Ontology depth / coarseness",
             ylabel=f"Share of the {TERRA_NEIGHBOURS} nearest TERRA neighbours\n"
             "with the same reference label",
         )
@@ -753,6 +794,11 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
         if len(scored)
         else ""
     )
+    if metric == "set_size":
+        summary = (
+            f"\n\nMean neighbour agreement {_format(scored.neighbour_agreement.mean(), '.1%')} · "
+            + summary_line(scored, metric)
+        ) if len(scored) else ""
     display(
         Markdown(
             f"**{len(inside):,} cells in the patch; {len(scored):,} with test predictions**, "
@@ -779,9 +825,12 @@ def render_terra(state, field, rows, bounds, method, name, colour, context):
             "neighbour_agreement",
         ]
     ]
+    if metric == "set_size":
+        cells = cells.drop(columns=["ancestor", "depth"])
     return dict(
         figure=fig,
         cells=cells,
+        metric=metric,
         pool=pool,
         patch=scored,
         bounds=[x0, y0, x1, y1],

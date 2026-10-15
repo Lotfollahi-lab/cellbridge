@@ -50,8 +50,9 @@ def show_catalog():
 class Explorer:
     """Browse one field of a dataset by patch or by cell."""
 
-    def __init__(self, catalog):
+    def __init__(self, catalog, metric="depth"):
         self.catalog = catalog
+        self.metric = metric
         self.dataset_widget = widgets.Dropdown(
             options=list(catalog.index),
             description="Dataset:",
@@ -91,7 +92,7 @@ class Explorer:
             description="Method:", layout=widgets.Layout(width="350px")
         )
         self.smooth_widget = widgets.Checkbox(
-            value=False, description="Smooth depth map"
+            value=False, description="Smooth set-size map" if metric == "set_size" else "Smooth depth map"
         )
         self.show_button = widgets.Button(
             description="Show selection", button_style="primary", disabled=True
@@ -253,6 +254,7 @@ class Explorer:
                 bounds,
                 cell_id,
                 self.smooth_widget.value,
+                metric=self.metric,
             )
             self.save_button.disabled = False
 
@@ -276,8 +278,9 @@ class Explorer:
 class TissueMap:
     """Paint every grid patch of a HEST section by one statistic and open any patch."""
 
-    def __init__(self, catalog):
+    def __init__(self, catalog, metric="depth"):
         self.catalog = catalog
+        self.metric = metric
         choices = [
             choice
             for choice in catalog.index
@@ -292,7 +295,10 @@ class TissueMap:
             layout=widgets.Layout(width="450px"),
         )
         self.statistic_widget = widgets.Dropdown(
-            options=list(TISSUE_STATISTICS),
+            options=(
+                ["Mean prediction-set size", "Original-set coverage", "Top-1 accuracy", "Empty prediction sets"]
+                if metric == "set_size" else list(TISSUE_STATISTICS)
+            ),
             description="Statistic:",
             layout=widgets.Layout(width="450px"),
         )
@@ -309,7 +315,7 @@ class TissueMap:
             layout=widgets.Layout(width="350px"),
         )
         self.tissue_smooth_widget = widgets.Checkbox(
-            value=False, description="Smooth depth map"
+            value=False, description="Smooth set-size map" if metric == "set_size" else "Smooth depth map"
         )
         self.tissue_button = widgets.Button(
             description="Show tissue map", button_style="primary"
@@ -415,7 +421,7 @@ class TissueMap:
                 Markdown(
                     f"**Whole section: {len(evaluated):,} evaluated cells** among "
                     f"{len(rows):,} annotated cells. Saved nominal coverage: {nominal:.0%}."
-                    f"\n\n{summary_line(evaluated)}"
+                    f"\n\n{summary_line(evaluated, self.metric)}"
                 )
             )
             if table.empty:
@@ -429,9 +435,11 @@ class TissueMap:
             figure = render_section(
                 state, field, table, size, statistic, method, min_cells
             )
+            report_columns = ["patch", "evaluated_cells", "mean_set_size", "original_coverage",
+                              "top1_accuracy", "empty_fraction", "x0", "y0", "x1", "y1"]
             self.map = dict(
                 figure=figure,
-                table=table.drop(columns=["row", "column"]),
+                table=table[report_columns] if self.metric == "set_size" else table.drop(columns=["row", "column"]),
                 method=method,
                 statistic=statistic,
                 patch_size=size,
@@ -459,6 +467,7 @@ class TissueMap:
                 bounds,
                 None,
                 self.tissue_smooth_widget.value,
+                metric=self.metric,
             )
 
     def on_save(self, _=None):
@@ -474,6 +483,7 @@ class TissueMap:
             patch_size=self.map["patch_size"],
             min_cells=self.map["min_cells"],
             painted_patches=len(self.map["table"]),
+            metric=self.metric,
         )
         if self.opened is not None:
             figures["view"], tables["cells"] = (
@@ -504,8 +514,8 @@ class TerraView:
             layout=widgets.Layout(width="420px"),
         )
         self.terra_colour_widget = widgets.Dropdown(
-            options=list(TERRA_COLOURS),
-            value="Ontology depth / coarseness",
+            options=[c for c in TERRA_COLOURS if tissue_map.metric == "depth" or c != "Ontology depth / coarseness"],
+            value="Prediction-set size" if tissue_map.metric == "set_size" else "Ontology depth / coarseness",
             description="Colour by:",
             layout=widgets.Layout(width="420px"),
         )
@@ -581,6 +591,7 @@ class TerraView:
                 self.terra_embedding_widget.value,
                 self.terra_colour_widget.value,
                 self.terra_context_widget.value,
+                metric=tissue.metric,
             )
             self.last = dict(
                 shown,
@@ -612,6 +623,7 @@ class TerraView:
             colour=last["colour"],
             context_cells=last["context"],
             neighbours=TERRA_NEIGHBOURS,
+            metric=self.tissue_map.metric,
             terra_file=str(terra_file(last["state"])),
         )
         directory = save_view(
