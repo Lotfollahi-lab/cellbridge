@@ -24,14 +24,11 @@ python -m pip install '.[models,data]'
 python -m pip install -r requirements/encoders.txt
 ```
 
-This installs CellBridge and the image encoder dependencies. Inference downloads
-[adaptor weights](https://huggingface.co/ogutsevda/cellbridge) automatically.
+This installs CellBridge and the image encoder dependencies. Inference downloads [adaptor weights](https://huggingface.co/ogutsevda/cellbridge) automatically.
 
-However, you also need access to the **UNI2-h backbone**. See
-[model access](reproducibility_guide.md#models).
+However, you also need access to the **UNI2-h backbone**, please see [model access](REPRODUCIBILITY.MD#models).
 
-For GPU setup, optional dependencies, or installation for CPU evaluation only, see
-[installation options](reproducibility_guide.md#installation-options).
+For GPU setup, optional dependencies, or installation for CPU evaluation only, see [installation options](REPRODUCIBILITY.MD#installation-options).
 
 ## 📊 Datasets
 
@@ -59,7 +56,7 @@ export CELLBRIDGE_CHECKPOINTS_ROOT="/path/to/checkpoints"
 export CELLBRIDGE_REPOS_ROOT="/path/to/external/model/repos"
 ```
 
-See [data preparation](reproducibility_guide.md#dataset-details)
+See [data preparation](REPRODUCIBILITY.MD#dataset-details)
 for required files, preprocessing commands, and setup.
 
 ## Cross-modal alignment
@@ -70,7 +67,7 @@ Prepare the HEST artifacts and obtain UNI2-h access, then run:
 cellbridge-train --config "$CELLBRIDGE_ROOT/configs/train/lora/cellbridge.yaml"
 ```
 
-The paper config uses rank 8, alpha 16, batch size 16, symmetric InfoNCE with temperature=0.07.
+The paper config uses rank 8, alpha 16, batch size 16, symmetric InfoNCE with temperature 0.07.
 
 ## Cell-Ontology-Fallback
 
@@ -92,7 +89,7 @@ Use `extract` to compute and save embeddings from images. Once saved, run `evalu
 
 ## Reproducibility!
 
-Follow the [reproducibility guide](reproducibility_guide.md) for prerequisites, dataset details, baseline
+Follow the [reproducibility guide](REPRODUCIBILITY.MD) for prerequisites, dataset details, baseline
 models, ablations, and notebooks for manuscript tables and figures.
 
 ```bash
