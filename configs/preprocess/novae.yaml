@@ -1,0 +1,18 @@
+# Frozen NOVAE human model, representation extraction only.
+data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+manifest_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/manifest.csv
+splits_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
+# Each artifact is written to <output_dir>/<sample>/<sample>_novae.npz.
+output_dir: ${CELLBRIDGE_DATA_ROOT}/train/hest
+
+model:
+  name: prism-oncology/novae-human-0
+  revision: b8c0a5d7612bac6bc719ab57ed3cd16ad814728c
+  output_dim: 64
+  batch_size: 128
+
+# Prior setup used radius=80 with coordinates in 0.5-micron units.
+# Reconstructed HEST spatial coordinates are already in microns.
+radius_um: 40.0
+num_workers: 8
+seed: 0

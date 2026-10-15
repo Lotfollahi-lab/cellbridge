@@ -146,7 +146,7 @@ def _sample_output_dir(data_root, sample_id: str, manifest_row: dict) -> Path:
     return Path(data_root) / sample_id
 
 
-def _load_sample(path, terra_key, cap, seed, sample_id):
+def _load_sample(path, terra_key, cap, seed, sample_id, terra_dim=TERRA_DIM):
     with np.load(path, allow_pickle=True) as data:
         required = {"cell_ids", terra_key, "he_x", "he_y"}
         if not required <= set(data.files):
@@ -156,10 +156,14 @@ def _load_sample(path, terra_key, cap, seed, sample_id):
         cell_ids = _canonical_ids(data["cell_ids"])
         terra = np.asarray(data[terra_key], dtype=np.float32)
         centers = np.column_stack((data["he_x"], data["he_y"])).astype(np.float64)
+        reference_ids = (
+            _canonical_ids(data["reference_cell_ids"])
+            if "reference_cell_ids" in data.files else None
+        )
 
-    if terra.shape != (len(cell_ids), TERRA_DIM):
+    if terra.shape != (len(cell_ids), terra_dim):
         raise ValueError(
-            f"{path}: expected TERRA shape ({len(cell_ids)}, {TERRA_DIM}), "
+            f"{path}: expected teacher shape ({len(cell_ids)}, {terra_dim}), "
             f"got {terra.shape}"
         )
     if centers.shape != (len(cell_ids), 2) or not np.isfinite(centers).all():
@@ -167,16 +171,27 @@ def _load_sample(path, terra_key, cap, seed, sample_id):
     if len(set(cell_ids.tolist())) != len(cell_ids):
         raise ValueError(f"{path}: duplicate cell IDs after canonicalization")
 
-    rows = select_indices(len(cell_ids), cap, seed, sample_id)
+    if reference_ids is None:
+        rows = select_indices(len(cell_ids), cap, seed, sample_id)
+    else:
+        if len(np.unique(reference_ids)) != len(reference_ids):
+            raise ValueError(f"{path}: duplicate reference cell IDs")
+        if not set(cell_ids).issubset(set(reference_ids)):
+            raise ValueError(f"{path}: teacher cells are absent from the reference cohort")
+        selected = select_indices(len(reference_ids), cap, seed, sample_id)
+        rows = pd.Index(cell_ids).get_indexer(reference_ids[selected])
+        rows = rows[rows >= 0]
+        if not len(rows):
+            raise ValueError(f"{path}: no valid teacher cells in the baseline selection")
     cell_ids, terra, centers = cell_ids[rows], terra[rows], centers[rows]
     norms = np.linalg.norm(terra, axis=1, keepdims=True)
     if not np.isfinite(terra).all() or np.any(norms <= 0):
-        raise ValueError(f"{path}: TERRA embeddings must be finite and nonzero")
+        raise ValueError(f"{path}: teacher embeddings must be finite and nonzero")
     return cell_ids, terra / norms, centers
 
 
 class HESTCellDataset(Dataset):
-    """Lazy H&E crops paired with normalized TERRA embeddings."""
+    """Lazy H&E crops paired with normalized teacher embeddings."""
 
     def __init__(
         self,
@@ -189,6 +204,9 @@ class HESTCellDataset(Dataset):
         max_cells_per_sample: int | None = None,
         seed: int = 0,
         terra_key: str = "cell_emb",
+        teacher_embeddings_root: str | None = None,
+        teacher_name: str = "terra",
+        terra_dim: int = TERRA_DIM,
         wsi_opener: Callable = open_wsi,
         max_open_wsis: int = 64,
         target_size: int = TARGET_PATCH_SIZE,
@@ -220,12 +238,18 @@ class HESTCellDataset(Dataset):
         for sample_id in sample_ids:
             row = manifest[sample_id]
             sample_dir = _sample_output_dir(data_root, sample_id, row)
+            teacher_path = (
+                sample_dir / f"{sample_id}_terra.npz"
+                if teacher_embeddings_root is None
+                else Path(teacher_embeddings_root) / sample_id / f"{sample_id}_{teacher_name}.npz"
+            )
             cell_ids, terra, centers = _load_sample(
-                sample_dir / f"{sample_id}_terra.npz",
+                teacher_path,
                 terra_key,
                 max_cells_per_sample,
                 seed,
                 sample_id,
+                terra_dim,
             )
             stop = start + len(cell_ids)
             self.sample_indices[sample_id] = np.arange(start, stop, dtype=int)
@@ -382,6 +406,9 @@ def build_datasets(cfg, transform):
         "transform": transform,
         "seed": int(cfg["sampling_seed"]),
         "terra_key": cfg["terra_key"],
+        "teacher_embeddings_root": cfg.get("teacher_embeddings_root"),
+        "teacher_name": cfg.get("teacher_name", "terra"),
+        "terra_dim": int(cfg["model"]["terra_dim"]),
         "target_size": int(crop["target_size"]),
         "target_pixel_size_um": float(crop["target_pixel_size_um"]),
         "max_open_wsis": int(cfg["max_open_wsis"]),

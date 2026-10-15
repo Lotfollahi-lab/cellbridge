@@ -1,0 +1,9 @@
+# Teacher comparison: same 4L/all-cells training, frozen NOVAE targets.
+defaults: cellbridge.yaml
+run_name: uni_novae_four_layers_adapted_all_cells
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/train/uni_novae_four_layers_adapted_all_cells
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/uni_novae_four_layers_adapted_all_cells
+teacher_name: novae
+teacher_embeddings_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
+model:
+  terra_dim: 64
