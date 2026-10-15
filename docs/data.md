@@ -1,8 +1,65 @@
-# Data preparation and schemas
+# Dataset details
 
 Paths below are relative to `CELLBRIDGE_DATA_ROOT`; YAML files under `configs/`
 are the authoritative filenames and settings. Images and cell coordinates must
 already be registered. Cell segmentation is outside CellBridge's scope.
+
+## Paths and folder layout
+
+Set the path variables shown in the README before running commands or Jupyter:
+
+| Variable | Points to |
+|---|---|
+| `CELLBRIDGE_ROOT` | Project directory containing `configs/` |
+| `CELLBRIDGE_DATA_ROOT` | Prepared training and evaluation data |
+| `CELLBRIDGE_OUTPUTS_ROOT` | Training logs, extracted embeddings, evaluation results, and figures |
+| `CELLBRIDGE_CHECKPOINTS_ROOT` | Checkpoints saved by your training runs |
+| `CELLBRIDGE_REPOS_ROOT` | External baseline repositories and their local weights |
+
+The released CellBridge adapter uses the Hugging Face cache; it does not need to
+be placed in `CELLBRIDGE_CHECKPOINTS_ROOT`. See [model setup](reproduction.md#models)
+for backbone access, cache settings, and external baseline requirements.
+
+```text
+data/
+├── train/hest/
+│   ├── manifest.csv
+│   ├── splits/{hest80_strict_v1,hest_phenotype_split_v1}.csv
+│   └── TENX.../
+│       ├── TENX....h5ad
+│       ├── TENX..._terra.npz
+│       └── TENX..._granular_cell_labels.csv
+└── eval/
+    ├── nucls/{raw/rgb/,raw/csv/,nucls_info.csv,splits/}
+    └── {pannuke,lizard,phenocell}/
+        ├── <dataset>_lmdb/{data.mdb,lock.mdb}
+        ├── <dataset>_info.csv
+        └── splits/<split-file>.csv
+```
+
+HEST's manifest points to each section's H&E image and pixel size; the images can
+live outside this directory. Teacher NPZ files contain cell IDs, H&E coordinates,
+and embeddings. Labels and split tables are separate files. External benchmarks
+pair cell metadata with fixed train/validation/test assignments. The sections below
+specify the exact files and columns for each dataset.
+
+Data, split/cohort tables, and model weights are not bundled in the Python package.
+Preserve the paper's original splits rather than generating new random partitions.
+
+### Using a wheel without a repository checkout
+
+The wheel includes configuration files and ontology mappings. Copy them to a
+writable project directory, then point `CELLBRIDGE_ROOT` there:
+
+```bash
+cellbridge-config /absolute/path/to/cellbridge-project
+export CELLBRIDGE_ROOT="/absolute/path/to/cellbridge-project"
+```
+
+Existing configuration files are never overwritten. Set the other path variables
+as above. If omitted, data and output paths default to the research workspace for
+a source checkout, or to subdirectories of the current working directory for an
+installed wheel. Explicit paths avoid depending on these defaults.
 
 ## HEST
 

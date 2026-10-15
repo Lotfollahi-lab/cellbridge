@@ -5,12 +5,41 @@ reproduction additionally needs the exact data artifacts, split tables, pretrain
 weights, software versions and saved adapter. These large inputs are not in this
 repository. Read [AUDIT.md](AUDIT.md) for unresolved provenance questions.
 
+## Installation options
+
+Follow the [README installation steps](../README.md#-installation) with Python
+3.11 or 3.12. For GPU training or image inference, install a PyTorch/torchvision
+build appropriate for your GPU before installing `.[models,data]`.
+
+For CPU evaluation of saved OOD embeddings and conformal prediction, the core
+package is sufficient:
+
+```bash
+python -m pip install .
+```
+
+Add extras for the workflows you need, for example
+`python -m pip install '.[preprocess,analysis]'`. Use `-e` when developing locally.
+
+| Extra | Provides |
+|---|---|
+| `models` | PyTorch, torchvision, timm and model-loading dependencies |
+| `data` | HEST/AnnData, whole-slide TIFF, geometry and LMDB readers |
+| `preprocess` | `data` plus Scanpy and dataset preprocessing dependencies |
+| `analysis` | `data` plus plotting, Jupyter, widgets and UMAP |
+| `wandb` | Optional training logging |
+| `dev` | Tests, linting and distribution build tools |
+
+TERRA, NOVAE and SpatialWhisperer require their own installations, described below.
+For building and installing a wheel, see [release validation](#release-validation).
+
 ## Models
 
 Install the `models,data` extras and `requirements/encoders.txt` in Python 3.11/3.12.
 The latter pins Mahmood Lab TRIDENT to the commit recorded in the training
 environment. Its [source installation](https://github.com/mahmoodlab/TRIDENT)
-is separate from this package's PyPI-compatible dependencies. The requirements
+is separate from this package's PyPI-compatible dependencies. The unrelated PyPI
+package named `trident` is not a substitute. The requirements
 also include [pyvips' binary installation](https://libvips.github.io/pyvips/README.html)
 so TRIDENT can import without a separately installed libvips shared library.
 CellBridge's HEST crops use tifffile/zarr, independently of that binary's slide-reader support.
@@ -150,8 +179,23 @@ in notebook 05 use LaTeX; install a TeX distribution or disable that notebook's
 
 ## Release validation
 
-Run `python -m pytest`, `python -m build`, and `python -m twine check dist/*`.
-Install the wheel into a clean environment, change out of the checkout, run
+These commands build and validate a local distribution; they do not publish it to
+PyPI. From the repository root:
+
+```bash
+python -m pip install '.[dev,preprocess,analysis]'
+python -m pytest
+python -m build
+python -m twine check dist/*
+```
+
+In a separate clean environment, install the built wheel:
+
+```bash
+python -m pip install dist/cellbridge-0.1.0-py3-none-any.whl
+```
+
+Change out of the checkout, run
 `cellbridge-infer --help`, and copy configs with `cellbridge-config`.
 This checks distribution completeness; it does not substitute for a full
 GPU/data reproduction. Public access to the hosted adapter and download
