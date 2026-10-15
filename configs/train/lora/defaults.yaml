@@ -2,11 +2,44 @@ distill_version: lora
 
 data_root: ${CELLBRIDGE_DATA_ROOT}/train/hest
 splits_path: ${CELLBRIDGE_DATA_ROOT}/train/hest/splits/hest80_strict_v1.csv
-max_cells_per_sample: 5000
+max_cells_per_sample: null
 max_val_cells_per_sample: 5000
+sampling_seed: 0
+max_open_wsis: 64
+terra_key: cell_emb
+
+crop:
+  target_size: 224
+  target_pixel_size_um: 0.5
+
+model:
+  trainable_blocks: last_4
+  lora_rank: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+  image_dim: 1536
+  terra_dim: 384
+
+objective:
+  temperature: 0.07
+  bidirectional: true
+
+training:
+  max_steps: 1020944
+  eval_every: 50000
+  patience: 100
+  batch_size: 16
+  batches_per_sample_visit: 32
+  lr_lora: 0.0001
+  lr_heads: 0.0003
+  weight_decay: 0.0001
+  precision: bf16
+  num_workers: 8
+  seed: 0
+  log_every: 20
 
 wandb:
-  enabled: true
-  project: terra-uni-distillation
-  group: distill_lora
+  enabled: false
+  project: cellbridge
+  group: reproduction
   mode: online

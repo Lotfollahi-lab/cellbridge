@@ -87,15 +87,15 @@ def _load_conformal(config):
     return mapping, ontology, alpha, branch_roots
 
 
-def check(config, profiles, methods, probes, tasks) -> None:
-    """Validate suite paths and settings without loading a model."""
+def check(config, profiles, methods, probes, tasks, *, pending_checkpoint=False) -> None:
+    """Validate inputs; pending_checkpoint allows a dependency to create weights."""
     data = config["data"]
     source = sources.load(data)
     metadata = source.check(data)
 
     for method in methods:
         profile = profiles[method]
-        embedding_methods.arms(method)
+        embedding_methods.arms(method, config.get("arms"))
         if method == "cellbridge" and not profile.get("load", {}).get("checkpoint"):
             raise ValueError(
                 "cellbridge requires --checkpoint for extraction or checking"
@@ -109,6 +109,8 @@ def check(config, profiles, methods, probes, tasks) -> None:
         np.dtype(extraction.get("storage_dtype", "float16"))
         for key in ("checkpoint", "repository", "encoder_weights"):
             value = profile.get("load", {}).get(key)
+            if key == "checkpoint" and pending_checkpoint:
+                continue
             if value is not None and not Path(value).exists():
                 raise FileNotFoundError(f"{method}: {key} does not exist: {value}")
 
@@ -174,6 +176,7 @@ def _extract_method(config, profile, method, device) -> None:
     extraction = profile["extraction"]
     output_dir = Path(config["output_dir"]) / "embeddings"
 
+    arms = embedding_methods.arms(method, config.get("arms"))
     records = []
     for sample in source.iter_samples(
         data,
@@ -186,6 +189,9 @@ def _extract_method(config, profile, method, device) -> None:
             batch_size=int(extraction["batch_size"]),
             num_workers=int(extraction.get("num_workers", 0)),
         )
+        result = replace(
+            result, embeddings={arm: result.embeddings[arm] for arm in arms}
+        )
         records.extend(
             save_sample(
                 output_dir,
@@ -194,10 +200,11 @@ def _extract_method(config, profile, method, device) -> None:
                 sample.row_ids,
                 result,
                 storage_dtype=extraction.get("storage_dtype", "float16"),
+                arms=arms,
             )
         )
         print(f"[{method}] {sample.sample_id}: {len(sample.dataset):,} cells")
-    write_manifests(output_dir, method, records)
+    write_manifests(output_dir, method, records, arms=arms)
 
 
 def extract(config, profiles, methods, device=None) -> None:
@@ -265,7 +272,7 @@ def _evaluate_hest(config, methods, probes, tasks) -> None:
     seed = int(probe_config.get("seed", 0))
 
     for method in methods:
-        for arm in embedding_methods.arms(method):
+        for arm in embedding_methods.arms(method, config.get("arms")):
             manifest = embedding_dir / arm / "manifest.csv"
             metrics = {probe: [] for probe in probes}
             for sample_id in sample_ids:
@@ -332,7 +339,7 @@ def evaluate(config, methods, probes, tasks) -> None:
     bootstrap_config = probe_config.get("bootstrap")
 
     for method in methods:
-        for arm in embedding_methods.arms(method):
+        for arm in embedding_methods.arms(method, config.get("arms")):
             manifest = embedding_dir / arm / "manifest.csv"
             loaded = load_manifest(manifest)
             metadata = _align_metadata(config, loaded)
@@ -407,7 +414,7 @@ def evaluate_conformal(config, methods, probes, tasks) -> None:
     bootstrap_config = probe_config.get("bootstrap")
 
     for method in methods:
-        for arm in embedding_methods.arms(method):
+        for arm in embedding_methods.arms(method, config.get("arms")):
             manifest = embedding_dir / arm / "manifest.csv"
             loaded = load_manifest(manifest)
             metadata = _align_metadata(config, loaded)
@@ -496,6 +503,9 @@ def main():
         action="append",
         help="Restrict a HEST command to one or more fixed-cohort samples",
     )
+    parser.add_argument(
+        "--arm", action="append", help="Restrict stored and evaluated representations"
+    )
     parser.add_argument("--device")
     parser.add_argument(
         "--checkpoint",
@@ -525,6 +535,10 @@ def main():
     if args.command in ("extract", "run") and "cellbridge" in methods:
         if not profiles["cellbridge"].get("load", {}).get("checkpoint"):
             raise ValueError("cellbridge extraction requires --checkpoint")
+    if args.arm:
+        config["arms"] = args.arm
+    for method in methods:
+        embedding_methods.arms(method, config.get("arms"))
     probe_config = config["probe"]
     probes = _select(args.probe, probe_config["methods"], probe_api.PROBES, "probes")
     tasks = _select(args.task, probe_config["tasks"], TASKS, "tasks")

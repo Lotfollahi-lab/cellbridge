@@ -114,7 +114,7 @@ class LoRAUNIDistiller(nn.Module):
         encoder: nn.Module,
         image_dim: int = 1536,
         terra_dim: int = 384,
-        trainable_blocks: int | str = 2,
+        trainable_blocks: int | str = 4,
         lora_rank: int = 8,
         lora_alpha: float = 16.0,
         lora_dropout: float = 0.05,

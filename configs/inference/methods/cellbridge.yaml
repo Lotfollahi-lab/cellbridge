@@ -10,3 +10,6 @@ extraction:
   batch_size: 64
   num_workers: 4
   storage_dtype: float16
+
+load:
+  checkpoint: ${CELLBRIDGE_CHECKPOINTS_ROOT}/uni_terra_four_layers_adapted_all_cells/best.pt

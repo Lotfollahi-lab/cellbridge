@@ -2,7 +2,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CONFIG="${1:?usage: submit_train.sh <config>}"
+CONFIG="${1:-configs/train/lora/cellbridge.yaml}"
 case "$CONFIG" in /*) ;; *) CONFIG="$ROOT/$CONFIG" ;; esac
 SUBMIT="$ROOT/scripts/submit_job.sh"
 RUN_NAME="$($SUBMIT value "$CONFIG" run_name)"

@@ -39,9 +39,10 @@ def save_sample(
     result: EmbeddingResult,
     *,
     storage_dtype="float16",
+    arms=None,
 ) -> list[dict]:
     """Write one artifact for every arm emitted for a sample."""
-    arms = method_arms(method)
+    arms = method_arms(method, arms)
     if set(result.embeddings) != set(arms):
         raise ValueError(f"{method} returned unexpected embedding arms")
 
@@ -93,13 +94,13 @@ def save_sample(
     return records
 
 
-def write_manifests(output_dir, method, records) -> dict[str, Path]:
+def write_manifests(output_dir, method, records, *, arms=None) -> dict[str, Path]:
     """Write one manifest per arm after all samples are complete."""
     table = pd.DataFrame(records)
     missing = set(MANIFEST_COLUMNS) - set(table)
     if table.empty or missing:
         raise ValueError(f"manifest records are empty or missing {sorted(missing)}")
-    arms = method_arms(method)
+    arms = method_arms(method, arms)
     if set(table["method"]) != {method} or set(table["arm"]) != set(arms):
         raise ValueError("manifest records do not match the requested method")
     if table.duplicated(["arm", "sample_id"]).any():

@@ -33,7 +33,7 @@ def load_config(path):
         raise ValueError(f"LoRA config is missing {missing}")
 
     cfg.setdefault("sampling_seed", 0)
-    cfg.setdefault("max_cells_per_sample", 5_000)
+    cfg.setdefault("max_cells_per_sample", None)
     cfg.setdefault("max_val_cells_per_sample", 5_000)
     cfg.setdefault("max_open_wsis", 64)
     cfg.setdefault("terra_key", "cell_emb")
@@ -43,7 +43,7 @@ def load_config(path):
     crop.setdefault("target_pixel_size_um", 0.5)
 
     model = cfg.setdefault("model", {})
-    model.setdefault("trainable_blocks", "last_2")
+    model.setdefault("trainable_blocks", "last_4")
     model.setdefault("lora_rank", 8)
     model.setdefault("lora_alpha", 16)
     model.setdefault("lora_dropout", 0.05)
@@ -102,6 +102,7 @@ def init_wandb(cfg):
         print("[wandb] not installed; logging disabled")
         return None
     return wandb.init(
+        dir=str(cfg["output_dir"]),
         project=settings.get("project"),
         group=settings.get("group"),
         name=settings.get("name", cfg.get("run_name")),
@@ -368,8 +369,14 @@ def train_loop(
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
+    parser.add_argument("--output-dir", help="Use a new training run directory")
+    parser.add_argument("--checkpoint-dir", help="Use a new checkpoint directory")
     args = parser.parse_args()
     cfg = load_config(args.config)
+    if args.output_dir:
+        cfg["output_dir"] = args.output_dir
+    if args.checkpoint_dir:
+        cfg["checkpoint_dir"] = args.checkpoint_dir
 
     seed = int(cfg["training"]["seed"])
     random.seed(seed)
@@ -380,9 +387,15 @@ def main():
     output_dir = Path(cfg["output_dir"])
     checkpoint_dir = Path(cfg["checkpoint_dir"])
     checkpoint_path = checkpoint_dir / "best.pt"
+    existing = [checkpoint_path, *(output_dir / name for name in (
+        "resolved_config.yaml", "train_metrics.csv", "val_metrics.csv", "train_summary.json"
+    ))]
+    if any(path.exists() for path in existing):
+        raise FileExistsError(
+            "Training artifacts already exist; choose new --output-dir and --checkpoint-dir paths"
+        )
     output_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_path.unlink(missing_ok=True)
 
     settings, weights_path = model_config(cfg)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

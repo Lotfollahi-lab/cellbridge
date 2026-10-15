@@ -19,14 +19,13 @@ fi
 
 for sample_id in "${samples[@]}"; do
   for method in uni past volta spatialwhisperer lemon virchow2 hibou_l; do
-    "$SUBMIT_RUN" "$CONFIG" "$method" all \
+    version=all
+    if [ "$method" = lemon ]; then version=vits8; fi
+    "$SUBMIT_RUN" "$CONFIG" "$method" "${version}" \
       --sample-id "$sample_id" --conformal-config "$CONFIG"
   done
 
-  for arm in cells_5k cells_10k cells_50k cells_all; do
-    checkpoint="$CHECKPOINTS_ROOT/reproducibility/lora/scaling/$arm/best.pt"
-    "$SUBMIT_RUN" "$CONFIG" cellbridge "$arm" \
-      --sample-id "$sample_id" --checkpoint "$checkpoint" \
-      --conformal-config "$CONFIG"
-  done
+  "$SUBMIT_RUN" "$CONFIG" cellbridge "uni_terra_four_layers_adapted_all_cells" \
+    --checkpoint "$CHECKPOINTS_ROOT/uni_terra_four_layers_adapted_all_cells/best.pt" --sample-id "$sample_id" \
+    --conformal-config "$CONFIG"
 done

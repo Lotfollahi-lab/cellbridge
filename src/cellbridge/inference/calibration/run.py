@@ -35,7 +35,7 @@ from cellbridge.ontology import load_mapping
 ROOT = Path(__file__).resolve().parents[4]
 WORKSPACE = ROOT.parents[1]
 METHODS = {
-    "CellBridge": ("cellbridge", "cells_all", "lora_adapted"),
+    "CellBridge": ("cellbridge", "uni_terra_four_layers_adapted_all_cells", "lora_adapted"),
     "UNI2-h": ("uni", "all", "uni"),
     "Virchow2": ("virchow2", "all", "virchow2"),
     "VOLTA": ("volta", "all", "volta"),
@@ -57,9 +57,7 @@ def prepare(output):
     for dataset in ("nucls", "pannuke", "lizard", "phenocell", "hest"):
         config = load_config(ROOT / "configs/inference" / f"{dataset}.yaml")
         for name, (method, version, arm) in METHODS.items():
-            root = WORKSPACE / "outputs/reproducibility/inference" / method / version
-            if name == "CellBridge":
-                root = WORKSPACE / "outputs/reproducibility/ablations/lora_depth/layers_4_cells_all/inference"
+            root = Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs")) / "reproducibility/inference" / method / version
             runs = sorted((root / dataset).iterdir()) if dataset == "hest" else [root / dataset]
             runs = [p for p in runs if p.is_dir() and p.name != "TENX143"]
             if len(runs) != (14 if dataset == "hest" else 1):

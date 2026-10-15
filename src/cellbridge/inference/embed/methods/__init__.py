@@ -35,9 +35,15 @@ def _method(name):
     return import_module(f"{__name__}.{module}")
 
 
-def arms(name) -> tuple[str, ...]:
+def arms(name, selected=None) -> tuple[str, ...]:
     """Return the named representations emitted by one method."""
-    return tuple(_method(name).ARMS)
+    available = tuple(_method(name).ARMS)
+    if selected is None:
+        return ("lora_adapted",) if name == "cellbridge" else available
+    selected = tuple(dict.fromkeys(selected))
+    if not selected or set(selected) - set(available):
+        raise ValueError(f"invalid arms for {name}: {selected}; choose from {available}")
+    return selected
 
 
 def load(name, **kwargs):

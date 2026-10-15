@@ -172,6 +172,7 @@ def _summary(
     parameter,
     value,
     conditioning="global",
+    closure=None,
     calibration=None,
     graph_nodes=None,
     root=None,
@@ -189,6 +190,7 @@ def _summary(
     return {
         "conformal_method": method,
         "conditioning": conditioning,
+        "closure": closure,
         "target_coverage": 1.0 - alpha,
         "marginal_coverage": float(covered.mean()),
         "coverage_gap": float(
@@ -347,6 +349,10 @@ def evaluate(
     conditional_sets = {}
     conditional_nodes = {}
     conditional_calibrations = {}
+    published_closure = {"split": "unclosed", "graph": "closed"}
+    conditional_arms = []
+    added_arms = []
+    calibration_rows = []
     for conditioning, class_groups in groups.items():
         for set_method in ("split", "graph"):
             method = f"{conditioning}_{set_method}"
@@ -362,13 +368,28 @@ def evaluate(
                 classes,
                 calibrated,
             )
-            conditional_calibrations[method] = calibrated
-            if set_method == "graph":
-                prediction = close_graph_sets(prediction_sets, graph)
-                conditional_sets[method] = prediction.prediction_sets
-                conditional_nodes[method] = prediction.anchor_nodes
-            else:
-                conditional_sets[method] = prediction_sets
+            calibration_rows.extend(_calibration_rows(method, calibrated))
+            prediction = close_graph_sets(prediction_sets, graph)
+            variants = {
+                "unclosed": prediction_sets,
+                "closed": prediction.prediction_sets,
+            }
+            for closure, sets in variants.items():
+                # The published arm name keeps the meaning it already has, so
+                # split stays unclosed and graph stays closed; the counterpart
+                # is added under an explicit suffix.
+                arm = (
+                    method
+                    if closure == published_closure[set_method]
+                    else f"{method}_{closure}"
+                )
+                conditional_sets[arm] = sets
+                conditional_calibrations[arm] = calibrated
+                if closure == "closed":
+                    conditional_nodes[arm] = prediction.anchor_nodes
+                target = conditional_arms if arm == method else added_arms
+                target.append((arm, conditioning, closure))
+    conditional_arms.extend(added_arms)
 
     split_counts = {
         "n_train": len(train),
@@ -411,9 +432,8 @@ def evaluate(
             classes,
         )
     )
-    calibration_rows = []
-    for method, prediction_sets in conditional_sets.items():
-        conditioning, set_method = method.rsplit("_", 1)
+    for method, conditioning, closure in conditional_arms:
+        prediction_sets = conditional_sets[method]
         calibrated = conditional_calibrations[method]
         metrics.append(
             _summary(
@@ -427,13 +447,13 @@ def evaluate(
                 parameter="group_thresholds",
                 value=float("nan"),
                 conditioning=conditioning,
+                closure=closure,
                 calibration=calibrated,
                 graph_nodes=conditional_nodes.get(method),
-                root=graph.root if set_method == "graph" else None,
+                root=graph.root if closure == "closed" else None,
             )
         )
         per_class.extend(_per_class(method, prediction_sets, test_labels, classes))
-        calibration_rows.extend(_calibration_rows(method, calibrated))
 
     return ConformalResult(
         metrics=tuple(metrics),

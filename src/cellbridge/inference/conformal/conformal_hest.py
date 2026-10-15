@@ -94,7 +94,7 @@ def evaluate(config, methods, probes, tasks):
     seed = int(probe_settings.get("seed", 0))
 
     for method in methods:
-        for arm in embedding_methods.arms(method):
+        for arm in embedding_methods.arms(method, config.get("arms")):
             manifest = embedding_dir / arm / "manifest.csv"
             tables = {
                 probe: {"metrics": [], "coverage": [], "calibration": []}

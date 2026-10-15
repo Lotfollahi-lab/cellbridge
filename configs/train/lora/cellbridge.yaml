@@ -1,0 +1,5 @@
+# Main paper model: TERRA teacher, last four blocks, all eligible training cells.
+defaults: defaults.yaml
+run_name: uni_terra_four_layers_adapted_all_cells
+output_dir: ${CELLBRIDGE_OUTPUTS_ROOT}/reproducibility/train/uni_terra_four_layers_adapted_all_cells
+checkpoint_dir: ${CELLBRIDGE_CHECKPOINTS_ROOT}/uni_terra_four_layers_adapted_all_cells

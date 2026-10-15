@@ -23,11 +23,15 @@ WORKSPACE = Path(os.environ.get("CELLBRIDGE_WORKSPACE", REPO.parents[1]))
 MODEL_RESULTS = Path(
     os.environ.get(
         "CELLBRIDGE_QUALITATIVE_RESULTS",
-        WORKSPACE / "outputs/reproducibility/ablations/lora_depth/layers_4_cells_all/inference",
+        Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs")) / "reproducibility/inference/cellbridge/uni_terra_four_layers_adapted_all_cells",
     )
 )
-TRAIN_CONFIG = MODEL_RESULTS.parent / "train/resolved_config.yaml"
-EXPORT_ROOT = WORKSPACE / "outputs/visualizations/res_figures/qualitative_conformal"
+TRAIN_CONFIG = Path(os.environ.get(
+    "CELLBRIDGE_TRAIN_CONFIG",
+    Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs"))
+    / "reproducibility/train/uni_terra_four_layers_adapted_all_cells/resolved_config.yaml",
+))
+EXPORT_ROOT = Path(os.environ.get("CELLBRIDGE_OUTPUTS_ROOT", WORKSPACE / "outputs")) / "visualizations/res_figures/qualitative_conformal"
 METHODS = {
     "split": "Global split",
     "graph": "Global graph",
@@ -533,7 +537,7 @@ def save_view(state, method, view, figures, tables, details):
     provenance = dict(details)
     provenance.update(
         model="CellBridge",
-        representation="layers_4_cells_all/lora_adapted",
+        representation="uni_terra_four_layers_adapted_all_cells/lora_adapted",
         task="all",
         probe="linear",
         training_config=str(TRAIN_CONFIG),

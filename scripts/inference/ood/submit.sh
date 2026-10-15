@@ -22,12 +22,12 @@ for dataset in "${datasets[@]}"; do
 
 
   for method in uni past volta spatialwhisperer lemon virchow2 hibou_l; do
-    "$SUBMIT_RUN" "$config" "$method" all --conformal-config "$config"
+    version=all
+    if [ "$method" = lemon ]; then version=vits8; fi
+    "$SUBMIT_RUN" "$config" "$method" "${version}" --conformal-config "$config"
   done
 
-  for arm in cells_5k cells_10k cells_50k cells_all; do
-    checkpoint="$CHECKPOINTS_ROOT/reproducibility/lora/scaling/$arm/best.pt"
-    "$SUBMIT_RUN" "$config" cellbridge "$arm" \
-      --checkpoint "$checkpoint" --conformal-config "$config"
-  done
+  "$SUBMIT_RUN" "$config" cellbridge "uni_terra_four_layers_adapted_all_cells" \
+    --checkpoint "$CHECKPOINTS_ROOT/uni_terra_four_layers_adapted_all_cells/best.pt" \
+    --conformal-config "$config"
 done
