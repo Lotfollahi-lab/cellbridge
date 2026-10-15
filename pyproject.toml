@@ -81,7 +81,7 @@ packages = ["src/cellbridge"]
 "configs/analysis" = "cellbridge/configs/analysis"
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/configs", "/scripts", "/tests", "/docs", "/requirements", "/notebooks", "/README.md", "/pyproject.toml", "/AGENTS.md", "/LICENSE*", "/NOTICE*", "/.github"]
+include = ["/src", "/configs", "/scripts", "/tests", "/reproducibility_guide.md", "/cellbridge.jpg", "/requirements", "/notebooks", "/README.md", "/pyproject.toml", "/AGENTS.md", "/LICENSE*", "/NOTICE*", "/.github"]
 exclude = ["**/__pycache__", "**/.ipynb_checkpoints", "/configs/local.yaml"]
 
 [tool.pytest.ini_options]

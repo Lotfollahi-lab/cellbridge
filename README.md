@@ -2,9 +2,7 @@
 
 This repository contains the full preprocessing, training, and evaluation pipeline for CellBridge from the preprint <a href="TODO">Fine-Grained and Reliable Cell Classification from Pathology Images</a>.
 
-
-
-**CellBridge** is a multi-modal contrastive learning framework for fine-grained, reliable cell classification from H&E images, pretrained on 16 million paired H&E and Xenium spatial transcriptomic profiles.
+**CellBridge** is a multi-modal contrastive learning framework for fine-grained, reliable cell classification from H&E images, **pretrained on 16 million** paired H&E and Xenium spatial transcriptomic profiles.
 
 It leverages (1) **cross-modal alignment**, which uses parameter-efficient adaptation to align cell-centered image representations from a pathology foundation model with embeddings from a frozen single-cell spatial transcriptomics foundation model, transferring molecular information into morphological representations and (2) **Cell-Ontology-Fallback (COF)**, which uses conformal prediction calibrated within Cell Ontology branches to report the most specific cell type supported by the image, with per-lineage coverage guarantees.
 
@@ -30,10 +28,10 @@ This installs CellBridge and the image encoder dependencies. Inference downloads
 [adaptor weights](https://huggingface.co/ogutsevda/cellbridge) automatically.
 
 However, you also need access to the **UNI2-h backbone**. See
-[model access and authentication](docs/reproduction.md#models).
+[model access](reproducibility_guide.md#models).
 
 For GPU setup, optional dependencies, or installation for CPU evaluation only, see
-[installation options](docs/reproduction.md#installation-options).
+[installation options](reproducibility_guide.md#installation-options).
 
 ## 📊 Datasets
 
@@ -61,7 +59,7 @@ export CELLBRIDGE_CHECKPOINTS_ROOT="/path/to/checkpoints"
 export CELLBRIDGE_REPOS_ROOT="/path/to/external/model/repos"
 ```
 
-See [data preparation](docs/data.md)
+See [data preparation](reproducibility_guide.md#dataset-details)
 for required files, preprocessing commands, and setup.
 
 ## Cross-modal alignment
@@ -94,7 +92,7 @@ Use `extract` to compute and save embeddings from images. Once saved, run `evalu
 
 ## Reproducibility!
 
-Follow [the reproduction guide](docs/reproduction.md) for prerequisites, dataset details, baseline
+Follow the [reproducibility guide](reproducibility_guide.md) for prerequisites, dataset details, baseline
 models, ablations, and notebooks for manuscript tables and figures.
 
 ```bash
@@ -105,7 +103,7 @@ bash scripts/reproduce.sh cellbridge run
 
 This runs evaluation for four OOD datasets (both PhenoCell tasks) and 14 HEST sections.
 
-Notebooks 05, 06, 07 and 08 reproduce classification, conformal, qualitative, and ablation analyses.
+Notebooks 05, 06, 07, and 08 reproduce classification, conformal, qualitative, and ablation analyses.
 
 Before opening the notebooks, install their dependencies with `python -m pip install '.[analysis]'` from the repository root.
 
