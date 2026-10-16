@@ -13,6 +13,8 @@ CellBridge requires **only H&E images at inference**, returning fine-grained lab
 <img src="cellbridge.jpg" alt="CellBridge overview" width="800"/>
 </p>
 
+Start with the [tutorial notebook](notebooks/TUTORIAL.ipynb) for a end-to-end NuCLS example!
+
 ## 🚀 Installation
 
 Use **Python 3.11** for the image encoder workflow.
