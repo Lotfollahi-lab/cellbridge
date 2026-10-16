@@ -14,10 +14,10 @@ CellBridge requires **only H&E images at inference**, returning fine-grained lab
 
 ## 🚀 Installation
 
-Use **Python 3.11 or 3.12**. From the repository root:
+Use **Python 3.11** for the image encoder workflow. From the repository root:
 
 ```bash
-python -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install '.[models,data]'
@@ -87,10 +87,9 @@ cellbridge-infer run --config "$CONFIG" --method cellbridge --arm lora_adapted -
 
 Use `extract` to compute and save embeddings from images. Once saved, run `evaluate` or `conformal` for downstream analysis and conformal prediction, respectively.
 
-## Reproducibility!
+## 🎯 Reproducibility!
 
-Follow the [reproducibility guide](REPRODUCIBILITY.MD) for prerequisites, dataset details, baseline
-models, ablations, and notebooks for manuscript tables and figures.
+Follow the [reproducibility guide](REPRODUCIBILITY.MD) for installation options, model access, data preparation, experimental results, ablation studies, and notebooks for manuscript tables and figures.
 
 ```bash
 bash scripts/reproduce.sh cellbridge check
