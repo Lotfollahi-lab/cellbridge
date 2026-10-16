@@ -1,6 +1,6 @@
 # 🎯 Reproducibility Guide
 
-This guide walks you through how to replicate all the experimental results and ablation studies of the preprint <a href="TODO">Fine-Grained and Reliable Cell Classification from Pathology Images</a>.
+This guide describes how to reproduce the experiments and ablation studies of the preprint *Fine-Grained and Reliable Cell Classification from Pathology Images*.
 It consists of the following sections:
 
 - [Installation options](#installation-options)
@@ -11,7 +11,7 @@ It consists of the following sections:
 
 ## Installation options
 
- From the repository root, create an environment, with **Python 3.11**:
+From the repository root, create an environment with **Python 3.11**:
 
 ```bash
 python3.11 -m venv .venv
@@ -24,12 +24,11 @@ However, HEST samples additionally need `.[data]`.
 
 ```bash
 python -m pip install .
+# For HEST evaluation, use this instead:
 python -m pip install '.[data]'
 ```
 
-For GPU use, install the matching PyTorch/torchvision build using the
-[official PyTorch installation selector](https://pytorch.org/get-started/locally/)
-**before** the commands below.
+For GPU use, install the matching PyTorch/torchvision build using the [official PyTorch installation selector](https://pytorch.org/get-started/locally/) **before** the commands below.
 Then install CellBridge and the pinned encoder requirements.
 
 ```bash
@@ -53,25 +52,27 @@ These packages require separate installation as described below.
 
 ## Model access
 
-After having installed the `models,data` extras and `requirements/encoders.txt` with Python 3.11, follow the below table regarding CellBridge and baselines models.
+After installing the model dependencies, obtain the weights and external packages needed for your workflow.
+Authenticate with an authorized Hugging Face account using `HF_TOKEN` or the Hugging Face client.
+Access to the CellBridge repository is also required while it is private.
 
 | Model | Access |
 |---|---|
-| CellBridge | Released `cellbridge.pt` adapter from [ogutsevda/cellbridge](https://huggingface.co/ogutsevda/cellbridge), plus the original UNI2-h weights loaded through TRIDENT. Obtain access to `MahmoodLab/UNI2-h` on Hugging Face and authenticate using the Hugging Face client. |
-| UNI2-h | Same frozen backbone as above. |
-| Virchow2 | Obtain access to `paige-ai/Virchow2`. |
-| LEMON | Obtain access to `aliceblondel/LEMON` and use `arch: vits8`. |
-| PAST | Download its `checkpoint-context300.pth` into `$CELLBRIDGE_REPOS_ROOT/past_sc/checkpoints/`. |
-| VOLTA | Clone its repository at `$CELLBRIDGE_REPOS_ROOT/VOLTA` and place the ovarian `checkpoint.pth.tar` under `pretrained_weights/ovarian/`. The adapter imports the repository's backbone code. |
-| SpatialWhisperer | Install the authors' `spatialwhisperer` package and its model dependencies in a compatible environment. The adapter calls `load_spatialwhisperer_model` using `Good-Lab/spatialwhisperer`. |
-| TERRA teacher | Install the authors' TERRA package exposing `download_pretrained`, `harmonize_adata`, `tokenize_adata`, and `embed_dataset`. Preprocessing uses `Lotfollahi-lab/TERRA-112M`. |
-| NOVAE teacher ablation | Install the authors' `novae` package in its supported environment. `configs/preprocess/novae.yaml` pins `prism-oncology/novae-human-0`. |
+| CellBridge | Released `cellbridge.pt` adapter from [ogutsevda/cellbridge](https://huggingface.co/ogutsevda/cellbridge), plus the original `MahmoodLab/UNI2-h` backbone loaded through TRIDENT |
+| UNI2-h | Access to `MahmoodLab/UNI2-h` on Hugging Face |
+| Virchow2 | Access to `paige-ai/Virchow2` |
+| LEMON | Access to `aliceblondel/LEMON`, using `arch: vits8` |
+| PAST | Download `checkpoint-context300.pth` into `$CELLBRIDGE_REPOS_ROOT/past_sc/checkpoints/` |
+| VOLTA | Clone the repository at `$CELLBRIDGE_REPOS_ROOT/VOLTA` and place the ovarian `checkpoint.pth.tar` under `pretrained_weights/ovarian/` |
+| SpatialWhisperer | Install the authors' `spatialwhisperer` package in a compatible environment; the adapter loads `Good-Lab/spatialwhisperer` |
+| TERRA teacher | Install the authors' TERRA package exposing `download_pretrained`, `harmonize_adata`, `tokenize_adata`, and `embed_dataset`; preprocessing uses `Lotfollahi-lab/TERRA-112M` |
+| NOVAE teacher ablation | Install `novae==1.1.1` in its supported environment; `configs/preprocess/novae.yaml` pins `prism-oncology/novae-human-0` |
 
 ## Data preparation
 
 ### Paths
 
-Set the followig path variables before running any commands.
+Set the following path variables before running any commands; the [README](README.md#-datasets) shows the export commands.
 
 | Variable | Meaning |
 |---|---|
@@ -101,15 +102,20 @@ data/
         └── splits/<split-file>.csv
 ```
 
+Data, paper split/cohort CSVs, and fine-grained HEST labels are not bundled in the package.
+Use the exact paper artifacts to reproduce the results; do not generate new random splits.
+NOVAE NPZ files are needed only for the teacher ablation.
+
 ### HEST
 
-Use the human Xenium/Xenium 5k cohort of HEST-1k v1.3.0. The preprocessing config expects `HEST_ROOT` to contain `HEST_v1_3_0.csv`, `wsis/`, `transcripts/`, `xenium_seg/` and `cellvit_seg/`.
+Use the human Xenium/Xenium 5k cohort of HEST-1k v1.3.0.
+The preprocessing config expects `HEST_ROOT` to contain `HEST_v1_3_0.csv`, `wsis/`, `transcripts/`, `xenium_seg/` and `cellvit_seg/`.
 
 `manifest.csv` has one row per section:
 
 | Column | Meaning |
 |---|---|
-| `id` | Section ID, e.g. `TENX201` |
+| `id` | Section ID, such as `TENX201` |
 | `wsi` | Path to registered H&E TIFF |
 | `pixel_size_um` | Positive microns per level-0 H&E pixel |
 | `output_dir` | Optional path to prepared artifacts |
@@ -118,17 +124,16 @@ Use the human Xenium/Xenium 5k cohort of HEST-1k v1.3.0. The preprocessing confi
 
 Each `<id>/` directory contains:
 
-- `<id>_terra.npz`: `cell_ids` (unique, length N), `cell_emb` (N × 384), `he_x`
-  and `he_y` (N, H&E level-0 pixels).
+- `<id>_terra.npz`: `cell_ids` (unique, length N), `cell_emb` (N × 384), `he_x` and `he_y` (N, H&E level-0 pixels).
 - `<id>_novae.npz`: Same as above but with NOVAE and 64 dimensions.
-- `<id>.h5ad`: Cell IDs in `obs_names`, native spatial coordinates in
-  `obsm['spatial']` (N × 2), gene counts in `X`, and H&E coordinates in `obs`.
-- `<id>_granular_cell_labels.csv`: `cell_id,group`. These are the fine-grained
-  reference labels used by evaluation.
+- `<id>.h5ad`: Cell IDs in `obs_names`, native spatial coordinates in `obsm['spatial']` (N × 2), gene counts in `X`, and H&E coordinates in `obs`.
+- `<id>_granular_cell_labels.csv`: `cell_id,group`.
+  These are the fine-grained reference labels used by evaluation.
 
 `hest80_strict_v1.csv` has unique `sample_id,split` rows (`distill_train`, `distill_val`, `label_test`).
 `hest_phenotype_split_v1.csv` lists the 15 annotated `sample_id` values.
 Evaluation validates that the entire cohort is held out, then selects the 14 paper sections.
+The preprocessing commands below do not generate these split/cohort CSVs or the fine-grained reference labels.
 
 After installing `.[preprocess]` and TERRA in its supported environment:
 
@@ -185,7 +190,10 @@ Embedding manifests under `embeddings/<arm>/manifest.csv` describe each sample's
 
 Classification `predictions.npz` stores `ids`, `y_true`, `y_pred`, `classes`, and `probabilities`.
 
-Conformal archives additionally store boolean `<method>_sets` matrices, including `branch_graph_sets` (COF), and graph anchors.
+Conformal `predictions.npz` stores `ids`, `y_true`, `classes`, `probabilities`, the boolean matrices `split_sets`, `graph_sets`, and `branch_graph_sets` (COF), and anchors `graph_nodes` and `branch_graph_nodes`.
+It does not store `y_pred`.
+
+The reproduction script uses this layout; direct CLI commands write to the supplied `--output-dir`:
 
 ```text
 $CELLBRIDGE_OUTPUTS_ROOT/reproducibility/inference/
@@ -203,8 +211,8 @@ $CELLBRIDGE_OUTPUTS_ROOT/reproducibility/inference/
 
 ### Run the experiments
 
-After [data preparation](#data-preparation), set the [paths](#paths), and obtain [model access](#model-access).
-Keep the supplied ontology snapshot and mappings.
+Set the [paths](#paths), prepare the [data](#data-preparation), and obtain [model access](#model-access).
+Keep the supplied [ontology snapshot](configs/preprocess/cell_ontology/cl-2026-06-08.yaml) and [dataset mappings](configs/preprocess/cell_ontology/), which the inference configs already reference.
 Run these commands from the repository root:
 
 ```bash
@@ -219,6 +227,7 @@ Repeat both commands with `cellbridge` replaced by `uni`, `virchow2`, `volta`, `
 To train CellBridge yourself, run `cellbridge-train --config configs/train/lora/cellbridge.yaml`, then set `CELLBRIDGE_CHECKPOINT` to its `best.pt` before evaluation.
 
 To reuse saved embeddings, replace `run` with `evaluate` or `conformal`.
+Use a new `CELLBRIDGE_OUTPUTS_ROOT` for an independent run.
 
 For the **NuCLS label granularity experiment**, whose results are in Figure 3 of the manuscript, run both commands after classification evaluation:
 
@@ -227,23 +236,25 @@ cellbridge-granularity --config configs/analysis/granularity.yaml
 cellbridge-granularity-refit --config configs/analysis/granularity.yaml
 ```
 
-The first aggregates fine-label probabilities and the second refits classifiers at each
-label granularity.
-Both save `summary.csv` and `bootstrap_metrics.csv` under
-`$CELLBRIDGE_OUTPUTS_ROOT/reproducibility/analysis/nucls_granularity/{aggregated,refit}/`.
+The first aggregates fine-label probabilities and the second refits classifiers at each label granularity.
+Both save `summary.csv` and `bootstrap_metrics.csv` under `$CELLBRIDGE_OUTPUTS_ROOT/reproducibility/analysis/nucls_granularity/{aggregated,refit}/`.
 
 ### Paper tables and figures
 
 Install the `analysis` extra and open the notebooks below after the runs finish.
 They read the [output folder structure](#output-folder-structure).
+Notebooks 05 and 06 also require a system LaTeX installation with `latex` and `dvipng` for plotting.
 
 | Paper result | Code / output |
 |---|---|
-| Figure 2 and Appendix Figure 6 — ID evaluation | [Notebook 05](notebooks/05_downstream_analysis.ipynb), downstream ID analysis. |
-| Table 2 and Appendix Tables 10–11 — OOD evaluation | [Notebook 05](notebooks/05_downstream_analysis.ipynb), downstream OOD analysis. |
-| Figure 3 — NuCLS label granularity | See above explanation. |
-| Table 3 and Appendix Table 12 — COF efficiency and coverage | [Notebook 06](notebooks/06_conformal_prediction.ipynb), conformal prediction. |
-| Figure 4 and Appendix Figures 7–13 — applied case study | [Notebook 07](notebooks/07_qualitative_conformal.ipynb), interactive qualitative analysis. |
+| Figure 2 and Appendix Figure 6 — ID evaluation | [Notebook 05](notebooks/05_downstream_analysis.ipynb), downstream ID analysis |
+| Table 2 and Appendix Tables 10–11 — OOD evaluation | [Notebook 05](notebooks/05_downstream_analysis.ipynb), downstream OOD analysis |
+| Figure 3 — NuCLS label granularity | The commands above generate CSV metrics; the plotting code is not included |
+| Table 3 and Appendix Table 12 — COF efficiency and coverage | [Notebook 06](notebooks/06_conformal_prediction.ipynb), conformal prediction |
+| Figure 4 and Appendix Figures 7–13 — applied case study | [Notebook 07](notebooks/07_qualitative_conformal.ipynb), interactive qualitative analysis |
+
+Notebook 07 supports region selection and figure export, but does not automatically recreate the paper's exact regions or panel layouts.
+Its default panels show prediction-set size, whereas the paper presents reliability scores.
 
 ## Ablation studies
 
@@ -252,7 +263,7 @@ Notebook 08 expects both the main TERRA run and the NOVAE run below.
 ### CovGap — Table 4
 
 The main conformal run already evaluates `split` (standard), `graph` (global graph), and `branch_graph` (COF).
-Rerun with the below:
+If only classification has been run, add:
 
 ```bash
 bash scripts/reproduce.sh cellbridge conformal
