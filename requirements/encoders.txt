@@ -1,5 +1,4 @@
-# Mahmood Lab TRIDENT used by the recorded CellBridge training run.
-# Install in Python 3.10–3.12. The similarly named PyPI project is unrelated.
+# Use Python 3.11 with the Mahmood Lab TRIDENT used by the recorded CellBridge training run:
 trident @ git+https://github.com/mahmoodlab/TRIDENT.git@a91fa8490e0210ebbbe58452c3babe009e0ab7ca
 # Supply libvips for TRIDENT imports on machines without a system installation.
 pyvips[binary]>=3

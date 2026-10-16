@@ -4,17 +4,19 @@ This repository contains the full preprocessing, training, and evaluation pipeli
 
 **CellBridge** is a multi-modal contrastive learning framework for fine-grained, reliable cell classification from H&E images, **pretrained on 16 million** paired H&E and Xenium spatial transcriptomic profiles.
 
-It leverages (1) **cross-modal alignment**, which uses parameter-efficient adaptation to align cell-centered image representations from a pathology foundation model with embeddings from a frozen single-cell spatial transcriptomics foundation model, transferring molecular information into morphological representations and (2) **Cell-Ontology-Fallback (COF)**, which uses conformal prediction calibrated within Cell Ontology branches to report the most specific cell type supported by the image, with per-lineage coverage guarantees.
+**Cross-modal alignment** adapts a pathology encoder to learn from frozen spatial transcriptomic embeddings.
+**Cell-Ontology-Fallback (COF)** uses branch-calibrated conformal prediction to select the supported cell-type granularity.
 
 CellBridge requires **only H&E images at inference**, returning fine-grained labels when supported and broader ancestor categories when finer distinctions require molecular measurements.
 
 <p align="center">
-<img src="cellbridge.jpg" alt="Gmain figure" width="800"/>
+<img src="cellbridge.jpg" alt="CellBridge overview" width="800"/>
 </p>
 
 ## 🚀 Installation
 
-Use **Python 3.11** for the image encoder workflow. From the repository root:
+Use **Python 3.11** for the image encoder workflow.
+From the repository root:
 
 ```bash
 python3.11 -m venv .venv
@@ -24,16 +26,17 @@ python -m pip install '.[models,data]'
 python -m pip install -r requirements/encoders.txt
 ```
 
-This installs CellBridge and the image encoder dependencies. Inference downloads [adaptor weights](https://huggingface.co/ogutsevda/cellbridge) automatically.
+This installs CellBridge and the image encoder dependencies.
+Inference downloads [adapter weights](https://huggingface.co/ogutsevda/cellbridge) automatically.
 
-However, you also need access to the **UNI2-h backbone**, please see [model access](REPRODUCIBILITY.MD#models).
+However, you also need access to the **UNI2-h backbone**, please see [model access](REPRODUCIBILITY.MD#model-access).
 
 For GPU setup, optional dependencies, or installation for CPU evaluation only, see [installation options](REPRODUCIBILITY.MD#installation-options).
 
 ## 📊 Datasets
 
-CellBridge uses HEST for training and held-out evaluation, and four external
-benchmarks: NuCLS, PanNuke, Lizard, and PhenoCell. Organize the prepared data as:
+CellBridge uses HEST for training and held-out evaluation, and four external benchmarks: NuCLS, PanNuke, Lizard, and PhenoCell.
+Organize the prepared data as:
 
 ```text
 data/
@@ -56,10 +59,9 @@ export CELLBRIDGE_CHECKPOINTS_ROOT="/path/to/checkpoints"
 export CELLBRIDGE_REPOS_ROOT="/path/to/external/model/repos"
 ```
 
-See [data preparation](REPRODUCIBILITY.MD#dataset-details)
-for required files, preprocessing commands, and setup.
+See [data preparation](REPRODUCIBILITY.MD#data-preparation) for required files, preprocessing commands, and setup.
 
-## Cross-modal alignment
+## Training
 
 Prepare the HEST artifacts and obtain UNI2-h access, then run:
 
@@ -67,9 +69,9 @@ Prepare the HEST artifacts and obtain UNI2-h access, then run:
 cellbridge-train --config "$CELLBRIDGE_ROOT/configs/train/lora/cellbridge.yaml"
 ```
 
-The paper config uses rank 8, alpha 16, batch size 16, symmetric InfoNCE with temperature 0.07.
+The paper config uses rank 8, alpha 16, batch size 16, and symmetric InfoNCE with temperature 0.07.
 
-## Cell-Ontology-Fallback
+## Evaluation
 
 Start with one dataset, for instance, NuCLS:
 
@@ -85,7 +87,8 @@ cellbridge-infer run --config "$CONFIG" --method cellbridge --arm lora_adapted -
 
 `run` extracts embeddings, evaluates linear and kNN probes, and runs conformal evaluation.
 
-Use `extract` to compute and save embeddings from images. Once saved, run `evaluate` or `conformal` for downstream analysis and conformal prediction, respectively.
+Use `extract` to compute and save embeddings from images.
+Once saved, run `evaluate` or `conformal` for downstream analysis and conformal prediction, respectively.
 
 ## 🎯 Reproducibility!
 
