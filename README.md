@@ -1,22 +1,20 @@
 # CellBridge
 
-This repository contains the full preprocessing, training, and evaluation pipeline for CellBridge from the preprint *Fine-Grained and Reliable Cell Classification from Pathology Images*.
+This repository contains the full preprocessing, training, and evaluation pipeline for CellBridge from the preprint <a href="TODO">Fine-Grained and Reliable Cell Classification from Pathology Images</a>.
 
 **CellBridge** is a multi-modal contrastive learning framework for fine-grained, reliable cell classification from H&E images, **pretrained on 16 million** paired H&E and Xenium spatial transcriptomic profiles.
 
 It leverages (1) **cross-modal alignment**, which uses parameter-efficient adaptation to align cell-centered image representations from a pathology foundation model with embeddings from a frozen single-cell spatial transcriptomics foundation model, transferring molecular information into morphological representations and (2) **Cell-Ontology-Fallback (COF)**, which uses conformal prediction calibrated within Cell Ontology branches to report the most specific cell type supported by the image, with per-lineage coverage guarantees.
 
-CellBridge uses **H&E images without gene expression at inference**, with cell locations supplied by the dataset.
-The evaluation workflow fits classifiers and calibrates COF using labeled training and validation cells before predicting on test cells.
+CellBridge requires **only H&E images at inference**, returning fine-grained labels when supported and broader ancestor categories when finer distinctions require molecular measurements.
 
 <p align="center">
-<img src="cellbridge.jpg" alt="CellBridge overview" width="800"/>
+<img src="cellbridge.jpg" alt="Gmain figure" width="800"/>
 </p>
 
 ## 🚀 Installation
 
-Use **Python 3.11** for the image encoder workflow.
-From the repository root:
+Use **Python 3.11** for the image encoder workflow. From the repository root:
 
 ```bash
 python3.11 -m venv .venv
@@ -26,17 +24,16 @@ python -m pip install '.[models,data]'
 python -m pip install -r requirements/encoders.txt
 ```
 
-This installs CellBridge and the image encoder dependencies.
-`check` and image embedding extraction download the [CellBridge adapter weights](https://huggingface.co/ogutsevda/cellbridge) automatically when they are not cached.
+This installs CellBridge and the image encoder dependencies. Inference downloads [adaptor weights](https://huggingface.co/ogutsevda/cellbridge) automatically.
 
-You also need access to the **UNI2-h backbone**; see [model access](REPRODUCIBILITY.MD#model-access).
+However, you also need access to the **UNI2-h backbone**, please see [model access](REPRODUCIBILITY.MD#models).
 
 For GPU setup, optional dependencies, or installation for CPU evaluation only, see [installation options](REPRODUCIBILITY.MD#installation-options).
 
 ## 📊 Datasets
 
-CellBridge uses HEST for training and held-out evaluation, and four external benchmarks: NuCLS, PanNuke, Lizard, and PhenoCell.
-Organize the prepared data as:
+CellBridge uses HEST for training and held-out evaluation, and four external
+benchmarks: NuCLS, PanNuke, Lizard, and PhenoCell. Organize the prepared data as:
 
 ```text
 data/
@@ -59,7 +56,8 @@ export CELLBRIDGE_CHECKPOINTS_ROOT="/path/to/checkpoints"
 export CELLBRIDGE_REPOS_ROOT="/path/to/external/model/repos"
 ```
 
-See [data preparation](REPRODUCIBILITY.MD#data-preparation) for required files, preprocessing commands, and setup.
+See [data preparation](REPRODUCIBILITY.MD#dataset-details)
+for required files, preprocessing commands, and setup.
 
 ## Cross-modal alignment
 
@@ -83,12 +81,11 @@ cellbridge-infer check --config "$CONFIG" --method cellbridge --arm lora_adapted
 cellbridge-infer run --config "$CONFIG" --method cellbridge --arm lora_adapted --output-dir "$RUN" --device cuda
 ```
 
-`check` validates the inputs and downloads the adapter if needed.
+`check` validates data/configuration and resolves the adapter and downloads it on first use.
 
 `run` extracts embeddings, evaluates linear and kNN probes, and runs conformal evaluation.
 
-Use `extract` to compute and save embeddings from images.
-Once saved, run `evaluate` or `conformal` for downstream analysis and conformal prediction, respectively.
+Use `extract` to compute and save embeddings from images. Once saved, run `evaluate` or `conformal` for downstream analysis and conformal prediction, respectively.
 
 ## 🎯 Reproducibility!
 
@@ -105,7 +102,6 @@ This runs evaluation for four OOD datasets (both PhenoCell tasks) and 14 HEST se
 Notebooks 05, 06, 07, and 08 reproduce classification, conformal, qualitative, and ablation analyses.
 
 Before opening the notebooks, install their dependencies with `python -m pip install '.[analysis]'` from the repository root.
-Notebooks 05 and 06 also require a system LaTeX installation with `latex` and `dvipng` for plotting.
 
 ## 📚 Citation
 
