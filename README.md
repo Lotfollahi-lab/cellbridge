@@ -31,9 +31,9 @@ python -m pip install -r requirements/encoders.txt
 This installs CellBridge and the image encoder dependencies.
 Inference downloads [adapter weights](https://huggingface.co/ogutsevda/cellbridge) automatically.
 
-However, you also need access to the **UNI2-h backbone**, please see [model access](REPRODUCIBILITY.MD#model-access).
+However, you also need access to the **UNI2-h backbone**, please see [model access](REPRODUCIBILITY.md#model-access).
 
-For GPU setup, optional dependencies, or installation for CPU evaluation only, see [installation options](REPRODUCIBILITY.MD#installation-options).
+For GPU setup, optional dependencies, or installation for CPU evaluation only, see [installation options](REPRODUCIBILITY.md#installation-options).
 
 ## 📊 Datasets
 
@@ -61,7 +61,7 @@ export CELLBRIDGE_CHECKPOINTS_ROOT="/path/to/checkpoints"
 export CELLBRIDGE_REPOS_ROOT="/path/to/external/model/repos"
 ```
 
-See [data preparation](REPRODUCIBILITY.MD#data-preparation) for required files, preprocessing commands, and setup.
+See [data preparation](REPRODUCIBILITY.md#data-preparation) for required files, preprocessing commands, and setup.
 
 ## Training
 
@@ -94,7 +94,7 @@ Once saved, run `evaluate` or `conformal` for downstream analysis and conformal 
 
 ## 🎯 Reproducibility!
 
-Follow the [reproducibility guide](REPRODUCIBILITY.MD) for installation options, model access, data preparation, experimental results, ablation studies, and notebooks for manuscript tables and figures.
+Follow the [reproducibility guide](REPRODUCIBILITY.md) for installation options, model access, data preparation, experimental results, ablation studies, and notebooks for manuscript tables and figures.
 
 ```bash
 bash scripts/reproduce.sh cellbridge check
