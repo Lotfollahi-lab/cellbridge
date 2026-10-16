@@ -11,7 +11,7 @@ It consists of the following sections:
 
 ## Installation options
 
- From the repository root, create an environment, with **Python 3.11**:
+From the repository root, create an environment with **Python 3.11**:
 
 ```bash
 python3.11 -m venv .venv
@@ -19,17 +19,19 @@ source .venv/bin/activate
 python -m pip install --upgrade pip
 ```
 
-For CPU evaluation of saved OOD embeddings and conformal prediction, the core package is sufficient.
-However, HEST samples additionally need `.[data]`.
+For CPU evaluation of saved OOD embeddings and conformal prediction, install the core package:
 
 ```bash
 python -m pip install .
+```
+
+For HEST evaluation, install the `data` extra instead:
+
+```bash
 python -m pip install '.[data]'
 ```
 
-For GPU use, install the matching PyTorch/torchvision build using the
-[official PyTorch installation selector](https://pytorch.org/get-started/locally/)
-**before** the commands below.
+For GPU use, install the matching PyTorch/torchvision build using the [official PyTorch installation selector](https://pytorch.org/get-started/locally/) **before** the commands below.
 Then install CellBridge and the pinned encoder requirements.
 
 ```bash
@@ -53,7 +55,7 @@ These packages require separate installation as described below.
 
 ## Model access
 
-After having installed the `models,data` extras and `requirements/encoders.txt` with Python 3.11, follow the below table regarding CellBridge and baselines models.
+The table below lists model requirements for CellBridge and baseline models.
 
 | Model | Access |
 |---|---|
@@ -71,7 +73,7 @@ After having installed the `models,data` extras and `requirements/encoders.txt` 
 
 ### Paths
 
-Set the followig path variables before running any commands.
+Set the following path variables before running any commands.
 
 | Variable | Meaning |
 |---|---|
@@ -103,7 +105,8 @@ data/
 
 ### HEST
 
-Use the human Xenium/Xenium 5k cohort of HEST-1k v1.3.0. The preprocessing config expects `HEST_ROOT` to contain `HEST_v1_3_0.csv`, `wsis/`, `transcripts/`, `xenium_seg/` and `cellvit_seg/`.
+Use the human Xenium/Xenium 5k cohort of HEST-1k v1.3.0.
+The preprocessing config expects `HEST_ROOT` to contain `HEST_v1_3_0.csv`, `wsis/`, `transcripts/`, `xenium_seg/` and `cellvit_seg/`.
 
 `manifest.csv` has one row per section:
 
@@ -118,16 +121,31 @@ Use the human Xenium/Xenium 5k cohort of HEST-1k v1.3.0. The preprocessing confi
 
 Each `<id>/` directory contains:
 
-- `<id>_terra.npz`: `cell_ids` (unique, length N), `cell_emb` (N × 384), `he_x`
-  and `he_y` (N, H&E level-0 pixels).
+- `<id>_terra.npz`: `cell_ids` (unique, length N), `cell_emb` (N × 384), `he_x` and `he_y` (N, H&E level-0 pixels).
 - `<id>_novae.npz`: Same as above but with NOVAE and 64 dimensions.
-- `<id>.h5ad`: Cell IDs in `obs_names`, native spatial coordinates in
-  `obsm['spatial']` (N × 2), gene counts in `X`, and H&E coordinates in `obs`.
-- `<id>_granular_cell_labels.csv`: `cell_id,group`. These are the fine-grained
-  reference labels used by evaluation.
+- `<id>.h5ad`: Cell IDs in `obs_names`, native spatial coordinates in `obsm['spatial']` (N × 2), gene counts in `X`, and H&E coordinates in `obs`.
+- `<id>_granular_cell_labels.csv`: `cell_id,group`.
+  These are the fine-grained reference labels used by evaluation.
+
+Fine-grained cell-type annotations come from these 10x Genomics datasets:
+
+- [Human breast biomarkers](https://www.10xgenomics.com/datasets/xenium-ffpe-human-breast-biomarkers)
+- [Human ovarian cancer](https://www.10xgenomics.com/datasets/xenium-prime-ffpe-human-ovarian-cancer)
+- [Human lymph node](https://www.10xgenomics.com/datasets/preview-data-xenium-prime-gene-expression)
+- [Human pancreatic cancer](https://www.10xgenomics.com/datasets/pancreatic-cancer-with-xenium-human-multi-tissue-and-cancer-panel-1-standard)
+
+Prepare each section's annotations in the `<id>_granular_cell_labels.csv` format above and preserve cell IDs.
 
 `hest80_strict_v1.csv` has unique `sample_id,split` rows (`distill_train`, `distill_val`, `label_test`).
 `hest_phenotype_split_v1.csv` lists the 15 annotated `sample_id` values.
+Both files are provided in [assets/](assets/).
+From the repository root, copy them into `$CELLBRIDGE_DATA_ROOT/train/hest/splits/`:
+
+```bash
+mkdir -p "$CELLBRIDGE_DATA_ROOT/train/hest/splits"
+cp assets/hest80_strict_v1.csv assets/hest_phenotype_split_v1.csv "$CELLBRIDGE_DATA_ROOT/train/hest/splits/"
+```
+
 Evaluation validates that the entire cohort is held out, then selects the 14 paper sections.
 
 After installing `.[preprocess]` and TERRA in its supported environment:
@@ -204,7 +222,7 @@ $CELLBRIDGE_OUTPUTS_ROOT/reproducibility/inference/
 ### Run the experiments
 
 After [data preparation](#data-preparation), set the [paths](#paths), and obtain [model access](#model-access).
-Keep the supplied ontology snapshot and mappings.
+Keep the supplied [ontology snapshot](configs/preprocess/cell_ontology/cl-2026-06-08.yaml) and [ontology mappings](configs/preprocess/cell_ontology/).
 Run these commands from the repository root:
 
 ```bash
@@ -227,10 +245,8 @@ cellbridge-granularity --config configs/analysis/granularity.yaml
 cellbridge-granularity-refit --config configs/analysis/granularity.yaml
 ```
 
-The first aggregates fine-label probabilities and the second refits classifiers at each
-label granularity.
-Both save `summary.csv` and `bootstrap_metrics.csv` under
-`$CELLBRIDGE_OUTPUTS_ROOT/reproducibility/analysis/nucls_granularity/{aggregated,refit}/`.
+The first aggregates fine-label probabilities and the second refits classifiers at each label granularity.
+Both save `summary.csv` and `bootstrap_metrics.csv` under `$CELLBRIDGE_OUTPUTS_ROOT/reproducibility/analysis/nucls_granularity/{aggregated,refit}/`.
 
 ### Paper tables and figures
 
@@ -252,7 +268,7 @@ Notebook 08 expects both the main TERRA run and the NOVAE run below.
 ### CovGap — Table 4
 
 The main conformal run already evaluates `split` (standard), `graph` (global graph), and `branch_graph` (COF).
-Rerun with the below:
+If conformal evaluation has not been run, then use:
 
 ```bash
 bash scripts/reproduce.sh cellbridge conformal
