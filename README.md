@@ -1,6 +1,6 @@
 # CellBridge
 
-This repository contains the full preprocessing, training, and evaluation pipeline for CellBridge from the preprint <a href="TODO">Fine-Grained and Reliable Cell Classification from Pathology Images</a>.
+This repository contains the full preprocessing, training, and evaluation pipeline for CellBridge from the preprint **Fine-Grained and Reliable Cell Classification from Pathology Images**.
 
 **CellBridge** is a multi-modal contrastive learning framework for fine-grained, reliable cell classification from H&E images, **pretrained on 16 million** paired H&E and Xenium spatial transcriptomic profiles.
 
@@ -13,7 +13,9 @@ CellBridge requires **only H&E images at inference**, returning fine-grained lab
 <img src="cellbridge.jpg" alt="CellBridge overview" width="800"/>
 </p>
 
-Start with the [tutorial notebook](notebooks/TUTORIAL.ipynb) for a end-to-end NuCLS example!
+- 📖 **Preprint:** coming soon!
+- 🤗 **Pretrained model:** <https://huggingface.co/ogutsevda/cellbridge>
+- 📓 **Tutorial:** [end-to-end walkthrough](notebooks/TUTORIAL.ipynb)
 
 ## 🚀 Installation
 
@@ -113,5 +115,5 @@ Before opening the notebooks, install their dependencies with `python -m pip ins
 If this repository is helpful to you, please consider citing the associated paper:
 
 ```bibtex
-TODO: Update after the arXiv submission.
+Coming soon!
 ```
