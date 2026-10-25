@@ -13,7 +13,7 @@ CellBridge requires **only H&E images at inference**, returning fine-grained lab
 <img src="cellbridge.jpg" alt="CellBridge overview" width="800"/>
 </p>
 
-- 📖 **Preprint:** coming soon!
+- 📖 **Preprint:** <https://www.biorxiv.org/content/10.64898/2026.10.20.760347v1>
 - 🤗 **Pretrained model:** <https://huggingface.co/ogutsevda/cellbridge>
 - 📓 **Tutorial:** [end-to-end walkthrough](notebooks/TUTORIAL.ipynb)
 
@@ -115,5 +115,10 @@ Before opening the notebooks, install their dependencies with `python -m pip ins
 If this repository is helpful to you, please consider citing the associated paper:
 
 ```bibtex
-Coming soon!
+@article {ogut2026,
+	author = {Ogut, Sevda and Merchant, Arpit and Vahidi, Amirhossein and Jeong, Dabin and Birk, Sebastian and Boxall, Adam and Miraki Feriz, Adib and Sallese, Marta Rosa and Chang, Yinshui and Frossard, Pascal and Thanou, Dorina and Lotfollahi, Mo},
+	title = {Fine-Grained and Reliable Cell Classification from Pathology Images},
+	year = {2026},
+	journal = {bioRxiv}
+}
 ```

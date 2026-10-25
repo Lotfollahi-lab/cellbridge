@@ -1,6 +1,6 @@
 # 🎯 Reproducibility Guide
 
-This guide walks you through how to replicate all the experimental results and ablation studies of the preprint [Fine-Grained and Reliable Cell Classification from Pathology Images](TODO).
+This guide walks you through how to replicate all the experimental results and ablation studies of the preprint [Fine-Grained and Reliable Cell Classification from Pathology Images](https://www.biorxiv.org/content/10.64898/2026.10.20.760347v1).
 It consists of the following sections:
 
 - [Installation options](#installation-options)
